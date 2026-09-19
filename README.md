@@ -79,6 +79,27 @@ O Flyway aplica as migrations no start e o JPA valida o schema
 
 Documentação da API (Swagger UI): `http://localhost:8080/swagger-ui.html`
 
+### Migrações de banco (Flyway)
+
+As migrações ficam em `src/main/resources/db/migration` e são aplicadas
+automaticamente no start da aplicação, antes do Hibernate validar o schema.
+
+**Convenção de nomenclatura:**
+
+```
+V<versão>__<descricao_em_snake_case>.sql
+```
+
+- Dois underscores separam a versão da descrição: `V2__cria_tabela_usuario.sql`.
+- A versão é um inteiro incremental, sem buracos e sem reuso.
+- Migração já aplicada **nunca** é editada: o Flyway guarda o checksum em
+  `flyway_schema_history` e a aplicação não sobe se ele divergir
+  (`validate-on-migrate: true`). Correção vira uma versão nova.
+- Scripts repetíveis (views, functions) usam o prefixo `R__` e rodam sempre que
+  o conteúdo muda.
+
+Para recomeçar de um banco vazio: `make db-reset`.
+
 ### Build e testes
 
 ```bash
