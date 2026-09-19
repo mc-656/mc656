@@ -1,0 +1,34 @@
+name: CI
+on:
+    push:
+        branches:
+            - main
+            - develop
+            - 'release/**'
+    pull_request:
+        branches:
+            - main
+            - develop
+            - 'release/**'
+permissions:
+    contents: read
+
+jobs:
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ${{ github.workflow }}-${{ github.ref }}
+            cancel-in-progress: true
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - uses: actions/setup-java@v6
+              name: Setup Java
+              with:
+                distribution: temurin
+                java-version: '21'
+                cache: maven
+            - name: Executar Maven
+              run: ./mvnw -B clean package -DskipTests
+        timeout-minutes: 15
