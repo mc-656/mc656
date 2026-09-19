@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class FlywayMigrationIT extends AbstractIntegrationTest {
+class FlywayMigrationTest extends AbstractIntegrationTest {
 
     @Autowired
     Flyway flyway;
