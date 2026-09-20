@@ -53,7 +53,7 @@ public class Usuario {
         this.nome = nome;
         this.cpf = cpf;
         this.email = email;
-        this.senha = senha; // ela é criptofrafada
+        this.senha = senha; // ela é criptografada
         this.papel = papel;
     }
 }
