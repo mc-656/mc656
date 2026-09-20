@@ -136,11 +136,6 @@
       <artifactId>testcontainers-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
 
   </dependencies>
 
@@ -207,29 +202,7 @@
           </pom>
         </configuration>
       </plugin>
-      <!-- JaCoCo Plugin para cobertura de testes-->
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.15</version>
-        <executions>
-          <!--Prepara o agente para os testes-->
-          <execution>
-            <id>prepare-agent</id>
-            <goals>
-              <goal>prepare-agent</goal>
-            </goals>
-          </execution>
-          <!-- Gera um relatório html após a execução-->
-          <execution>
-            <id>generate-report</id>
-            <goals>
-              <goal>report</goal>
-            </goals>
-            <phase>test</phase>
-          </execution>
-        </executions>
-      </plugin>
+
     </plugins>
   </build>
 
