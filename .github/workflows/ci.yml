@@ -32,6 +32,24 @@ jobs:
             - name: Executar Maven
               run: ./mvnw -B clean package -DskipTests
         timeout-minutes: 15
+    test:
+        name: Testes
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ${{ github.workflow }}-test-${{ github.ref }}
+            cancel-in-progress: true
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - uses: actions/setup-java@v6
+              name: Setup Java
+              with:
+                distribution: temurin
+                java-version: '21'
+                cache: maven
+            - name: Executar testes
+              run: ./mvnw -B test
+        timeout-minutes: 15
     lint:
         name: Lint
         runs-on: ubuntu-latest
