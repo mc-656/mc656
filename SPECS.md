@@ -153,7 +153,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 ### 7.2 Organização de pacotes (arquitetura em camadas padrão Spring Boot)
 
 ```
-com.mc656.votacao
+com.unicamp.engsoft.eleicao
 ├── config          # Spring Security, beans, configurações gerais
 ├── votacao
 │   ├── controller   # REST/MVC controllers
@@ -177,6 +177,8 @@ com.mc656.votacao
 ```
 
 Pacote por *feature* (votacao, usuario, eleicaopublica), camadas dentro de cada feature — evita pacotes gigantes tipo `controllers/`, `services/` compartilhados entre domínios não relacionados.
+
+Pacote base: `com.unicamp.engsoft.eleicao`, conforme o projeto inicializado no repositório.
 
 ### 7.3 Decisões arquiteturais chave
 
