@@ -136,6 +136,11 @@
       <artifactId>testcontainers-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
 
   </dependencies>
 
@@ -218,14 +223,13 @@
           <!-- Gera um relatório html após a execução-->
           <execution>
             <id>generate-report</id>
-            <phase>test</phase>
             <goals>
               <goal>report</goal>
             </goals>
+            <phase>test</phase>
           </execution>
         </executions>
       </plugin>
-
     </plugins>
   </build>
 
