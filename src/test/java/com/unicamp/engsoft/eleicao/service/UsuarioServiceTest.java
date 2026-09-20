@@ -39,7 +39,7 @@ class UsuarioServiceTest {
         when(usuarioRepository.existsByEmail(usuarioValido.getEmail())).thenReturn(false);
         when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioValido);
 
-        Usuario usuarioSalvo = usuarioService.cadastrar(usuarioValido);
+        Usuario usuarioSalvo = usuarioService.criarUsuario(usuarioValido);
 
         assertNotNull(usuarioSalvo);
         assertEquals("João Silva", usuarioSalvo.getNome());
@@ -54,7 +54,7 @@ class UsuarioServiceTest {
                 assertThrows(
                         RegraDeNegocioException.class,
                         () -> {
-                            usuarioService.cadastrar(usuarioValido);
+                            usuarioService.criarUsuario(usuarioValido);
                         });
 
         assertNotNull(exception);
@@ -70,7 +70,7 @@ class UsuarioServiceTest {
                 assertThrows(
                         RegraDeNegocioException.class,
                         () -> {
-                            usuarioService.cadastrar(usuarioValido);
+                            usuarioService.criarUsuario(usuarioValido);
                         });
 
         assertNotNull(exception);
@@ -84,7 +84,7 @@ class UsuarioServiceTest {
                 assertThrows(
                         RegraDeNegocioException.class,
                         () -> {
-                            usuarioService.cadastrar(usuarioValido);
+                            usuarioService.criarUsuario(usuarioValido);
                         });
 
         assertNotNull(exception);

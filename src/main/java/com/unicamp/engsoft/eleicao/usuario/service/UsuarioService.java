@@ -16,6 +16,9 @@ public class UsuarioService {
 
     @Transactional
     public Usuario criarUsuario(Usuario usuario) {
+        if (usuario.getNome() == null || usuario.getNome().isBlank()) {
+            throw new RegraDeNegocioException("Nome é obrigatório.");
+        }
         if (usuarioRepository.existsByCpf(usuario.getCpf())) {
             throw new RegraDeNegocioException("CPF já cadastrado");
         }
