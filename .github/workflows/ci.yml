@@ -51,7 +51,7 @@ jobs:
               run: ./mvnw -B spotless:check
         timeout-minutes: 10
     test:
-        name: Test & Coveraga
+        name: Test & Coverage
         runs-on: ubuntu-latest
         concurrency:
             group: ${{ github.workflow }}-test-${{ github.ref }}
