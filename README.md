@@ -4,7 +4,7 @@ Caio Maia Moreira Santos - 281749
 Miguel Pereira Ramos - 281335
 Lucas Gugel Maciel -260579
 Vinícius Maciel de Sousa - 281391
-Fernando Nagano Foscheira - 281183
+
 
 ## Descrição inicial do projeto:
 
