@@ -11,6 +11,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;    
@@ -25,7 +33,7 @@ class UsuarioServiceTest {
 
     private Usuario usuarioValido;
 
-    @BeforeEachx
+    @BeforeEach
     void setUp() {
         usuarioValido = new Usuario(
                 "João Silva",
@@ -41,6 +49,29 @@ class UsuarioServiceTest {
         when(usuarioRepository.existsByCpf(usuarioValido.getCpf())).thenReturn(false);
         when(usuarioRepository.existsByEmail(usuarioValido.getEmail())).thenReturn(false);
         when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioValido);
+    }
+    @Test
+    void deveLancarExceptionQuandoCpfJaEstiverCadastrado() {
+        when(usuarioRepository.existsByCpf(usuarioValido.getCpf())).thenReturn(true);
+
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, () -> {
+            usuarioService.cadastrar(usuarioValido);
+        });
+
+        assertNotNull(exception);
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+    }
+    @Test
+    void deveLancarExceptionQuandoEmailJaEstiverCadastrado() {
+        when(usuarioRepository.existsByCpf(usuarioValido.getCpf())).thenReturn(false);
+        when(usuarioRepository.existsByEmail(usuarioValido.getEmail())).thenReturn(true);
+
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, () -> {
+            usuarioService.cadastrar(usuarioValido);
+        });
+
+        assertNotNull(exception);
+        verify(usuarioRepository, never()).save(any(Usuario.class));
     }
 
 
