@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: db-up db-down db-logs db-reset db-psql
+.PHONY: db-up db-down db-logs db-reset db-psql fmt lint
 
 ## Sobe o Postgres em background
 db-up:
@@ -23,3 +23,11 @@ db-reset:
 ## Abre um psql no container
 db-psql:
 	docker compose exec postgres psql -U $(DB_USERNAME) -d $(DB_NAME)
+
+## Formata o código (altera arquivos)
+fmt:
+	./mvnw spotless:apply
+
+## Verifica formatação sem alterar
+lint:
+	./mvnw spotless:check
