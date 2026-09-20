@@ -73,6 +73,16 @@ class UsuarioServiceTest {
         assertNotNull(exception);
         verify(usuarioRepository, never()).save(any(Usuario.class));
     }
+    @Test
+    void deveLancarExceptionQuandoNomeForNulo() {
+        when(usuarioRepository.existsByCpf(usuarioValido.getCpf())).thenReturn(false);
+        when(usuarioRepository.existsByEmail(usuarioValido.getEmail())).thenReturn(false);
 
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, () -> {
+            usuarioService.cadastrar(usuarioValido);
+        });
 
+        assertNotNull(exception);
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+    }
 }
