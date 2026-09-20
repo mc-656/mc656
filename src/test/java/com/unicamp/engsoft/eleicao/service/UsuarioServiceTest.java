@@ -49,6 +49,12 @@ class UsuarioServiceTest {
         when(usuarioRepository.existsByCpf(usuarioValido.getCpf())).thenReturn(false);
         when(usuarioRepository.existsByEmail(usuarioValido.getEmail())).thenReturn(false);
         when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioValido);
+
+        Usuario usuarioSalvo = usuarioService.cadastrar(usuarioValido);
+
+        assertNotNull(usuarioSalvo);
+        assertEquals("João Silva", usuarioSalvo.getNome());
+        verify(usuarioRepository, times(1)).save(usuarioValido);
     }
     @Test
     void deveLancarExceptionQuandoCpfJaEstiverCadastrado() {
@@ -75,9 +81,7 @@ class UsuarioServiceTest {
     }
     @Test
     void deveLancarExceptionQuandoNomeForNulo() {
-        when(usuarioRepository.existsByCpf(usuarioValido.getCpf())).thenReturn(false);
-        when(usuarioRepository.existsByEmail(usuarioValido.getEmail())).thenReturn(false);
-
+        usuarioValido.setNome(null); 
         RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, () -> {
             usuarioService.cadastrar(usuarioValido);
         });
