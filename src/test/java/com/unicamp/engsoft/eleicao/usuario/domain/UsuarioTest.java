@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
+import com.unicamp.engsoft.eleicao.usuario.domain.Usuario ;
 
 class UsuarioTest {
 
@@ -28,20 +30,20 @@ class UsuarioTest {
     // Método para testar se o usuario criado é valido
     void deveCriarUsuarioValido() {
         Usuario usuario = new Usuario(
-                "lucasmaciel",
                 "Lucas Gugel Maciel",
+                "123.456.789-12",
                 "l260579@dac.unicamp.br",
                 "$2a$10$hashdaSenhaSegura123",
-                Set.of(PapelUsuario.ELEITOR)
+                PapelUsuario.ELEITOR
         );
 
         Set<ConstraintViolation<Usuario>> violations = validator.validate(usuario);
 
         assertTrue(violations.isEmpty(), "Não deve haver violações de validação");
-        assertEquals("lucasmaciel", usuario.getUsername());
         assertEquals("Lucas Gugel Maciel", usuario.getNome());
+        assertEquals("123.456.789-12", usuario.getCpf());
         assertEquals("l260579@dac.unicamp.br", usuario.getEmail());
-        assertTrue(usuario.getPapeis().contains(PapelUsuario.ELEITOR));
+        assertEquals(PapelUsuario.ELEITOR, usuario.getPapel());
     }
 
     @Test
@@ -49,11 +51,11 @@ class UsuarioTest {
     // Método para testar se a validação de email esta funcionando conforme esperado
     void deveFalharQuandoEmailForInvalido() {
         Usuario usuario = new Usuario(
-                "lucasmaciel",
                 "Lucas Gugel Maciel",
+                "123.456.789-12",
                 "email-invalido-sem-arroba",
                 "$2a$10$hashdaSenhaSegura123",
-                Set.of(PapelUsuario.ELEITOR)
+                PapelUsuario.ELEITOR
         );
 
         Set<ConstraintViolation<Usuario>> violations = validator.validate(usuario);
