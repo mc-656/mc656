@@ -13,19 +13,19 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UsuarioTest {
-    
-    //Declara e instancia objeto de validação
-    private Validator Validation
+
+    // Declara e instancia objeto de validação
+    private Validator validator;
 
     @BeforeEach
     void setUp() {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
+    }
 
     @Test
     @DisplayName("Deve criar um usuário válido quando todos os dados forem informados corretamente")
-
-    //Método para testar se o usuario criado é valido
+    // Método para testar se o usuario criado é valido
     void deveCriarUsuarioValido() {
         Usuario usuario = new Usuario(
                 "lucasmaciel",
@@ -46,8 +46,7 @@ class UsuarioTest {
 
     @Test
     @DisplayName("Deve falhar a validação quando o email for inválido")
-
-    //Método para testar se a validação de email esta funcionando conforme esperado
+    // Método para testar se a validação de email esta funcionando conforme esperado
     void deveFalharQuandoEmailForInvalido() {
         Usuario usuario = new Usuario(
                 "lucasmaciel",
@@ -62,5 +61,4 @@ class UsuarioTest {
         assertFalse(violations.isEmpty(), "Deve conter violação devido ao email inválido");
         assertTrue(violations.stream().anyMatch(v -> v.getMessage().contains("O email deve ser válido")));
     }
-}
 }
