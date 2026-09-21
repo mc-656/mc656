@@ -10,7 +10,6 @@ import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import java.time.Instant;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,17 +26,18 @@ class DomainPersistenceTest extends AbstractIntegrationTest {
         Usuario usuario =
                 usuarioRepository.save(
                         new Usuario(
-                                "caiomaia",
                                 "Caio",
+                                "12345678909", 
                                 "caio@example.com",
                                 "hash-da-senha",
-                                Set.of(PapelUsuario.ELEITOR)));
+                                PapelUsuario.ELEITOR));
 
         Usuario recuperado = usuarioRepository.findById(usuario.getId()).orElseThrow();
 
-        assertThat(recuperado.getUsername()).isEqualTo("caio");
+        assertThat(recuperado.getNome()).isEqualTo("Caio");
+        assertThat(recuperado.getCpf()).isEqualTo("12345678909");
         assertThat(recuperado.getEmail()).isEqualTo("caio@example.com");
-        assertThat(recuperado.getPapeis()).containsExactly(PapelUsuario.ELEITOR);
+        assertThat(recuperado.getPapel()).isEqualTo(PapelUsuario.ELEITOR);
     }
 
     @Test

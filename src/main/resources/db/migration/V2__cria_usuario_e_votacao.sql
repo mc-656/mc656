@@ -1,4 +1,4 @@
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
     id UUID PRIMARY KEY,
     username VARCHAR(100) NOT NULL,
     nome VARCHAR(150) NOT NULL,
@@ -8,7 +8,7 @@ CREATE TABLE usuarios (
     CONSTRAINT uk_usuarios_email UNIQUE (email)
 );
 
-CREATE TABLE usuario_papeis (
+CREATE TABLE IF NOT EXISTS usuario_papeis (
     usuario_id UUID NOT NULL,
     papel VARCHAR(30) NOT NULL,
     PRIMARY KEY (usuario_id, papel),
@@ -16,7 +16,7 @@ CREATE TABLE usuario_papeis (
         FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
 );
 
-CREATE TABLE votacoes (
+CREATE TABLE IF NOT EXISTS votacoes (
     id UUID PRIMARY KEY,
     tipo VARCHAR(30) NOT NULL,
     inicio_em TIMESTAMPTZ NOT NULL,
