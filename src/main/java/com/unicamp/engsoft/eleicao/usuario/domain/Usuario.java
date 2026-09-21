@@ -1,89 +1,61 @@
 package com.unicamp.engsoft.eleicao.usuario.domain;
 
-import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
-import java.util.HashSet;
-import java.util.Set;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.validator.constraints.br.CPF;
 
 @Entity
-@Table(
-        name = "usuarios",
-        uniqueConstraints = {
-            @UniqueConstraint(name = "uk_usuarios_username", columnNames = "username"),
-            @UniqueConstraint(name = "uk_usuarios_email", columnNames = "email")
-        })
+@Table(name = "usuarios")
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Usuario {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, length = 100)
-    private String username;
-
-    @Column(nullable = false, length = 150)
+    @NotBlank(message = "O nome é obrigatório")
+    @Column(nullable = false)
     private String nome;
 
-    @Column(nullable = false, length = 320)
+    @NotBlank(message = "O CPF é obrigatório")
+    @CPF(message = "O CPF deve ser válido")
+    @Column(nullable = false, unique = true, length = 11)
+    private String cpf;
+
+    @NotBlank(message = "O email é obrigatório")
+    @Column(nullable = false, unique = true)
+    @Email(message = "O email deve ser válido")
     private String email;
 
-    @Column(name = "senha_hash", nullable = false, length = 255)
-    private String senhaHash;
+    @NotBlank(message = "A senha é obrigatória")
+    @Column(nullable = false)
+    private String senha;
 
-    @ElementCollection
-    @CollectionTable(name = "usuario_papeis", joinColumns = @JoinColumn(name = "usuario_id"))
-    @Column(name = "papel", nullable = false, length = 30)
+    @NotNull(message = "O papel do usuário é obrigatório")
     @Enumerated(EnumType.STRING)
-    private Set<PapelUsuario> papeis = new HashSet<>();
+    @Column(nullable = false)
+    private PapelUsuario papel;
 
-    protected Usuario() {}
-
-    public Usuario(
-            String username,
-            String nome,
-            String email,
-            String senhaHash,
-            Set<PapelUsuario> papeis) {
-        this.username = username;
+    public Usuario(String nome, String cpf, String email, String senha, PapelUsuario papel) {
         this.nome = nome;
+        this.cpf = cpf;
         this.email = email;
-        this.senhaHash = senhaHash;
-        this.papeis = new HashSet<>(papeis);
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getSenhaHash() {
-        return senhaHash;
-    }
-
-    public Set<PapelUsuario> getPapeis() {
-        return papeis;
+        this.senha = senha; // ela é criptografada
+        this.papel = papel;
     }
 }

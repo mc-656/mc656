@@ -45,7 +45,8 @@ class DomainPersistenceTest extends AbstractIntegrationTest {
         Instant inicio = Instant.parse("2026-10-01T12:00:00Z");
         Instant fim = Instant.parse("2026-10-02T12:00:00Z");
 
-        Votacao votacao = votacaoRepository.save(new Votacao(TipoVotacao.ELEICAO_PRIVADA, inicio, fim));
+        Votacao votacao =
+                votacaoRepository.save(new Votacao(TipoVotacao.ELEICAO_PRIVADA, inicio, fim));
 
         Votacao recuperada = votacaoRepository.findById(votacao.getId()).orElseThrow();
 

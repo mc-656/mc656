@@ -32,24 +32,6 @@ jobs:
             - name: Executar Maven
               run: ./mvnw -B clean package -DskipTests
         timeout-minutes: 15
-    test:
-        name: Testes
-        runs-on: ubuntu-latest
-        concurrency:
-            group: ${{ github.workflow }}-test-${{ github.ref }}
-            cancel-in-progress: true
-        steps:
-            - uses: actions/checkout@v7
-              name: Checkout
-            - uses: actions/setup-java@v6
-              name: Setup Java
-              with:
-                distribution: temurin
-                java-version: '21'
-                cache: maven
-            - name: Executar testes
-              run: ./mvnw -B test
-        timeout-minutes: 15
     lint:
         name: Lint
         runs-on: ubuntu-latest
@@ -68,3 +50,42 @@ jobs:
             - name: Verificar formatação
               run: ./mvnw -B spotless:check
         timeout-minutes: 10
+    test:
+        name: Test & Coverage
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ${{ github.workflow }}-test-${{ github.ref }}
+            cancel-in-progress: true
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - uses: actions/setup-java@v6
+              name: Setup Java
+              with:
+                distribution: temurin
+                java-version: '21'
+                cache: maven
+            - name: Tornar mvnw executável
+              run: chmod +x mvnw
+            - name: Executar Testes com Cobertura
+              run: ./mvnw -B clean test
+            - name: Exibir resumo da cobertura no log
+              if: always()
+              run: |
+                echo "=== Resumo dos Relatórios de Cobertura ==="
+                if [ -d "target/site/jacoco" ]; then
+                  ls -lh target/site/jacoco/
+                  echo "Relatórios gerados com sucesso."
+                else
+                  echo "Diretório de cobertura não encontrado. Verifique se os testes rodaram."
+                fi
+                echo "### 📊 Cobertura de Testes (JaCoCo)" >> $GITHUB_STEP_SUMMARY
+                echo "O relatório completo em HTML está disponível para download na seção de **Artifacts** desta execução." >> $GITHUB_STEP_SUMMARY
+            - name: Publicar relatório como Artifact
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                name: jacoco-coverage-report
+                path: target/site/jacoco/
+                retention-days: 14
+        timeout-minutes: 15
