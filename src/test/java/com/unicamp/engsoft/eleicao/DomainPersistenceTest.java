@@ -27,7 +27,7 @@ class DomainPersistenceTest extends AbstractIntegrationTest {
                 usuarioRepository.save(
                         new Usuario(
                                 "Caio",
-                                "12345678909", 
+                                "12345678909",
                                 "caio@example.com",
                                 "hash-da-senha",
                                 PapelUsuario.ELEITOR));
