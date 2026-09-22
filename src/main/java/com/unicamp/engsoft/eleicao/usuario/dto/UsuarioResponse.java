@@ -3,7 +3,6 @@ package com.unicamp.engsoft.eleicao.usuario.dto;
 import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import java.time.Instant;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -13,14 +12,14 @@ import java.util.UUID;
  * necessário em nenhuma tela que consome esta resposta.
  */
 public record UsuarioResponse(
-        UUID id, String nome, String email, Set<PapelUsuario> papeis, Instant criadoEm) {
+        UUID id, String nome, String email, PapelUsuario papel, Instant criadoEm) {
 
     public static UsuarioResponse de(Usuario usuario) {
         return new UsuarioResponse(
                 usuario.getId(),
                 usuario.getNome(),
                 usuario.getEmail(),
-                usuario.getPapeis(),
+                usuario.getPapel(),
                 usuario.getCriadoEm());
     }
 }
