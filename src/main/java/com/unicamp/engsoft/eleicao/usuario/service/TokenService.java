@@ -1,9 +1,9 @@
 package com.unicamp.engsoft.eleicao.usuario.service;
 
+import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -31,16 +31,18 @@ public class TokenService {
     public String gerar(UsuarioAutenticado usuario) {
         Instant agora = Instant.now();
 
-        List<String> papeis = usuario.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+        List<String> papeis =
+                usuario.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer(emitter)
-                .issuedAt(agora)
-                .expiresAt(agora.plus(expiresIn))
-                .subject(usuario.getId().toString())
-                .claim("email", usuario.getUsername())
-                .claim("papeis", papeis)
-                .build();
+        JwtClaimsSet claims =
+                JwtClaimsSet.builder()
+                        .issuer(emitter)
+                        .issuedAt(agora)
+                        .expiresAt(agora.plus(expiresIn))
+                        .subject(usuario.getId().toString())
+                        .claim("email", usuario.getUsername())
+                        .claim("papeis", papeis)
+                        .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

@@ -1,4 +1,4 @@
-package com.unicamp.engsoft.eleicao.usuario.service;
+package com.unicamp.engsoft.eleicao.shared.security;
 
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import java.util.Collection;
