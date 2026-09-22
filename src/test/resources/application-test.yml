@@ -1,0 +1,8 @@
+# Sobrepõe apenas o necessário para os testes; o restante vem do application.yml principal.
+# Profile separado de propósito: um application.yml aqui sombrearia o de produção inteiro,
+# levando junto flyway e jpa.
+jwt:
+  # Segredo fixo e público: vale só para teste. O de produção vem de HMAC, no .env.
+  secret: segredo-de-teste-apenas-com-tamanho-suficiente-para-hs256
+  emitter: eleicao-api
+  expiresIn: 120m
