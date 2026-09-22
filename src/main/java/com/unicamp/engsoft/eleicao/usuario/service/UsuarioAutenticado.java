@@ -31,12 +31,7 @@ public final class UsuarioAutenticado implements UserDetails {
 
     public static UsuarioAutenticado de(Usuario usuario) {
         List<GrantedAuthority> autoridades =
-                usuario.getPapeis().stream()
-                        .map(
-                                papel ->
-                                        (GrantedAuthority)
-                                                new SimpleGrantedAuthority("ROLE_" + papel.name()))
-                        .toList();
+                List.of(new SimpleGrantedAuthority("ROLE_" + usuario.getPapel().name()));
         return new UsuarioAutenticado(
                 usuario.getId(), usuario.getEmail(), usuario.getSenhaHash(), autoridades);
     }
