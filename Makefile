@@ -31,3 +31,7 @@ fmt:
 ## Verifica formatação sem alterar
 lint:
 	./mvnw spotless:check
+
+## Roda os testes
+test:
+	./mvnw test
