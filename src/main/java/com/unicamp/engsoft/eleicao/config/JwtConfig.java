@@ -12,6 +12,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 
 @Configuration
 public class JwtConfig {
@@ -37,5 +39,24 @@ public class JwtConfig {
 
         decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(emitter));
         return decoder;
+    }
+
+    /**
+     * Traduz as claims do token validado em um {@code Authentication}.
+     *
+     * <p>Sem isto o Spring procuraria a claim {@code scope} e prefixaria cada valor com {@code
+     * SCOPE_}; como {@code TokenService} escreve os papéis em {@code papeis} já no formato {@code
+     * ROLE_*} (vindos de {@code UsuarioAutenticado}), basta apontar o nome da claim e zerar o
+     * prefixo — assim {@code hasRole("ELEITOR")} funciona.
+     */
+    @Bean
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter autoridades = new JwtGrantedAuthoritiesConverter();
+        autoridades.setAuthoritiesClaimName("papeis");
+        autoridades.setAuthorityPrefix("");
+
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(autoridades);
+        return converter;
     }
 }
