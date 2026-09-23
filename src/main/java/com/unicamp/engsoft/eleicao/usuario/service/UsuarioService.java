@@ -1,5 +1,6 @@
 package com.unicamp.engsoft.eleicao.usuario.service;
 
+import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.dto.CadastroUsuarioRequest;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
@@ -19,8 +20,18 @@ public class UsuarioService {
 
     @Transactional
     public Usuario criarUsuario(CadastroUsuarioRequest usuarioDto) {
-        Usuario usuario = usuarioDto.paraUsuario(passwordEncoder.encode(usuarioDto.senha()));
+        if (usuarioRepository.existsByEmail(usuarioDto.email()))
+            throw new RegraDeNegocioException("Já existe um usuário com esse email.");
+        // Em uma aplicação real,
+        // poderíamos ter problemas porque
+        // isso vaza a existência de um
+        // email registrado. Mas nesse
+        // escopo, vamos manter assim.
 
-        return usuarioRepository.save(usuario);
+        if (usuarioRepository.existsByCpf(usuarioDto.cpf()))
+            throw new RegraDeNegocioException("Já existe um usuário com esse CPF.");
+
+        return usuarioRepository.save(
+                usuarioDto.paraUsuario(passwordEncoder.encode(usuarioDto.senha())));
     }
 }
