@@ -108,9 +108,11 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     @DisplayName("Payload inválido é barrado pela validação com 400")
     void recusaPayloadInvalido() throws Exception {
         cadastrar(corpoCadastro(CPF, "nao-e-email")).andExpect(status().isBadRequest());
-        cadastrar("""
+        cadastrar(
+                        """
                 {"nome": "", "cpf": "%s", "email": "%s", "senha": "curta"}
-                """.formatted(CPF, EMAIL))
+                """
+                                .formatted(CPF, EMAIL))
                 .andExpect(status().isBadRequest());
     }
 

@@ -21,10 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/**
- * Regras do cadastro (RF-01), sem banco.
- *
- */
+/** Regras do cadastro (RF-01), sem banco. */
 @ExtendWith(MockitoExtension.class)
 class UsuarioServiceTest {
 
@@ -45,7 +42,8 @@ class UsuarioServiceTest {
     @DisplayName("Cadastra quando não há CPF nem e-mail repetido")
     void cadastraQuandoNaoHaDuplicidade() {
         when(passwordEncoder.encode(SENHA)).thenReturn(HASH);
-        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(chamada -> chamada.getArgument(0));
+        when(usuarioRepository.save(any(Usuario.class)))
+                .thenAnswer(chamada -> chamada.getArgument(0));
 
         Usuario salvo = usuarioService.criarUsuario(requisicao());
 
@@ -61,7 +59,8 @@ class UsuarioServiceTest {
     @DisplayName("Todo cadastro nasce como ELEITOR")
     void cadastraSempreComoEleitor() {
         when(passwordEncoder.encode(SENHA)).thenReturn(HASH);
-        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(chamada -> chamada.getArgument(0));
+        when(usuarioRepository.save(any(Usuario.class)))
+                .thenAnswer(chamada -> chamada.getArgument(0));
 
         assertThat(usuarioService.criarUsuario(requisicao()).getPapel())
                 .isEqualTo(PapelUsuario.ELEITOR);
@@ -71,7 +70,8 @@ class UsuarioServiceTest {
     @DisplayName("A senha chega ao repositório já hasheada, nunca em texto plano")
     void nuncaPersisteSenhaEmTextoPlano() {
         when(passwordEncoder.encode(SENHA)).thenReturn(HASH);
-        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(chamada -> chamada.getArgument(0));
+        when(usuarioRepository.save(any(Usuario.class)))
+                .thenAnswer(chamada -> chamada.getArgument(0));
 
         usuarioService.criarUsuario(requisicao());
 
