@@ -15,5 +15,7 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: true
 
-
- 
+jwt:
+  secret: ${HMAC}
+  emitter: eleicao-api
+  expiresIn: 120m

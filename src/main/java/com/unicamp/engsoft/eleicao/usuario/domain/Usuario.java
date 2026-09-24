@@ -11,11 +11,16 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.br.CPF;
 
 @Entity
@@ -42,20 +47,35 @@ public class Usuario {
     @Email(message = "O email deve ser válido")
     private String email;
 
+    /** Apenas o hash BCrypt da senha. Senha em texto plano nunca chega até aqui. */
     @NotBlank(message = "A senha é obrigatória")
-    @Column(nullable = false)
-    private String senha;
+    @Column(name = "senha_hash", nullable = false)
+    private String senhaHash;
 
-    @NotNull(message = "O papel do usuário é obrigatório")
+    @NotNull(message = "O papel é obrigatório")
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "papel", nullable = false, columnDefinition = "papel_usuario")
     private PapelUsuario papel;
 
-    public Usuario(String nome, String cpf, String email, String senha, PapelUsuario papel) {
+    /** Preenchidos pelo Hibernate: o DEFAULT do banco só cobriria o INSERT. */
+    @CreationTimestamp
+    @Column(name = "criado_em", nullable = false, updatable = false)
+    private Instant criadoEm;
+
+    @UpdateTimestamp
+    @Column(name = "modificado_em", nullable = false)
+    private Instant modificadoEm;
+
+    public Usuario(String nome, String cpf, String email, String senhaHash, PapelUsuario papel) {
         this.nome = nome;
         this.cpf = cpf;
         this.email = email;
-        this.senha = senha; // ela é criptografada
+        this.senhaHash = senhaHash;
         this.papel = papel;
+    }
+
+    public boolean temPapel(PapelUsuario papel) {
+        return this.papel == papel;
     }
 }
