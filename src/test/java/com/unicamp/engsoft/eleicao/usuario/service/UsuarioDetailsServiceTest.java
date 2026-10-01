@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
 import java.util.Optional;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
@@ -27,24 +25,20 @@ class UsuarioDetailsServiceTest {
 
     @InjectMocks UsuarioDetailsService usuarioDetailsService;
 
-    private static Usuario usuario(PapelUsuario papel) {
-        Usuario usuario =
-                new Usuario("Caio", "12345678909", "caio@example.com", "$2a$10$hash", papel);
+    private static Usuario usuario() {
+        Usuario usuario = new Usuario("Caio", "12345678909", "caio@example.com", "$2a$10$hash");
         usuario.setId(UUID.randomUUID());
         return usuario;
     }
 
     @Test
-    @DisplayName("Converte o papel do domínio em autoridade prefixada com ROLE_")
-    void converteOPapelEmAutoridade() {
-        when(usuarioRepository.findByEmail("caio@example.com"))
-                .thenReturn(Optional.of(usuario(PapelUsuario.ADMIN_VOTACAO)));
+    @DisplayName("Carrega o usuário sem autoridades globais: papel só existe por votação")
+    void carregaUsuarioSemAutoridades() {
+        when(usuarioRepository.findByEmail("caio@example.com")).thenReturn(Optional.of(usuario()));
 
         UserDetails detalhes = usuarioDetailsService.loadUserByUsername("caio@example.com");
 
-        assertThat(detalhes.getAuthorities())
-                .extracting(GrantedAuthority::getAuthority)
-                .containsExactly("ROLE_ADMIN_VOTACAO");
+        assertThat(detalhes.getAuthorities()).isEmpty();
         assertThat(detalhes.getUsername()).isEqualTo("caio@example.com");
         assertThat(detalhes.getPassword()).isEqualTo("$2a$10$hash");
     }

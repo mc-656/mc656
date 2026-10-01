@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
-import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,12 +44,7 @@ class AutenticacaoControllerTest extends AbstractIntegrationTest {
     void semeiaUsuario() {
         usuario =
                 usuarioRepository.save(
-                        new Usuario(
-                                "Caio",
-                                "12345678909",
-                                EMAIL,
-                                passwordEncoder.encode(SENHA),
-                                PapelUsuario.ELEITOR));
+                        new Usuario("Caio", "12345678909", EMAIL, passwordEncoder.encode(SENHA)));
     }
 
     private static String corpoLogin(String email, String senha) {
@@ -77,7 +71,7 @@ class AutenticacaoControllerTest extends AbstractIntegrationTest {
         Jwt token = jwtDecoder.decode(JsonPath.read(corpo, "$.token"));
 
         assertThat(token.getSubject()).isEqualTo(usuario.getId().toString());
-        assertThat(token.getClaimAsStringList("papeis")).containsExactly("ROLE_ELEITOR");
+        assertThat(token.hasClaim("papeis")).isFalse();
     }
 
     @Test

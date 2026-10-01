@@ -4,11 +4,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -20,16 +20,13 @@ import org.springframework.security.web.SecurityFilterChain;
  * Authorization}: não há credencial que o navegador anexe sozinho. Se um dia o token for para um
  * cookie, o CSRF precisa voltar junto.
  *
- * <p>TODO(M1): autorização por papel nos endpoints de votação, com {@code hasRole}.
+ * <p>O token não carrega papéis: eles valem por votação (RF-03) e são checados contra {@code
+ * papeis_votacao} em cada operação.
+ *
+ * <p>TODO(M1): autorização por votação nos endpoints de votação.
  */
 @Configuration
 public class SecurityConfig {
-
-    private final JwtAuthenticationConverter conversor;
-
-    SecurityConfig(JwtAuthenticationConverter jwtAuthenticationConverter) {
-        this.conversor = jwtAuthenticationConverter;
-    }
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -47,8 +44,7 @@ public class SecurityConfig {
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
-                .oauth2ResourceServer(
-                        oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)))
+                .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
                 .build();

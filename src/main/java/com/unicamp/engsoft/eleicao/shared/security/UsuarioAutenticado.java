@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 /**
@@ -13,6 +12,9 @@ import org.springframework.security.core.userdetails.UserDetails;
  *
  * <p>Carrega o {@code id} além do e-mail porque é ele que vai no {@code sub} do JWT: o e-mail pode
  * mudar, o identificador não. Também evita uma segunda consulta ao banco na emissão do token.
+ *
+ * <p>Não há autoridades: papéis valem por votação (RF-03) e são checados contra o banco a cada
+ * operação, não carregados no login.
  */
 public final class UsuarioAutenticado implements UserDetails {
 
@@ -30,10 +32,8 @@ public final class UsuarioAutenticado implements UserDetails {
     }
 
     public static UsuarioAutenticado de(Usuario usuario) {
-        List<GrantedAuthority> autoridades =
-                List.of(new SimpleGrantedAuthority("ROLE_" + usuario.getPapel().name()));
         return new UsuarioAutenticado(
-                usuario.getId(), usuario.getEmail(), usuario.getSenhaHash(), autoridades);
+                usuario.getId(), usuario.getEmail(), usuario.getSenhaHash(), List.of());
     }
 
     public UUID getId() {

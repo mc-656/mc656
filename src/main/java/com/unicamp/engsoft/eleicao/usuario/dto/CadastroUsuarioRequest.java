@@ -1,6 +1,5 @@
 package com.unicamp.engsoft.eleicao.usuario.dto;
 
-import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -27,6 +26,6 @@ public record CadastroUsuarioRequest(
                 String senha) {
 
     public Usuario paraUsuario(String senhaHash) {
-        return new Usuario(nome, cpf, email, senhaHash, PapelUsuario.ELEITOR);
+        return new Usuario(nome, cpf, email, senhaHash);
     }
 }
