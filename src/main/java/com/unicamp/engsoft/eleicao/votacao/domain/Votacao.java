@@ -1,5 +1,8 @@
 package com.unicamp.engsoft.eleicao.votacao.domain;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,8 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "votacoes")
@@ -33,12 +34,20 @@ public class Votacao {
     @Column(nullable = false, length = 30)
     private EstadoVotacao estado = EstadoVotacao.RascunhoVotacao;
 
+    @Column(name = "nome", nullable = false, length = 50)
+    private String nome;
+
+    @Column(name = "descrição", nullable = false, length = 100)
+    private String descricao;
+
     protected Votacao() {}
 
-    public Votacao(TipoVotacao tipo, Instant inicioEm, Instant fimEm) {
+    public Votacao(TipoVotacao tipo, Instant inicioEm, Instant fimEm, String nome, String descricao) {
         this.tipo = tipo;
         this.inicioEm = inicioEm;
         this.fimEm = fimEm;
+        this.descricao = descricao;
+        this.nome = nome;
     }
 
     public UUID getId() {
@@ -60,4 +69,14 @@ public class Votacao {
     public EstadoVotacao getEstado() {
         return estado;
     }
+
+    public String getNome(){
+        return nome;
+    }
+
+    public String getDescricao(){
+        return descricao;
+    }
+
+
 }
