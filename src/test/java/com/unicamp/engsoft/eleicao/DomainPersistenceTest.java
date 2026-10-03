@@ -2,7 +2,6 @@ package com.unicamp.engsoft.eleicao;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
@@ -25,19 +24,13 @@ class DomainPersistenceTest extends AbstractIntegrationTest {
     void salvaERecuperaUsuario() {
         Usuario usuario =
                 usuarioRepository.save(
-                        new Usuario(
-                                "Caio",
-                                "12345678909",
-                                "caio@example.com",
-                                "hash-da-senha",
-                                PapelUsuario.ELEITOR));
+                        new Usuario("Caio", "12345678909", "caio@example.com", "hash-da-senha"));
 
         Usuario recuperado = usuarioRepository.findById(usuario.getId()).orElseThrow();
 
         assertThat(recuperado.getNome()).isEqualTo("Caio");
         assertThat(recuperado.getCpf()).isEqualTo("12345678909");
         assertThat(recuperado.getEmail()).isEqualTo("caio@example.com");
-        assertThat(recuperado.getPapel()).isEqualTo(PapelUsuario.ELEITOR);
     }
 
     @Test
