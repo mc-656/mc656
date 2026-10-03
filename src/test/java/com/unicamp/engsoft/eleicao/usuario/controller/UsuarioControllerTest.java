@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
-import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -74,23 +73,27 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Guarda o escalonamento de privilégio: se alguém trocar o DTO de entrada pela entidade, este
-     * POST passa a criar um administrador de votação e o teste quebra.
+     * Guarda o mass assignment: papel só existe por votação (RF-03) e o id é do servidor. Se alguém
+     * trocar o DTO de entrada pela entidade, o cliente passa a escolher o próprio id e o teste
+     * quebra.
      */
     @Test
-    @DisplayName("Papel enviado no JSON é ignorado; todo cadastro sai ELEITOR")
-    void ignoraPapelEnviadoPeloCliente() throws Exception {
+    @DisplayName("Papel e id enviados no JSON são ignorados")
+    void ignoraPapelEIdEnviadosPeloCliente() throws Exception {
+        String idForjado = "00000000-0000-0000-0000-000000000001";
         String corpo =
                 """
                 {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s",
-                 "papel": "ADMIN_VOTACAO", "id": "00000000-0000-0000-0000-000000000001"}
+                 "papel": "ADMIN_VOTACAO", "id": "%s"}
                 """
-                        .formatted(CPF, EMAIL, SENHA);
+                        .formatted(CPF, EMAIL, SENHA, idForjado);
 
-        cadastrar(corpo).andExpect(jsonPath("$.papel").value("ELEITOR"));
+        cadastrar(corpo)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.papel").doesNotExist());
 
         Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
-        assertThat(salvo.getPapel()).isEqualTo(PapelUsuario.ELEITOR);
+        assertThat(salvo.getId().toString()).isNotEqualTo(idForjado);
     }
 
     @Test
@@ -119,9 +122,7 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("E-mail já cadastrado responde 409, e não 500")
     void recusaEmailDuplicado() throws Exception {
-        usuarioRepository.save(
-                new Usuario(
-                        "Caio", CPF, EMAIL, passwordEncoder.encode(SENHA), PapelUsuario.ELEITOR));
+        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA)));
 
         cadastrar(corpoCadastro(OUTRO_CPF, EMAIL)).andExpect(status().isConflict());
     }
@@ -129,9 +130,7 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("CPF já cadastrado responde 409, e não 500")
     void recusaCpfDuplicado() throws Exception {
-        usuarioRepository.save(
-                new Usuario(
-                        "Caio", CPF, EMAIL, passwordEncoder.encode(SENHA), PapelUsuario.ELEITOR));
+        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA)));
 
         cadastrar(corpoCadastro(CPF, "outro@example.com")).andExpect(status().isConflict());
     }
@@ -163,6 +162,6 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
 
         Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
         assertThat(token.getSubject()).isEqualTo(salvo.getId().toString());
-        assertThat(token.getClaimAsStringList("papeis")).containsExactly("ROLE_ELEITOR");
+        assertThat(token.hasClaim("papeis")).isFalse();
     }
 }

@@ -50,7 +50,8 @@ Casos de uso centrais compartilhados entre perfis: `Validar Elegibilidade e Logi
 
 ### 4.1 Entidades principais
 
-- **Usuario** — identidade, credenciais, papéis (`ADMIN_VOTACAO`, `ELEITOR`).
+- **Usuario** — identidade e credenciais. Não tem papel global: todo cadastro é um usuário comum.
+- **PapelVotacao** — papel (`ADMIN_VOTACAO`, `ELEITOR`) de um `Usuario` em uma `Votacao` específica. O mesmo usuário pode ser administrador de uma votação, eleitor de outra e ambos na mesma.
 - **Votacao** — agregado raiz de uma eleição privada ou orçamento participativo. Contém tipo (`ELEICAO_PRIVADA` | `ORCAMENTO_PARTICIPATIVO`), regras, datas de início/fim, estado.
 - **RegraVotacao** — value object: tipo de maioria (simples/qualificada), segundo turno (sim/não), pesos por eleitor, quórum mínimo, orçamento total (quando aplicável).
 - **CandidatoOuChapa** — opção votável em eleição privada.
@@ -100,7 +101,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 ### 5.1 Conta e Acesso
 - **RF-01** Cadastro e autenticação de usuário.
 - **RF-02** Validação de elegibilidade de um usuário para uma `Votacao` específica (ex.: pertence ao condomínio, é aluno matriculado).
-- **RF-03** Perfis/papéis: eleitor, administrador de votação.
+- **RF-03** Perfis/papéis: eleitor, administrador de votação. Os papéis valem **por votação**, não por usuário: são atribuídos em relação a uma `Votacao` e checados a cada operação naquela votação.
 
 ### 5.2 Eleições Privadas
 - **RF-10** Criar votação personalizada (nome, descrição, datas, elegíveis).
@@ -184,6 +185,7 @@ Pacote base: `com.unicamp.engsoft.eleicao`, conforme o projeto inicializado no r
 
 - **Máquina de estados isolada no `service`**: transições de `EstadoVotacao` centralizadas em um único ponto (ex.: `VotacaoStateService`), nunca alteradas diretamente pelo controller ou repository.
 - **Separação apuração pública vs. privada**: `eleicaopublica` é somente leitura/conteúdo, nunca compartilha tabelas de voto com `votacao` (dados públicos não sofrem as mesmas exigências de sigilo/apuração).
+- **Papéis fora do token**: o JWT identifica o usuário (`sub` = id) mas não carrega papéis. A autorização consulta `papeis_votacao` a cada operação (`@PreAuthorize` com o bean `autorizacaoVotacao`), porque o papel pode ser concedido ou revogado enquanto o token ainda é válido.
 - **Voto como registro append-only**: sem update/delete de `Voto`; correção de erro é nova regra de negócio explícita, não edição de dado histórico.
 
 ## 8. Processo de Desenvolvimento

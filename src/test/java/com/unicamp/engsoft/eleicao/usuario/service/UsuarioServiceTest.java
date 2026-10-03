@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
-import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.dto.CadastroUsuarioRequest;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
@@ -49,21 +48,6 @@ class UsuarioServiceTest {
 
         assertThat(salvo.getNome()).isEqualTo("Caio");
         assertThat(salvo.getEmail()).isEqualTo("caio@example.com");
-    }
-
-    /**
-     * O papel não vem da requisição: o DTO não o declara e o service o fixa. É o que impede que um
-     * POST crie um administrador de votação.
-     */
-    @Test
-    @DisplayName("Todo cadastro nasce como ELEITOR")
-    void cadastraSempreComoEleitor() {
-        when(passwordEncoder.encode(SENHA)).thenReturn(HASH);
-        when(usuarioRepository.save(any(Usuario.class)))
-                .thenAnswer(chamada -> chamada.getArgument(0));
-
-        assertThat(usuarioService.criarUsuario(requisicao()).getPapel())
-                .isEqualTo(PapelUsuario.ELEITOR);
     }
 
     @Test

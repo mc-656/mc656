@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
-import com.unicamp.engsoft.eleicao.usuario.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -53,14 +52,8 @@ class TokenServiceTest {
         return decoder;
     }
 
-    private static UsuarioAutenticado eleitor() {
-        Usuario usuario =
-                new Usuario(
-                        "Caio",
-                        "12345678909",
-                        "caio@example.com",
-                        "$2a$10$hash",
-                        PapelUsuario.ELEITOR);
+    private static UsuarioAutenticado autenticado() {
+        Usuario usuario = new Usuario("Caio", "12345678909", "caio@example.com", "$2a$10$hash");
         // O id vem do banco em produção; aqui é fixado porque é ele que vai no sub.
         usuario.setId(UUID.randomUUID());
         return UsuarioAutenticado.de(usuario);
@@ -70,21 +63,21 @@ class TokenServiceTest {
     @DisplayName("O token emitido é aceito pelo decoder e carrega as claims esperadas")
     void emiteTokenQueODecoderAceita() {
         TokenService servico = new TokenService(encoder, EMISSOR, Duration.ofMinutes(120));
-        UsuarioAutenticado usuario = eleitor();
+        UsuarioAutenticado usuario = autenticado();
 
         Jwt decodificado = decoder.decode(servico.gerar(usuario));
 
         assertThat(decodificado.getSubject()).isEqualTo(usuario.getId().toString());
         assertThat(decodificado.getClaimAsString("iss")).isEqualTo(EMISSOR);
         assertThat(decodificado.getClaimAsString("email")).isEqualTo("caio@example.com");
-        assertThat(decodificado.getClaimAsStringList("papeis")).containsExactly("ROLE_ELEITOR");
+        assertThat(decodificado.hasClaim("papeis")).isFalse();
     }
 
     @Test
     @DisplayName("O sub é o id, não o e-mail: o e-mail pode mudar, o identificador não")
     void usaOIdComoSubject() {
         TokenService servico = new TokenService(encoder, EMISSOR, Duration.ofMinutes(120));
-        UsuarioAutenticado usuario = eleitor();
+        UsuarioAutenticado usuario = autenticado();
 
         Jwt decodificado = decoder.decode(servico.gerar(usuario));
 
@@ -97,7 +90,7 @@ class TokenServiceTest {
         TokenService servico = new TokenService(encoder, EMISSOR, Duration.ofMinutes(30));
         Instant antes = Instant.now();
 
-        Jwt decodificado = decoder.decode(servico.gerar(eleitor()));
+        Jwt decodificado = decoder.decode(servico.gerar(autenticado()));
 
         assertThat(decodificado.getExpiresAt())
                 .isBetween(
@@ -132,7 +125,7 @@ class TokenServiceTest {
     @DisplayName("Token de outro emissor é recusado")
     void recusaTokenDeOutroEmissor() {
         TokenService intruso = new TokenService(encoder, "outra-api", Duration.ofMinutes(120));
-        String forasteiro = intruso.gerar(eleitor());
+        String forasteiro = intruso.gerar(autenticado());
 
         assertThatThrownBy(() -> decoder.decode(forasteiro))
                 .isInstanceOf(JwtValidationException.class);
@@ -151,7 +144,7 @@ class TokenServiceTest {
                         new NimbusJwtEncoder(new ImmutableSecret<>(outraChave)),
                         EMISSOR,
                         Duration.ofMinutes(120));
-        String falsificado = falsificador.gerar(eleitor());
+        String falsificado = falsificador.gerar(autenticado());
 
         assertThatThrownBy(() -> decoder.decode(falsificado)).isInstanceOf(Exception.class);
     }

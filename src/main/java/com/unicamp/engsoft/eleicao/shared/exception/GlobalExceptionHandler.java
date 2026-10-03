@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -74,6 +75,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problema = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
         problema.setTitle("Não autenticado");
         problema.setDetail("E-mail ou senha inválidos.");
+        return problema;
+    }
+
+    /**
+     * Negação de {@code @PreAuthorize} (papel por votação, RF-03).
+     *
+     * <p>A checagem roda no proxy do controller, já dentro do MVC, então a exception chega aqui e
+     * não ao filtro do Spring Security. Sem este handler o 403 viraria 500.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    ProblemDetail handleAcessoNegado(AccessDeniedException ex) {
+        ProblemDetail problema = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+        problema.setTitle("Acesso negado");
+        problema.setDetail("Você não tem permissão para esta operação nesta votação.");
         return problema;
     }
 

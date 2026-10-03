@@ -31,8 +31,7 @@ class UsuarioTest {
                         "Lucas Gugel Maciel",
                         "52998224725",
                         "l260579@dac.unicamp.br",
-                        "$2a$10$hashdaSenhaSegura123",
-                        PapelUsuario.ELEITOR);
+                        "$2a$10$hashdaSenhaSegura123");
 
         Set<ConstraintViolation<Usuario>> violations = validator.validate(usuario);
 
@@ -40,7 +39,6 @@ class UsuarioTest {
         assertEquals("Lucas Gugel Maciel", usuario.getNome());
         assertEquals("52998224725", usuario.getCpf());
         assertEquals("l260579@dac.unicamp.br", usuario.getEmail());
-        assertEquals(PapelUsuario.ELEITOR, usuario.getPapel());
     }
 
     @Test
@@ -52,8 +50,7 @@ class UsuarioTest {
                         "Lucas Gugel Maciel",
                         "52998224725",
                         "email-invalido-sem-arroba",
-                        "$2a$10$hashdaSenhaSegura123",
-                        PapelUsuario.ELEITOR);
+                        "$2a$10$hashdaSenhaSegura123");
 
         Set<ConstraintViolation<Usuario>> violations = validator.validate(usuario);
 
