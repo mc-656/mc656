@@ -37,7 +37,7 @@ public class Votacao {
     @Column(name = "nome", nullable = false, length = 50)
     private String nome;
 
-    @Column(name = "descrição", nullable = false, length = 100)
+    @Column(name = "descricao", nullable = false, length = 100)
     private String descricao;
 
     protected Votacao() {}

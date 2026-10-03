@@ -17,13 +17,15 @@ class VotacaoTest {
         Instant fim = inicio.plusSeconds(3600);
 
         // Act
-        Votacao votacao = new Votacao(tipoEsperado, inicio, fim);
+        Votacao votacao = new Votacao(tipoEsperado, inicio, fim, "Eleição", "Descrição");
 
         // Assert
         assertNotNull(votacao);
         assertEquals(tipoEsperado, votacao.getTipo());
         assertEquals(inicio, votacao.getInicioEm());
         assertEquals(fim, votacao.getFimEm());
+        assertEquals("Eleição", votacao.getNome());
+        assertEquals("Descrição", votacao.getDescricao());
 
         // Verifica se o estado inicial predefinido no atributo foi atribuído corretamente
         assertEquals(EstadoVotacao.RascunhoVotacao, votacao.getEstado());

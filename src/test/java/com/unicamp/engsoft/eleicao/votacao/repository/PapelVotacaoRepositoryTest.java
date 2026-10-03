@@ -43,7 +43,9 @@ class PapelVotacaoRepositoryTest extends AbstractIntegrationTest {
         return new Votacao(
                 TipoVotacao.ELEICAO_PRIVADA,
                 Instant.parse("2026-10-01T12:00:00Z"),
-                Instant.parse("2026-10-02T12:00:00Z"));
+            Instant.parse("2026-10-02T12:00:00Z"),
+            "Eleição",
+            "Descrição");
     }
 
     private void atribui(Votacao alvo, PapelUsuario papel) {
