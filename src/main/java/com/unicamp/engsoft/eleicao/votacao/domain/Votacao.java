@@ -33,12 +33,21 @@ public class Votacao {
     @Column(nullable = false, length = 30)
     private EstadoVotacao estado = EstadoVotacao.RascunhoVotacao;
 
+    @Column(name = "nome", nullable = false, length = 50)
+    private String nome;
+
+    @Column(name = "descricao", nullable = false, length = 100)
+    private String descricao;
+
     protected Votacao() {}
 
-    public Votacao(TipoVotacao tipo, Instant inicioEm, Instant fimEm) {
+    public Votacao(
+            TipoVotacao tipo, Instant inicioEm, Instant fimEm, String nome, String descricao) {
         this.tipo = tipo;
         this.inicioEm = inicioEm;
         this.fimEm = fimEm;
+        this.descricao = descricao;
+        this.nome = nome;
     }
 
     public UUID getId() {
@@ -59,5 +68,13 @@ public class Votacao {
 
     public EstadoVotacao getEstado() {
         return estado;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getDescricao() {
+        return descricao;
     }
 }
