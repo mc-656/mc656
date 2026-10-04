@@ -186,6 +186,7 @@ Pacote base: `com.unicamp.engsoft.eleicao`, conforme o projeto inicializado no r
 - **Máquina de estados isolada no `service`**: transições de `EstadoVotacao` centralizadas em um único ponto (ex.: `VotacaoStateService`), nunca alteradas diretamente pelo controller ou repository.
 - **Separação apuração pública vs. privada**: `eleicaopublica` é somente leitura/conteúdo, nunca compartilha tabelas de voto com `votacao` (dados públicos não sofrem as mesmas exigências de sigilo/apuração).
 - **Papéis fora do token**: o JWT identifica o usuário (`sub` = id) mas não carrega papéis. A autorização consulta `papeis_votacao` a cada operação (`@PreAuthorize` com o bean `autorizacaoVotacao`), porque o papel pode ser concedido ou revogado enquanto o token ainda é válido.
+- **Autenticação das views (#64)**: duas `SecurityFilterChain`. A API (`/api/**`) segue com JWT stateless e CSRF desligado; as views Thymeleaf (todo o resto) usam sessão + form login com CSRF ligado, já que o cookie de sessão é anexado pelo navegador. Ambas usam o mesmo `UserDetailsService`. Escolhida em vez de páginas que chamam a API via JS guardando o JWT: mantém a renderização server-side prevista em §7.1 e deixa o token fora do alcance de JS (XSS).
 - **Voto como registro append-only**: sem update/delete de `Voto`; correção de erro é nova regra de negócio explícita, não edição de dado histórico.
 
 ## 8. Processo de Desenvolvimento
