@@ -12,6 +12,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -28,8 +29,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * <p>Estende {@link ResponseEntityExceptionHandler} para que as exceptions do próprio Spring MVC
  * (rota inexistente, método não suportado, corpo ilegível) mantenham o status correto. Sem isso
  * elas caem na rede de segurança abaixo e todo 404 da API vira 500.
+ *
+ * <p>Restrito a {@code @RestController}: as views Thymeleaf tratam os próprios erros (mensagem no
+ * formulário ou página {@code error.html}). Sem o filtro, uma falha numa página devolveria
+ * ProblemDetail em JSON ao navegador.
  */
-@RestControllerAdvice
+@RestControllerAdvice(annotations = RestController.class)
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
