@@ -54,8 +54,8 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
         return """
                 {
                   "tipo": "ELEICAO_PRIVADA",
-                  "inicioEm": "2026-10-01T12:00:00Z",
-                  "fimEm": "2026-10-02T12:00:00Z",
+                  "inicioEm": "2099-10-01T12:00:00Z",
+                  "fimEm": "2099-10-02T12:00:00Z",
                   "nome": "Eleição de Teste",
                   "descricao": "Votação criada pelo critério de aceite"
                 }
@@ -90,5 +90,50 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
                 .get()
                 .extracting(Votacao::getEstado)
                 .isEqualTo(EstadoVotacao.RascunhoVotacao);
+    }
+    @Test
+    @DisplayName("Devolve 400 Bad Request se a data de início for no passado")
+    void rejeitaCriacaoComDataDeInicioNoPassado() throws Exception {
+        String token = tokenService.gerar(UsuarioAutenticado.de(usuario));
+
+        String corpoInvalido = """
+                {
+                  "tipo": "ELEICAO_PRIVADA",
+                  "inicioEm": "2020-01-01T12:00:00Z", 
+                  "fimEm": "2026-10-02T12:00:00Z",
+                  "nome": "Eleição no Passado",
+                  "descricao": "Não deve passar"
+                }
+                """;
+
+        mvc.perform(
+                post("/api/votacoes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoInvalido))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Devolve 409 Conflict se a data de fim for antes do início")
+    void rejeitaCriacaoSeFimForAntesDeInicio() throws Exception {
+        String token = tokenService.gerar(UsuarioAutenticado.de(usuario));
+
+        String corpoInvalido = """
+                {
+                  "tipo": "ELEICAO_PRIVADA",
+                  "inicioEm": "2026-11-01T12:00:00Z",
+                  "fimEm": "2026-10-01T12:00:00Z",
+                  "nome": "Eleição Impossível",
+                  "descricao": "Fim antes do início"
+                }
+                """;
+
+        mvc.perform(
+                post("/api/votacoes")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoInvalido))
+                .andExpect(status().isConflict()); 
     }
 }

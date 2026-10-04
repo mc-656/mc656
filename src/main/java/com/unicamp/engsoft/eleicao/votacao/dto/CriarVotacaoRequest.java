@@ -4,14 +4,18 @@ import java.time.Instant;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
-
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CriarVotacaoRequest(
         @NotNull TipoVotacao tipo,
-        @NotNull Instant inicioEm,
+        
+        @FutureOrPresent(message = "A data de início não pode estar no passado")
+        @NotNull Instant 
+        inicioEm,
+        
         @NotNull Instant fimEm,
         @NotBlank @Size(max = 50) String nome,
         @NotBlank @Size(max = 100) String descricao) {
