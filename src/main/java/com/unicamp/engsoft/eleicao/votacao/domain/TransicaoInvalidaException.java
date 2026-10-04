@@ -2,9 +2,7 @@ package com.unicamp.engsoft.eleicao.votacao.domain;
 
 import java.util.UUID;
 
-/**
-Maquina de estados viola condicao ja estabelecida
- */
+/** Maquina de estados viola condicao ja estabelecida */
 public class TransicaoInvalidaException extends RuntimeException {
 
     private final UUID votacaoId;
@@ -18,9 +16,12 @@ public class TransicaoInvalidaException extends RuntimeException {
         this.estadoDestino = null;
     }
 
-    public TransicaoInvalidaException(UUID votacaoId, EstadoVotacao estadoAtual, EstadoVotacao estadoDestino, String motivo) {
-        super(String.format("Transição inválida para a votação %s: de %s para %s. Motivo: %s", 
-                votacaoId, estadoAtual, estadoDestino, motivo));
+    public TransicaoInvalidaException(
+            UUID votacaoId, EstadoVotacao estadoAtual, EstadoVotacao estadoDestino, String motivo) {
+        super(
+                String.format(
+                        "Transição inválida para a votação %s: de %s para %s. Motivo: %s",
+                        votacaoId, estadoAtual, estadoDestino, motivo));
         this.votacaoId = votacaoId;
         this.estadoAtual = estadoAtual;
         this.estadoDestino = estadoDestino;

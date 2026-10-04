@@ -9,8 +9,4 @@ import java.util.UUID;
  * @param opcaoId Identificador da opção votada (candidato, chapa ou proposta).
  * @param peso Peso do voto ou quantidade de pontos alocados à opção.
  */
-public record VotoApuravel(
-    UUID opcaoId,
-    BigDecimal peso
-) {
-}
+public record VotoApuravel(UUID opcaoId, BigDecimal peso) {}

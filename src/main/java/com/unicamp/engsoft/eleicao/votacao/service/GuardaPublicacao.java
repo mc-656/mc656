@@ -1,13 +1,11 @@
 package com.unicamp.engsoft.eleicao.votacao.service;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoInvalidaException;
-
 import java.util.UUID;
 
 /**
- * Interface plugável para validações executadas antes de transitar uma votação do estado
- * {@code RascunhoVotacao} para {@code Publicada}.
-
+ * Interface plugável para validações executadas antes de transitar uma votação do estado {@code
+ * RascunhoVotacao} para {@code Publicada}.
  */
 public interface GuardaPublicacao {
 
