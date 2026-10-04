@@ -1,11 +1,10 @@
 package com.unicamp.engsoft.eleicao.votacao.dto;
 
-import java.time.Instant;
-import java.util.UUID;
-
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
+import java.time.Instant;
+import java.util.UUID;
 
 public record VotacaoResponse(
         UUID id,
@@ -15,8 +14,8 @@ public record VotacaoResponse(
         EstadoVotacao estado,
         String nome,
         String descricao) {
-        
-    //Pegar a votação e colocar no DTO
+
+    // Pegar a votação e colocar no DTO
     public static VotacaoResponse of(Votacao votacao) {
         return new VotacaoResponse(
                 votacao.getId(),

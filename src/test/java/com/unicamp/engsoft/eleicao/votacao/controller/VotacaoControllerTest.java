@@ -1,19 +1,9 @@
 package com.unicamp.engsoft.eleicao.votacao.controller;
 
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.jayway.jsonpath.JsonPath;
 import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
@@ -26,6 +16,15 @@ import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @AutoConfigureMockMvc
 @Transactional
@@ -91,15 +90,17 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
                 .extracting(Votacao::getEstado)
                 .isEqualTo(EstadoVotacao.RascunhoVotacao);
     }
+
     @Test
     @DisplayName("Devolve 400 Bad Request se a data de início for no passado")
     void rejeitaCriacaoComDataDeInicioNoPassado() throws Exception {
         String token = tokenService.gerar(UsuarioAutenticado.de(usuario));
 
-        String corpoInvalido = """
+        String corpoInvalido =
+                """
                 {
                   "tipo": "ELEICAO_PRIVADA",
-                  "inicioEm": "2020-01-01T12:00:00Z", 
+                  "inicioEm": "2020-01-01T12:00:00Z",
                   "fimEm": "2026-10-02T12:00:00Z",
                   "nome": "Eleição no Passado",
                   "descricao": "Não deve passar"
@@ -107,10 +108,10 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
                 """;
 
         mvc.perform(
-                post("/api/votacoes")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoInvalido))
+                        post("/api/votacoes")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(corpoInvalido))
                 .andExpect(status().isBadRequest());
     }
 
@@ -119,7 +120,8 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
     void rejeitaCriacaoSeFimForAntesDeInicio() throws Exception {
         String token = tokenService.gerar(UsuarioAutenticado.de(usuario));
 
-        String corpoInvalido = """
+        String corpoInvalido =
+                """
                 {
                   "tipo": "ELEICAO_PRIVADA",
                   "inicioEm": "2026-11-01T12:00:00Z",
@@ -130,10 +132,10 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
                 """;
 
         mvc.perform(
-                post("/api/votacoes")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoInvalido))
-                .andExpect(status().isConflict()); 
+                        post("/api/votacoes")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(corpoInvalido))
+                .andExpect(status().isConflict());
     }
 }
