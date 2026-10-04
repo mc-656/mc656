@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{layout}">
+<head>
+    <title>Início</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao">
+    <h1>Bem-vindo</h1>
+    <p>Conectado como <strong sec:authentication="name">usuario@example.com</strong>.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- Página de erro das views. Não exibe stack trace nem mensagem interna. -->
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Erro</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao">
+    <h1 th:text="${status}">Erro</h1>
+    <p th:switch="${status}">
+        <span th:case="404">Página não encontrada.</span>
+        <span th:case="403">Você não tem permissão para acessar esta página.</span>
+        <span th:case="*">Algo deu errado. Tente novamente.</span>
+    </p>
+    <p><a th:href="@{/}">Voltar ao início</a></p>
+</main>
+</body>
+</html>
