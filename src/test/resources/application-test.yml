@@ -6,3 +6,8 @@ jwt:
   secret: segredo-de-teste-apenas-com-tamanho-suficiente-para-hs256
   emitter: eleicao-api
   expiresIn: 120m
+
+votacao:
+  agendador:
+    # Os testes do job o chamam diretamente; rodando sozinho ele alteraria votações de outros casos.
+    habilitado: false
