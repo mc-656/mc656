@@ -1,5 +1,6 @@
 package com.unicamp.engsoft.eleicao.votacao.domain;
 
+import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -85,5 +86,18 @@ public class Votacao {
      */
     public void alterarEstado(EstadoVotacao novoEstado) {
         this.estado = novoEstado;
+    }
+
+    /**
+     * Prorroga o fim da votação ao retomá-la de {@code Suspensa} (#55). Como {@link
+     * #alterarEstado}, só o {@code VotacaoStateService} chama: a prorrogação faz parte da transição
+     * auditada, e não uma edição livre da votação.
+     */
+    public void estenderFim(Instant novoFimEm) {
+        if (novoFimEm == null || !novoFimEm.isAfter(fimEm)) {
+            throw new DadosInvalidosException(
+                    "A nova data de fim deve ser posterior à data de fim atual");
+        }
+        this.fimEm = novoFimEm;
     }
 }

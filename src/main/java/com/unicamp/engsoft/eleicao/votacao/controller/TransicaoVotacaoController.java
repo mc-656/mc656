@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Um único endpoint recebe o estado de destino em vez de uma rota por ação: quem decide se a
  * transição vale é a tabela do {@code VotacaoStateService}, inclusive barrando as que só ocorrem
- * por data.
+ * por data. A prorrogação do fim ao retomar uma votação suspensa (#55) vem no mesmo corpo, para ser
+ * validada e auditada como parte da transição.
  */
 @RestController
 @RequestMapping("/api/votacoes/{votacaoId}/transicoes")
@@ -43,7 +44,11 @@ public class TransicaoVotacaoController {
             @RequestBody @Valid TransicaoRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         stateService.transitar(
-                votacaoId, request.destino(), UUID.fromString(jwt.getSubject()), request.motivo());
+                votacaoId,
+                request.destino(),
+                UUID.fromString(jwt.getSubject()),
+                request.motivo(),
+                request.novoFimEm());
     }
 
     @GetMapping
