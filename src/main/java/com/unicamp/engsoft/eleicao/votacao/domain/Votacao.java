@@ -77,4 +77,13 @@ public class Votacao {
     public String getDescricao() {
         return descricao;
     }
+
+    /**
+     * Só o {@code VotacaoStateService} chama este método: é ele quem valida a transição contra a
+     * tabela de transições e registra a auditoria (RNF-03). Público apenas porque o serviço fica em
+     * outro pacote.
+     */
+    public void alterarEstado(EstadoVotacao novoEstado) {
+        this.estado = novoEstado;
+    }
 }
