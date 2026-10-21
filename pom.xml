@@ -28,6 +28,7 @@
   </scm>
   <properties>
     <java.version>21</java.version>
+    <sonar.organization>mc-656</sonar.organization>
   </properties>
   <dependencies>
     <dependency>
