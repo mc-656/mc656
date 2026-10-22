@@ -58,6 +58,7 @@ Casos de uso centrais compartilhados entre perfis: `Validar Elegibilidade e Logi
   - segundo turno (sim/não), permitido só com maioria absoluta ou qualificada;
   - quórum mínimo, em percentual (0–100) dos eleitores aptos, contado por eleitor e não por peso;
   - voto ponderado (sim/não), com os pesos guardados em `PapelVotacao`.
+  - critério de desempate(ex: candidato mais velho), injetado no motor de apuração via padrão Strategy
   O orçamento total do orçamento participativo não faz parte da regra: é definido com as propostas (RF-20, M3).
 - **CandidatoOuChapa** — opção votável em eleição privada.
 - **Proposta** — item elegível a receber pontos em orçamento participativo.
@@ -127,7 +128,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 - **RF-12** Cadastrar candidatos/chapas.
 - **RF-13** Registrar voto único por eleitor elegível, com comprovante.
 - **RF-14** Impedir voto duplicado e voto fora da janela `EmVotacao`.
-- **RF-15** Apurar resultado respeitando regra configurada (incl. segundo turno quando necessário, como nova votação derivada com os 2 mais votados).
+- **RF-15** Apurar resultado respeitando regra configurada (incl. segundo turno quando necessário, como nova votação derivada com os 2 mais votados e critérios de desempate quando houver igualdade de votos).
 
 ### 5.3 Orçamento Participativo
 - **RF-20** Cadastrar propostas e definir orçamento total (limite de pontos).
