@@ -1,7 +1,8 @@
 package com.unicamp.engsoft.eleicao.votacao.domain;
 
-import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import java.math.BigDecimal;
+
+import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 
 /**
  * Value object com as regras de apuração de uma votação (RF-11).
@@ -24,6 +25,7 @@ import java.math.BigDecimal;
  *     qualificada, já que na maioria simples sempre há um mais votado.
  * @param quorumMinimoPercentual Percentual mínimo de eleitores aptos que precisam votar, entre 0 e
  *     100. {@code null} indica votação sem quórum.
+ * @param tipoDesempate Critério adotado quando há algum empate na apuração. Se {@code null} assume NENHUM
  * @param votoPonderado Indica se os votos usam o peso configurado para cada eleitor.
  * @throws DadosInvalidosException Se a combinação de parâmetros for inválida.
  */
@@ -32,10 +34,16 @@ public record RegraVotacao(
         BigDecimal percentualQualificado,
         boolean segundoTurno,
         BigDecimal quorumMinimoPercentual,
-        boolean votoPonderado) {
+        boolean votoPonderado,
+        TipoDesempate tipoDesempate) {
 
     private static final BigDecimal CINQUENTA = BigDecimal.valueOf(50);
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
+    public enum TipoDesempate{
+        NENHUM,
+        ORDEM_ALFABETICA,
+        SORTEIO
+    }
 
     public RegraVotacao {
         if (tipoMaioria == null) {
@@ -71,4 +79,5 @@ public record RegraVotacao(
                     "O percentual qualificado deve ser maior que 50 e no máximo 100");
         }
     }
+    
 }

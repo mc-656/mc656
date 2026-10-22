@@ -206,6 +206,7 @@ Pacote base: `com.unicamp.engsoft.eleicao`, conforme o projeto inicializado no r
 - **Separação apuração pública vs. privada**: `eleicaopublica` é somente leitura/conteúdo, nunca compartilha tabelas de voto com `votacao` (dados públicos não sofrem as mesmas exigências de sigilo/apuração).
 - **Papéis fora do token**: o JWT identifica o usuário (`sub` = id) mas não carrega papéis. A autorização consulta `papeis_votacao` a cada operação (`@PreAuthorize` com o bean `autorizacaoVotacao`), porque o papel pode ser concedido ou revogado enquanto o token ainda é válido.
 - **Voto como registro append-only e separado**: `Participacao` (quem votou) e `Cedula` (em quê) não têm update/delete nem vínculo entre si; correção de erro é nova regra de negócio explícita, não edição de dado histórico.
+- **Desacoplamento de regras de desempate (Strategy):** O motor de apuração (`MotorApuracao`) é mantido como uma lógica pura de contagem matemática. Regras específicas de candidatos (como desempate por idade) são injetadas via padrão **Strategy** (`EstrategiaDesempate`). Os dados necessários são carregados sob demanda pelo `VotacaoService`, evitando *Data Clumps* (inchar o domínio de apuração com dados pessoais) e respeitando o princípio Aberto/Fechado (Open/Closed Principle).
 
 ## 8. Processo de Desenvolvimento
 
