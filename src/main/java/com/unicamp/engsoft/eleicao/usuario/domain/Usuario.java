@@ -8,12 +8,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.validator.constraints.br.CPF;
@@ -56,10 +60,14 @@ public class Usuario {
     @Column(name = "modificado_em", nullable = false)
     private Instant modificadoEm;
 
-    public Usuario(String nome, String cpf, String email, String senhaHash) {
+    @Column(name = "data_nascimento", nullable= false)
+    private LocalDate dataNascimento;
+
+    public Usuario(String nome, String cpf, String email, String senhaHash, LocalDate dataNascimento) {
         this.nome = nome;
         this.cpf = cpf;
         this.email = email;
         this.senhaHash = senhaHash;
+        this.dataNascimento = dataNascimento;
     }
 }

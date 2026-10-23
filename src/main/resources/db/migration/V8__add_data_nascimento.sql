@@ -1,5 +1,5 @@
-ALTER TABLE candidatos_chapa
+ALTER TABLE usuarios
 ADD COLUMN data_nascimento DATE;
 
-ALTER TABLE votacao
+ALTER TABLE votacoes
 ADD COLUMN tipo_desempate VARCHAR(50) NOT NULL DEFAULT 'NENHUM';
