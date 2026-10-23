@@ -9,6 +9,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +20,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDate;
 
 /** Cadastro ponta a ponta (RF-01): validação, persistência e o que sai na resposta. */
 @AutoConfigureMockMvc
@@ -160,7 +160,13 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("E-mail já cadastrado responde 409, e não 500")
     void recusaEmailDuplicado() throws Exception {
-        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA), LocalDate.of(2000, 1, 1)));
+        usuarioRepository.save(
+                new Usuario(
+                        "Caio",
+                        CPF,
+                        EMAIL,
+                        passwordEncoder.encode(SENHA),
+                        LocalDate.of(2000, 1, 1)));
 
         cadastrar(corpoCadastro(OUTRO_CPF, EMAIL)).andExpect(status().isConflict());
     }
@@ -168,7 +174,13 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("CPF já cadastrado responde 409, e não 500")
     void recusaCpfDuplicado() throws Exception {
-        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA), LocalDate.of(2000, 1, 1)));
+        usuarioRepository.save(
+                new Usuario(
+                        "Caio",
+                        CPF,
+                        EMAIL,
+                        passwordEncoder.encode(SENHA),
+                        LocalDate.of(2000, 1, 1)));
 
         cadastrar(corpoCadastro(CPF, "outro@example.com")).andExpect(status().isConflict());
     }

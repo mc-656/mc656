@@ -11,6 +11,7 @@ import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.dto.CadastroUsuarioRequest;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +20,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import java.time.LocalDate;
 
 /** Regras do cadastro (RF-01), sem banco. */
 @ExtendWith(MockitoExtension.class)
@@ -35,7 +35,8 @@ class UsuarioServiceTest {
     @InjectMocks UsuarioService usuarioService;
 
     private static CadastroUsuarioRequest requisicao() {
-        return new CadastroUsuarioRequest("Caio", "12345678909", "caio@example.com", SENHA, LocalDate.of(2000,1, 1));
+        return new CadastroUsuarioRequest(
+                "Caio", "12345678909", "caio@example.com", SENHA, LocalDate.of(2000, 1, 1));
     }
 
     @Test

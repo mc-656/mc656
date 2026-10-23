@@ -10,6 +10,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDate;
 
 /** Login ponta a ponta: cadeia de filtros, AuthenticationManager, BCrypt e emissão do JWT. */
 @AutoConfigureMockMvc
@@ -45,7 +45,12 @@ class AutenticacaoControllerTest extends AbstractIntegrationTest {
     void semeiaUsuario() {
         usuario =
                 usuarioRepository.save(
-                        new Usuario("Caio", "12345678909", EMAIL, passwordEncoder.encode(SENHA), LocalDate.of(2000,1, 1)));
+                        new Usuario(
+                                "Caio",
+                                "12345678909",
+                                EMAIL,
+                                passwordEncoder.encode(SENHA),
+                                LocalDate.of(2000, 1, 1)));
     }
 
     private static String corpoLogin(String email, String senha) {

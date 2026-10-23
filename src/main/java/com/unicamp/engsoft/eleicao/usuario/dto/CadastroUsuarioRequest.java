@@ -4,10 +4,10 @@ import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import org.hibernate.validator.constraints.br.CPF;
-import java.time.LocalDate;
 import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+import org.hibernate.validator.constraints.br.CPF;
 
 /**
  * Dados aceitos no cadastro (RF-01).
@@ -29,7 +29,7 @@ public record CadastroUsuarioRequest(
                 String senha,
         @NotNull(message = "A data de nascimento deve ser uma data no passado")
                 @Past(message = "A data de nascimento deve ser uma data no passado")
-                LocalDate dataNascimento){
+                LocalDate dataNascimento) {
 
     public Usuario paraUsuario(String senhaHash) {
         return new Usuario(nome, cpf, email, senhaHash, dataNascimento);
