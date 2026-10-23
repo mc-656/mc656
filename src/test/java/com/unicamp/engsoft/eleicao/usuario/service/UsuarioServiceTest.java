@@ -19,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import java.time.LocalDate;
 
 /** Regras do cadastro (RF-01), sem banco. */
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +35,7 @@ class UsuarioServiceTest {
     @InjectMocks UsuarioService usuarioService;
 
     private static CadastroUsuarioRequest requisicao() {
-        return new CadastroUsuarioRequest("Caio", "12345678909", "caio@example.com", SENHA);
+        return new CadastroUsuarioRequest("Caio", "12345678909", "caio@example.com", SENHA, LocalDate.of(2000,1, 1));
     }
 
     @Test

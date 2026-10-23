@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
 
 /** Login ponta a ponta: cadeia de filtros, AuthenticationManager, BCrypt e emissão do JWT. */
 @AutoConfigureMockMvc
@@ -44,7 +45,7 @@ class AutenticacaoControllerTest extends AbstractIntegrationTest {
     void semeiaUsuario() {
         usuario =
                 usuarioRepository.save(
-                        new Usuario("Caio", "12345678909", EMAIL, passwordEncoder.encode(SENHA)));
+                        new Usuario("Caio", "12345678909", EMAIL, passwordEncoder.encode(SENHA), LocalDate.of(2000,1, 1)));
     }
 
     private static String corpoLogin(String email, String senha) {

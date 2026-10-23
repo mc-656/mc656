@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
 
 /** Cadastro ponta a ponta (RF-01): validação, persistência e o que sai na resposta. */
 @AutoConfigureMockMvc
@@ -40,7 +41,8 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
 
     private static String corpoCadastro(String cpf, String email) {
         return """
-                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s"}
+                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s",
+                 "dataNascimento": "2000-01-01"}
                 """
                 .formatted(cpf, email, SENHA);
     }
@@ -84,7 +86,7 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
         String corpo =
                 """
                 {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s",
-                 "papel": "ADMIN_VOTACAO", "id": "%s"}
+                 "dataNascimento": "2000-01-01", "papel": "ADMIN_VOTACAO", "id": "%s"}
                 """
                         .formatted(CPF, EMAIL, SENHA, idForjado);
 
@@ -108,12 +110,48 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("Data de nascimento válida é persistida")
+    void persisteDataNascimento() throws Exception {
+        cadastrar(corpoCadastro(CPF, EMAIL)).andExpect(status().isCreated());
+
+        Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
+
+        assertThat(salvo.getDataNascimento()).isEqualTo(LocalDate.of(2000, 1, 1));
+    }
+
+    @Test
+    @DisplayName("Data de nascimento ausente é rejeitada")
+    void recusaDataNascimentoAusente() throws Exception {
+        String corpo =
+                """
+                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s"}
+                """
+                        .formatted(CPF, EMAIL, SENHA);
+
+        cadastrar(corpo).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Data de nascimento futura é rejeitada")
+    void recusaDataNascimentoFutura() throws Exception {
+        String corpo =
+                """
+                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s",
+                 "dataNascimento": "%s"}
+                """
+                        .formatted(CPF, EMAIL, SENHA, LocalDate.now().plusDays(1));
+
+        cadastrar(corpo).andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Payload inválido é barrado pela validação com 400")
     void recusaPayloadInvalido() throws Exception {
         cadastrar(corpoCadastro(CPF, "nao-e-email")).andExpect(status().isBadRequest());
         cadastrar(
                         """
-                {"nome": "", "cpf": "%s", "email": "%s", "senha": "curta"}
+                {"nome": "", "cpf": "%s", "email": "%s", "senha": "curta",
+                 "dataNascimento": "2000-01-01"}
                 """
                                 .formatted(CPF, EMAIL))
                 .andExpect(status().isBadRequest());
@@ -122,7 +160,7 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("E-mail já cadastrado responde 409, e não 500")
     void recusaEmailDuplicado() throws Exception {
-        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA)));
+        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA), LocalDate.of(2000, 1, 1)));
 
         cadastrar(corpoCadastro(OUTRO_CPF, EMAIL)).andExpect(status().isConflict());
     }
@@ -130,7 +168,7 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("CPF já cadastrado responde 409, e não 500")
     void recusaCpfDuplicado() throws Exception {
-        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA)));
+        usuarioRepository.save(new Usuario("Caio", CPF, EMAIL, passwordEncoder.encode(SENHA), LocalDate.of(2000, 1, 1)));
 
         cadastrar(corpoCadastro(CPF, "outro@example.com")).andExpect(status().isConflict());
     }

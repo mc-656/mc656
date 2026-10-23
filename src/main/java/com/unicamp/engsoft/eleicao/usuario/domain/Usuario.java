@@ -70,4 +70,11 @@ public class Usuario {
         this.senhaHash = senhaHash;
         this.dataNascimento = dataNascimento;
     }
+    public Usuario(String nome, String cpf, String email, String senhaHash) {
+        this.nome = nome;
+        this.cpf = cpf;
+        this.email = email;
+        this.senhaHash = senhaHash;
+        this.dataNascimento = null;
+    }
 }

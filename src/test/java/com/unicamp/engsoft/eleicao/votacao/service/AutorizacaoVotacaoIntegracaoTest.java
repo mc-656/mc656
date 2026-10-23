@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.time.LocalDate;
 /**
  * Ponta a ponta, com token real: {@code @EnableMethodSecurity} ligado, o bean resolvido pelo nome
  * na SpEL e a negação saindo como 403, não 500. Usa um controller só de teste porque ainda não há
@@ -66,7 +66,7 @@ class AutorizacaoVotacaoIntegracaoTest extends AbstractIntegrationTest {
     void semeia() {
         usuario =
                 usuarioRepository.save(
-                        new Usuario("Caio", "12345678909", "caio@example.com", "hash-da-senha"));
+                        new Usuario("Caio", "12345678909", "caio@example.com", "hash-da-senha", LocalDate.of(2000, 1, 1)));
         votacao =
                 votacaoRepository.save(
                         new Votacao(
