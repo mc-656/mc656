@@ -9,6 +9,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import java.time.Instant;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,12 @@ class DomainPersistenceTest extends AbstractIntegrationTest {
     void salvaERecuperaUsuario() {
         Usuario usuario =
                 usuarioRepository.save(
-                        new Usuario("Caio", "12345678909", "caio@example.com", "hash-da-senha"));
+                        new Usuario(
+                                "Caio",
+                                "12345678909",
+                                "caio@example.com",
+                                "hash-da-senha",
+                                LocalDate.of(2000, 1, 1)));
 
         Usuario recuperado = usuarioRepository.findById(usuario.getId()).orElseThrow();
 
