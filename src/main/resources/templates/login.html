@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Entrar</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao">
+    <h1>Entrar</h1>
+
+    <!-- Mesma mensagem para e-mail inexistente e senha errada: não revela quais contas existem. -->
+    <p th:if="${param.erro}" class="alerta erro">E-mail ou senha inválidos.</p>
+    <p th:if="${param.saiu}" class="alerta">Você saiu da sua conta.</p>
+    <p th:if="${param.cadastrado}" class="alerta sucesso">Cadastro realizado. Faça login.</p>
+
+    <!-- POST processado pelo form login do Spring Security; th:action injeta o token CSRF. -->
+    <form th:action="@{/login}" method="post">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" name="email" required autofocus autocomplete="username">
+
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" name="senha" required autocomplete="current-password">
+
+        <button type="submit">Entrar</button>
+    </form>
+
+    <p>Não tem conta? <a th:href="@{/cadastro}">Cadastre-se</a>.</p>
+</main>
+</body>
+</html>
