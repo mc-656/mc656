@@ -1,6 +1,10 @@
 package com.unicamp.engsoft.eleicao.votacao.domain;
 
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import java.math.BigDecimal;
 
 /**
@@ -17,6 +21,10 @@ import java.math.BigDecimal;
  *
  * <p>Os pesos de cada eleitor não ficam aqui: são guardados no papel {@code ELEITOR} da votação.
  *
+ * <p>Embutida no agregado {@link Votacao} ({@code @Embedded}): as cinco colunas ficam em {@code
+ * votacoes} e são todas nulas enquanto a votação não tem regras — um registro com {@code
+ * tipoMaioria} nulo não existe, porque a própria validação do record o proíbe.
+ *
  * @param tipoMaioria Tipo de maioria exigida. Obrigatório.
  * @param percentualQualificado Percentual exigido na maioria qualificada, maior que 50 e no máximo
  *     100. Deve ser {@code null} nos demais tipos.
@@ -27,12 +35,14 @@ import java.math.BigDecimal;
  * @param votoPonderado Indica se os votos usam o peso configurado para cada eleitor.
  * @throws DadosInvalidosException Se a combinação de parâmetros for inválida.
  */
+@Embeddable
 public record RegraVotacao(
-        TipoMaioria tipoMaioria,
-        BigDecimal percentualQualificado,
-        boolean segundoTurno,
-        BigDecimal quorumMinimoPercentual,
-        boolean votoPonderado) {
+        @Enumerated(EnumType.STRING) @Column(name = "tipo_maioria", length = 30)
+                TipoMaioria tipoMaioria,
+        @Column(name = "percentual_qualificado") BigDecimal percentualQualificado,
+        @Column(name = "segundo_turno") boolean segundoTurno,
+        @Column(name = "quorum_minimo_percentual") BigDecimal quorumMinimoPercentual,
+        @Column(name = "voto_ponderado") boolean votoPonderado) {
 
     private static final BigDecimal CINQUENTA = BigDecimal.valueOf(50);
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
