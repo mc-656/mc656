@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.OrigemTransicao;
@@ -29,11 +30,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/** Tabela de transições, guardas e auditoria do state service, sem banco (#24). */
+/** Tabela de transições, guardas e auditoria do state service, sem banco (#24, #55). */
 @ExtendWith(MockitoExtension.class)
 class VotacaoStateServiceImplTest {
 
@@ -71,11 +74,16 @@ class VotacaoStateServiceImplTest {
 
     /** Votação em memória no estado pedido, devolvida pelo repositório mockado. */
     private Votacao votacaoEm(EstadoVotacao estado) {
+        return votacaoEm(estado, AGORA.plusSeconds(7200));
+    }
+
+    /** Idem, com a data de fim escolhida (para os testes que dependem dela). */
+    private Votacao votacaoEm(EstadoVotacao estado, Instant fimEm) {
         Votacao votacao =
                 new Votacao(
                         TipoVotacao.ELEICAO_PRIVADA,
-                        AGORA.plusSeconds(3600),
-                        AGORA.plusSeconds(7200),
+                        fimEm.minusSeconds(3600),
+                        fimEm,
                         "Eleição",
                         "Descrição");
         votacao.alterarEstado(estado);
@@ -94,9 +102,13 @@ class VotacaoStateServiceImplTest {
         "RascunhoVotacao, Publicada, USUARIO",
         "Publicada, RascunhoVotacao, USUARIO",
         "Publicada, EmVotacao, SISTEMA",
-        "Publicada, Cancelada, USUARIO"
+        "Publicada, Cancelada, USUARIO",
+        "EmVotacao, Suspensa, USUARIO",
+        "Suspensa, EmVotacao, USUARIO",
+        "EmVotacao, Cancelada, USUARIO",
+        "Suspensa, Cancelada, USUARIO"
     })
-    @DisplayName("Transições válidas do M1 alteram o estado e geram auditoria")
+    @DisplayName("Transições válidas alteram o estado e geram auditoria")
     void transicoesValidas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
         // Arrange
         Votacao votacao = votacaoEm(origem);
@@ -124,7 +136,18 @@ class VotacaoStateServiceImplTest {
         "Publicada, EmVotacao, USUARIO",
         "RascunhoVotacao, Publicada, SISTEMA",
         "Cancelada, Publicada, USUARIO",
-        "EmVotacao, Publicada, USUARIO"
+        "EmVotacao, Publicada, USUARIO",
+        "Suspensa, Apuracao, SISTEMA",
+        "Suspensa, Apuracao, USUARIO",
+        "Publicada, Suspensa, USUARIO",
+        "EmVotacao, Apuracao, USUARIO",
+        "Suspensa, EmVotacao, SISTEMA",
+        "EmVotacao, Suspensa, SISTEMA",
+        "Cancelada, EmVotacao, USUARIO",
+        "Cancelada, Suspensa, USUARIO",
+        "Cancelada, Apuracao, SISTEMA",
+        "Apuracao, EmVotacao, USUARIO",
+        "Apuracao, Suspensa, USUARIO"
     })
     @DisplayName("Transições inválidas são rejeitadas sem alterar estado nem auditar")
     void transicoesInvalidas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
@@ -196,5 +219,190 @@ class VotacaoStateServiceImplTest {
         // Act + Assert
         assertThatThrownBy(() -> service.transitar(VOTACAO, EstadoVotacao.Publicada, ADMIN, null))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
+    }
+
+    @Test
+    @DisplayName("EmVotacao → Apuracao ocorre por data de fim atingida, com origem SISTEMA")
+    void apuracaoPorDataDeFim() {
+        // Arrange
+        Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao, AGORA);
+
+        // Act
+        service.transitar(VOTACAO, EstadoVotacao.Apuracao, null, "Data de fim atingida");
+
+        // Assert
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Apuracao);
+        TransicaoVotacao auditoria = auditoriaSalva();
+        assertThat(auditoria.getOrigem()).isEqualTo(OrigemTransicao.SISTEMA);
+        assertThat(auditoria.getAutorId()).isNull();
+        assertThat(auditoria.getEstadoAnterior()).isEqualTo(EstadoVotacao.EmVotacao);
+    }
+
+    @Test
+    @DisplayName("EmVotacao → Apuracao é rejeitada antes da data de fim")
+    void apuracaoAntesDoFimRejeitada() {
+        // Arrange
+        Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao, AGORA.plusSeconds(1));
+
+        // Act + Assert
+        assertThatThrownBy(() -> service.transitar(VOTACAO, EstadoVotacao.Apuracao, null, null))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("data de fim ainda não atingida");
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.EmVotacao);
+        verify(transicaoRepository, never()).save(any());
+    }
+
+    @ParameterizedTest(name = "{0} -> {1} com motivo vazio")
+    @CsvSource({"EmVotacao, Suspensa", "EmVotacao, Cancelada", "Suspensa, Cancelada"})
+    @DisplayName("Suspensão e cancelamento forçado exigem motivo não vazio")
+    void motivoObrigatorio(EstadoVotacao origem, EstadoVotacao destino) {
+        for (String motivo : new String[] {null, "", "   "}) {
+            // Arrange
+            Votacao votacao = votacaoEm(origem);
+
+            // Act + Assert
+            assertThatThrownBy(() -> service.transitar(VOTACAO, destino, ADMIN, motivo))
+                    .isInstanceOf(DadosInvalidosException.class)
+                    .hasMessageContaining("Motivo é obrigatório");
+            assertThat(votacao.getEstado()).isEqualTo(origem);
+        }
+        verify(transicaoRepository, never()).save(any());
+    }
+
+    @ParameterizedTest(name = "motivo = [{0}]")
+    @NullAndEmptySource
+    @DisplayName("Retomada da votação suspensa não exige motivo")
+    void retomadaSemMotivo(String motivo) {
+        // Arrange
+        Votacao votacao = votacaoEm(EstadoVotacao.Suspensa);
+
+        // Act
+        service.transitar(VOTACAO, EstadoVotacao.EmVotacao, ADMIN, motivo);
+
+        // Assert
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.EmVotacao);
+    }
+
+    @Test
+    @DisplayName("Retomada com prorrogação estende o fim e registra a prorrogação na auditoria")
+    void retomadaComProrrogacao() {
+        // Arrange
+        Instant fimVencido = AGORA.minusSeconds(60);
+        Instant novoFim = AGORA.plusSeconds(86400);
+        Votacao votacao = votacaoEm(EstadoVotacao.Suspensa, fimVencido);
+
+        // Act
+        service.transitar(VOTACAO, EstadoVotacao.EmVotacao, ADMIN, "Problema resolvido", novoFim);
+
+        // Assert
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.EmVotacao);
+        assertThat(votacao.getFimEm()).isEqualTo(novoFim);
+        assertThat(auditoriaSalva().getMotivo())
+                .startsWith("Problema resolvido")
+                .contains(fimVencido.toString())
+                .contains(novoFim.toString());
+    }
+
+    @ParameterizedTest(name = "novo fim = agora + {0}s")
+    @ValueSource(longs = {-30, 0})
+    @DisplayName("Prorrogação para data que não está no futuro é rejeitada")
+    void prorrogacaoParaOPassadoRejeitada(long deslocamento) {
+        // Arrange
+        Instant fimVencido = AGORA.minusSeconds(60);
+        Votacao votacao = votacaoEm(EstadoVotacao.Suspensa, fimVencido);
+
+        // Act + Assert
+        assertThatThrownBy(
+                        () ->
+                                service.transitar(
+                                        VOTACAO,
+                                        EstadoVotacao.EmVotacao,
+                                        ADMIN,
+                                        null,
+                                        AGORA.plusSeconds(deslocamento)))
+                .isInstanceOf(DadosInvalidosException.class);
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Suspensa);
+        assertThat(votacao.getFimEm()).isEqualTo(fimVencido);
+        verify(transicaoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Prorrogação que não passa do fim atual é rejeitada")
+    void prorrogacaoQueEncurtaRejeitada() {
+        // Arrange
+        Instant fim = AGORA.plusSeconds(7200);
+        Votacao votacao = votacaoEm(EstadoVotacao.Suspensa, fim);
+
+        // Act + Assert
+        assertThatThrownBy(
+                        () ->
+                                service.transitar(
+                                        VOTACAO,
+                                        EstadoVotacao.EmVotacao,
+                                        ADMIN,
+                                        null,
+                                        fim.minusSeconds(1)))
+                .isInstanceOf(DadosInvalidosException.class)
+                .hasMessageContaining("posterior à data de fim atual");
+        assertThat(votacao.getFimEm()).isEqualTo(fim);
+    }
+
+    @Test
+    @DisplayName("Prorrogação fora da retomada de votação suspensa é rejeitada")
+    void prorrogacaoForaDaRetomadaRejeitada() {
+        // Arrange
+        Instant fim = AGORA.plusSeconds(7200);
+        Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao, fim);
+
+        // Act + Assert
+        assertThatThrownBy(
+                        () ->
+                                service.transitar(
+                                        VOTACAO,
+                                        EstadoVotacao.Suspensa,
+                                        ADMIN,
+                                        "pane",
+                                        fim.plusSeconds(3600)))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("retomar uma votação suspensa");
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.EmVotacao);
+        assertThat(votacao.getFimEm()).isEqualTo(fim);
+    }
+
+    @Test
+    @DisplayName("Motivo que não cabe junto com o registro da prorrogação é rejeitado, sem truncar")
+    void motivoLongoComProrrogacaoRejeitado() {
+        // Arrange
+        Instant fim = AGORA.minusSeconds(60);
+        Votacao votacao = votacaoEm(EstadoVotacao.Suspensa, fim);
+        String motivoMaximo = "a".repeat(VotacaoStateServiceImpl.TAMANHO_MAXIMO_MOTIVO);
+
+        // Act + Assert
+        assertThatThrownBy(
+                        () ->
+                                service.transitar(
+                                        VOTACAO,
+                                        EstadoVotacao.EmVotacao,
+                                        ADMIN,
+                                        motivoMaximo,
+                                        AGORA.plusSeconds(86400)))
+                .isInstanceOf(DadosInvalidosException.class)
+                .hasMessageContaining("Motivo excede");
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Suspensa);
+        assertThat(votacao.getFimEm()).isEqualTo(fim);
+        verify(transicaoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Motivo acima do tamanho da coluna é rejeitado mesmo fora do controller")
+    void motivoLongoRejeitado() {
+        // Arrange
+        Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao);
+        String motivo = "a".repeat(VotacaoStateServiceImpl.TAMANHO_MAXIMO_MOTIVO + 1);
+
+        // Act + Assert
+        assertThatThrownBy(() -> service.transitar(VOTACAO, EstadoVotacao.Suspensa, ADMIN, motivo))
+                .isInstanceOf(DadosInvalidosException.class);
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.EmVotacao);
     }
 }

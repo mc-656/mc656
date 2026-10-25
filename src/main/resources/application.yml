@@ -19,3 +19,8 @@ jwt:
   secret: ${HMAC}
   emitter: eleicao-api
   expiresIn: 120m
+
+comprovante:
+  # Chave AES-256 (32 bytes em Base64) do comprovante de voto (RNF-01). Sem default de propósito:
+  # uma chave embutida no repositório permitiria forjar comprovantes.
+  chave: ${COMPROVANTE_CHAVE}
