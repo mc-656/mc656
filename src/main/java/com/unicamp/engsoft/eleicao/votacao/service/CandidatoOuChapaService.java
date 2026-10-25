@@ -3,7 +3,7 @@ package com.unicamp.engsoft.eleicao.votacao.service;
 import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
 import com.unicamp.engsoft.eleicao.votacao.domain.CandidatoOuChapa;
-import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.OperacaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.dto.CadastrarCandidatoRequest;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
@@ -16,24 +16,31 @@ import org.springframework.transaction.annotation.Transactional;
  * Cadastro de candidatos/chapas de uma votação (RF-12).
  *
  * <p>A lista só muda com a votação em {@code RascunhoVotacao}: depois de publicada, eleitores já
- * podem tê-la consultado, e mudar as opções alteraria a eleição que eles viram. A autorização (só
- * {@code ADMIN_VOTACAO} escreve) fica no controller, via {@code @PreAuthorize}.
+ * podem tê-la consultado, e mudar as opções alteraria a eleição que eles viram. Essa regra não mora
+ * aqui: este service só declara a operação ({@link OperacaoVotacao#GERENCIAR_CANDIDATOS}) e delega
+ * a checagem — com lock — a {@link ExigenciaDeEstadoDaVotacao}, compartilhada com os demais
+ * services. A autorização (só {@code ADMIN_VOTACAO} escreve) fica no controller, via
+ * {@code @PreAuthorize}.
  */
 @Service
 public class CandidatoOuChapaService {
 
     private final CandidatoOuChapaRepository candidatoRepository;
     private final VotacaoRepository votacaoRepository;
+    private final ExigenciaDeEstadoDaVotacao exigenciaDeEstado;
 
     public CandidatoOuChapaService(
-            CandidatoOuChapaRepository candidatoRepository, VotacaoRepository votacaoRepository) {
+            CandidatoOuChapaRepository candidatoRepository,
+            VotacaoRepository votacaoRepository,
+            ExigenciaDeEstadoDaVotacao exigenciaDeEstado) {
         this.candidatoRepository = candidatoRepository;
         this.votacaoRepository = votacaoRepository;
+        this.exigenciaDeEstado = exigenciaDeEstado;
     }
 
     @Transactional
     public CandidatoOuChapa cadastrar(UUID votacaoId, CadastrarCandidatoRequest request) {
-        exigirRascunho(votacaoId);
+        exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.GERENCIAR_CANDIDATOS);
         String nome = request.nome().strip();
         if (candidatoRepository.existsByVotacaoIdAndNomeIgnoreCase(votacaoId, nome)) {
             throw new RegraDeNegocioException(
@@ -52,7 +59,7 @@ public class CandidatoOuChapaService {
 
     @Transactional
     public void remover(UUID votacaoId, UUID candidatoId) {
-        exigirRascunho(votacaoId);
+        exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.GERENCIAR_CANDIDATOS);
         CandidatoOuChapa candidato =
                 candidatoRepository
                         .findByIdAndVotacaoId(candidatoId, votacaoId)
@@ -61,18 +68,5 @@ public class CandidatoOuChapaService {
                                         new RecursoNaoEncontradoException(
                                                 "Candidato/chapa", candidatoId));
         candidatoRepository.delete(candidato);
-    }
-
-    private void exigirRascunho(UUID votacaoId) {
-        EstadoVotacao estado =
-                votacaoRepository
-                        .findById(votacaoId)
-                        .orElseThrow(() -> new RecursoNaoEncontradoException("Votação", votacaoId))
-                        .getEstado();
-        if (estado != EstadoVotacao.RascunhoVotacao) {
-            throw new RegraDeNegocioException(
-                    "Candidatos/chapas só podem ser alterados com a votação em rascunho (estado"
-                            + " atual: %s)".formatted(estado));
-        }
     }
 }

@@ -1,8 +1,7 @@
 package com.unicamp.engsoft.eleicao.votacao.service;
 
-import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
-import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.OperacaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.RegraVotacao;
@@ -20,11 +19,15 @@ public class VotacaoService {
 
     private final VotacaoRepository votacaoRepository;
     private final PapelVotacaoRepository papelVotacaoRepository;
+    private final ExigenciaDeEstadoDaVotacao exigenciaDeEstado;
 
     public VotacaoService(
-            VotacaoRepository votacaoRepository, PapelVotacaoRepository papelVotacaoRepository) {
+            VotacaoRepository votacaoRepository,
+            PapelVotacaoRepository papelVotacaoRepository,
+            ExigenciaDeEstadoDaVotacao exigenciaDeEstado) {
         this.votacaoRepository = votacaoRepository;
         this.papelVotacaoRepository = papelVotacaoRepository;
+        this.exigenciaDeEstado = exigenciaDeEstado;
     }
 
     @Transactional
@@ -46,21 +49,17 @@ public class VotacaoService {
      * apuração mudaria o resultado esperado. A autorização (só {@code ADMIN_VOTACAO}) fica no
      * controller, via {@code @PreAuthorize}.
      *
+     * <p>A checagem de estado não está aqui: fica em {@link ExigenciaDeEstadoDaVotacao}, o ponto
+     * único que carrega a votação com lock (sem a corrida com uma publicação concorrente) e delega
+     * a regra ao comportamento do estado. Só o rótulo da operação é deste service.
+     *
      * <p>A combinação de parâmetros é validada pelo value object antes de qualquer consulta, para
      * que um payload inválido devolva 400 mesmo quando a votação nem existe.
      */
     @Transactional
     public RegraVotacao configurarRegras(UUID votacaoId, ConfigurarRegrasRequest request) {
         RegraVotacao regra = request.paraRegra();
-        Votacao votacao =
-                votacaoRepository
-                        .findById(votacaoId)
-                        .orElseThrow(() -> new RecursoNaoEncontradoException("Votação", votacaoId));
-        if (votacao.getEstado() != EstadoVotacao.RascunhoVotacao) {
-            throw new RegraDeNegocioException(
-                    "Regras só podem ser alteradas com a votação em rascunho (estado atual: %s)"
-                            .formatted(votacao.getEstado()));
-        }
+        Votacao votacao = exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.CONFIGURAR_REGRAS);
         votacao.configurarRegras(regra);
         return regra;
     }

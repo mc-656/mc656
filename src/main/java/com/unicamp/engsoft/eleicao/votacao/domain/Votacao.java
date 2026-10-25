@@ -93,7 +93,9 @@ public class Votacao {
 
     /**
      * Só o {@code VotacaoService} chama este método: a checagem de que a votação está em {@code
-     * RascunhoVotacao} fica na camada de service, junto das outras regras de negócio.
+     * RascunhoVotacao} fica na camada de service, em {@code ExigenciaDeEstadoDaVotacao}, que
+     * pergunta ao comportamento do estado (domínio) se a operação é permitida — junto das outras
+     * regras de negócio, nunca aqui na entidade.
      */
     public void configurarRegras(RegraVotacao regras) {
         this.regras = regras;
