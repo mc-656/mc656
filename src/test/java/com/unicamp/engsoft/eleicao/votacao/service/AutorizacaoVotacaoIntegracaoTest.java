@@ -43,7 +43,7 @@ class AutorizacaoVotacaoIntegracaoTest extends AbstractIntegrationTest {
     /** Aninhado direto no teste para o component scan ignorá-lo; entra só via {@code @Import}. */
     @RestController
     static class ControllerProtegido {
-        @GetMapping("/teste/votacoes/{votacaoId}/admin")
+        @GetMapping("/api/teste/votacoes/{votacaoId}/admin")
         @PreAuthorize("@autorizacaoVotacao.ehAdmin(#votacaoId, authentication)")
         String admin(@PathVariable UUID votacaoId) {
             return "ok";
@@ -94,7 +94,7 @@ class AutorizacaoVotacaoIntegracaoTest extends AbstractIntegrationTest {
                 new PapelVotacao(usuario.getId(), votacao.getId(), PapelUsuario.ADMIN_VOTACAO));
 
         mvc.perform(
-                        get("/teste/votacoes/{id}/admin", votacao.getId())
+                        get("/api/teste/votacoes/{id}/admin", votacao.getId())
                                 .header("Authorization", bearer()))
                 .andExpect(status().isOk());
     }
@@ -106,7 +106,7 @@ class AutorizacaoVotacaoIntegracaoTest extends AbstractIntegrationTest {
                 new PapelVotacao(usuario.getId(), votacao.getId(), PapelUsuario.ELEITOR));
 
         mvc.perform(
-                        get("/teste/votacoes/{id}/admin", votacao.getId())
+                        get("/api/teste/votacoes/{id}/admin", votacao.getId())
                                 .header("Authorization", bearer()))
                 .andExpect(status().isForbidden());
     }
@@ -114,7 +114,7 @@ class AutorizacaoVotacaoIntegracaoTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Sem token responde 401")
     void semTokenRecebe401() throws Exception {
-        mvc.perform(get("/teste/votacoes/{id}/admin", votacao.getId()))
+        mvc.perform(get("/api/teste/votacoes/{id}/admin", votacao.getId()))
                 .andExpect(status().isUnauthorized());
     }
 }
