@@ -323,4 +323,60 @@ class MotorApuracaoTest {
     void deveRejeitarRegraNula() {
         assertThrows(IllegalArgumentException.class, () -> motor.apurar(null, List.of(), 10, 5));
     }
+    @Test
+    void apurar_comEmpateDeVotos_deveDeclararVencedorPelaEstrategiaDeIdade() {
+        // 1. Preparação: Regra de Maioria Simples com desempate por idade
+        RegraVotacao regra = new RegraVotacao(
+                TipoMaioria.MAIORIA_SIMPLES, 
+                null, 
+                false, 
+                null, 
+                false,
+                TipoDesempate.IDADE
+        );
+
+        // 2. Preparação: Dois candidatos
+        UUID idCandidatoMaisVelho = UUID.randomUUID();
+        UUID idCandidatoMaisNovo = UUID.randomUUID();
+
+        // 3. Preparação: Simulamos um empate perfeito (3 votos para cada)
+        VotoApuravel votoA = new VotoApuravel(idCandidatoMaisVelho, BigDecimal.ONE);
+        VotoApuravel votoB = new VotoApuravel(idCandidatoMaisNovo, BigDecimal.ONE);
+        List<VotoApuravel> votos = List.of(votoA, votoA, votoA, votoB, votoB, votoB);
+
+        // 4. Preparação: Instanciamos a Estratégia de Desempate
+        Map<UUID, Integer> idades = Map.of(
+            idCandidatoMaisVelho, 65,
+            idCandidatoMaisNovo, 32
+        );
+        EstrategiaDesempate desempateIdade = new DesempateIdade(idades);
+
+        // 5. Execução: Passamos tudo para o Motor
+        ResultadoApuracao resultado = motorApuracao.apurar(
+                regra, 
+                votos, 
+                List.of(idCandidatoMaisVelho, idCandidatoMaisNovo), 
+                100, // totalEleitoresAptos
+                6,   // totalParticipantes
+                desempateIdade // A nossa estratégia é injetada aqui
+        );
+
+        // 6. Verificações
+        // O desempate deve ter funcionado, logo o status tem de ser DEFINIDO (e não EMPATE)
+        assertEquals(StatusApuracao.DEFINIDO, resultado.status(), "A apuração deve terminar com status DEFINIDO");
+        
+        // O vencedor deve ser obrigatoriamente o candidato mais velho
+        assertEquals(idCandidatoMaisVelho, resultado.vencedorId(), "O candidato mais velho deve ser declarado o vencedor");
+
+        // O ranking deve refletir a ordem correta (Mais Velho no topo)
+        List<OpcaoApurada> ranking = resultado.ranking();
+        assertNotNull(ranking);
+        assertEquals(2, ranking.size());
+        assertEquals(idCandidatoMaisVelho, ranking.get(0).opcaoId(), "Mais velho deve ocupar o 1º lugar do ranking");
+        assertEquals(idCandidatoMaisNovo, ranking.get(1).opcaoId(), "Mais novo deve ocupar o 2º lugar do ranking");
+        
+        // Ambos devem ter exatamente os mesmos votos (3 votos), provando que foi o desempate a decidir
+        assertEquals(BigDecimal.valueOf(3), ranking.get(0).totalVotos());
+        assertEquals(BigDecimal.valueOf(3), ranking.get(1).totalVotos());
+    }
 }
