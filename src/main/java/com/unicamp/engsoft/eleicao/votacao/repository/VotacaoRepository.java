@@ -25,4 +25,8 @@ public interface VotacaoRepository extends JpaRepository<Votacao, UUID> {
     @Query("select v.id from Votacao v where v.estado = :estado and v.inicioEm <= :instante")
     List<UUID> idsPorEstadoComInicioAte(
             @Param("estado") EstadoVotacao estado, @Param("instante") Instant instante);
+
+    @Query("select v.id from Votacao v where v.estado = :estado and v.fimEm <= :instante")
+    List<UUID> idsPorEstadoComFimAte(
+            @Param("estado") EstadoVotacao estado, @Param("instante") Instant instante);
 }
