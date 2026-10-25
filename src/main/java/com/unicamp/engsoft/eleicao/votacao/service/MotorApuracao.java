@@ -1,5 +1,6 @@
 package com.unicamp.engsoft.eleicao.votacao.service;
 
+import com.unicamp.engsoft.eleicao.votacao.domain.EstrategiaDesempate;
 import com.unicamp.engsoft.eleicao.votacao.domain.OpcaoApurada;
 import com.unicamp.engsoft.eleicao.votacao.domain.RegraVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao;
@@ -46,6 +47,16 @@ public class MotorApuracao {
             Collection<UUID> todasOpcoes,
             long totalEleitoresAptos,
             long totalParticipantes) {
+        return apurar(regra, votos, todasOpcoes, totalEleitoresAptos, totalParticipantes, null);
+    }
+
+    public ResultadoApuracao apurar(
+            RegraVotacao regra,
+            List<VotoApuravel> votos,
+            Collection<UUID> todasOpcoes,
+            long totalEleitoresAptos,
+            long totalParticipantes,
+            EstrategiaDesempate estrategiaDesempate) {
         if (regra == null) {
             throw new IllegalArgumentException("A regra de votação é obrigatória para a apuração");
         }
@@ -54,7 +65,8 @@ public class MotorApuracao {
         BigDecimal comparecimento = calcularComparecimento(totalEleitoresAptos, totalParticipantes);
         boolean quorumAtingido = verificarQuorum(regra, comparecimento);
 
-        List<OpcaoApurada> ranking = totalizarVotos(regra, votosValidos, todasOpcoes);
+        List<OpcaoApurada> ranking =
+                totalizarVotos(regra, votosValidos, todasOpcoes, estrategiaDesempate);
         BigDecimal totalVotosValidos =
                 ranking.stream()
                         .map(OpcaoApurada::totalVotos)
@@ -105,7 +117,8 @@ public class MotorApuracao {
                 totalVotosValidos,
                 totalParticipantes,
                 totalEleitoresAptos,
-                comparecimento);
+                comparecimento,
+                estrategiaDesempate);
     }
 
     /** Sobrecarga conveniente quando não é necessário pré-cadastrar opções zeradas. */
@@ -134,7 +147,10 @@ public class MotorApuracao {
     }
 
     private List<OpcaoApurada> totalizarVotos(
-            RegraVotacao regra, List<VotoApuravel> votos, Collection<UUID> todasOpcoes, EstrategiaDesempate estrategiaDesempate) {
+            RegraVotacao regra,
+            List<VotoApuravel> votos,
+            Collection<UUID> todasOpcoes,
+            EstrategiaDesempate estrategiaDesempate) {
         Map<UUID, BigDecimal> contagem = new HashMap<>();
 
         if (todasOpcoes != null) {
@@ -170,15 +186,14 @@ public class MotorApuracao {
             ranking.add(new OpcaoApurada(entrada.getKey(), entrada.getValue(), percentual));
         }
 
-        ranking.sort((a, b) -> {
-
-        int comparacaoVotos = b.totalVotos().compareTo(a.totalVotos());
-        
-        if (comparacaoVotos == 0 && estrategiaDesempate != null) {
-            return estrategiaDesempate.compare(a, b);
-        }
-            return comparacaoVotos;
-    });
+        ranking.sort(
+                (a, b) -> {
+                    int comparacaoVotos = b.totalVotos().compareTo(a.totalVotos());
+                    if (comparacaoVotos != 0 || estrategiaDesempate == null) {
+                        return comparacaoVotos;
+                    }
+                    return estrategiaDesempate.compare(a, b);
+                });
         return ranking;
     }
 
@@ -188,12 +203,16 @@ public class MotorApuracao {
             BigDecimal totalVotosValidos,
             long totalParticipantes,
             long totalEleitoresAptos,
-            BigDecimal comparecimento) {
+            BigDecimal comparecimento,
+            EstrategiaDesempate estrategiaDesempate) {
         OpcaoApurada primeiro = ranking.get(0);
         OpcaoApurada segundo = ranking.size() > 1 ? ranking.get(1) : null;
 
         if (regra.tipoMaioria() == TipoMaioria.MAIORIA_SIMPLES) {
-            if (segundo != null && primeiro.totalVotos().compareTo(segundo.totalVotos()) == 0) {
+            if (segundo != null
+                    && primeiro.totalVotos().compareTo(segundo.totalVotos()) == 0
+                    && (estrategiaDesempate == null
+                            || estrategiaDesempate.compare(primeiro, segundo) == 0)) {
                 return new ResultadoApuracao(
                         StatusApuracao.EMPATE,
                         null,

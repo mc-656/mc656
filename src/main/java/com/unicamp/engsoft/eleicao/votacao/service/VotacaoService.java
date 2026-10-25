@@ -16,11 +16,9 @@ public class VotacaoService {
 
     private final VotacaoRepository votacaoRepository;
     private final PapelVotacaoRepository papelVotacaoRepository;
-    private final MotorApuracao motorApuracao;
-    private final CandidatoOuChapaRepository candidatoRepository;
+
     public VotacaoService(
-            VotacaoRepository votacaoRepository, PapelVotacaoRepository papelVotacaoRepository, MotorApuracao motorApuracao, 
-            CandidatoOuChapaRepository candidatoRepository) {
+            VotacaoRepository votacaoRepository, PapelVotacaoRepository papelVotacaoRepository) {
         this.votacaoRepository = votacaoRepository;
         this.papelVotacaoRepository = papelVotacaoRepository;
     }
@@ -35,65 +33,6 @@ public class VotacaoService {
         papelVotacaoRepository.save(
                 new PapelVotacao(administradorId, votacao.getId(), PapelUsuario.ADMIN_VOTACAO));
 
-        // aí temos que adicionar os eleitores válidos para a votação
         return votacao;
-    }
-    @Transactional
-    public ResultadoApuracao apurarVotacao(UUID votacaoId) {
-        Votacao votacao = votacaoRepository.findById(votacaoId)
-                .orElseThrow(() -> new RegraDeNegocioException("Votação não encontrada"));
-
-        RegraVotacao regra = votacao.getRegra();
-
-        List<CandidatoOuChapa> candidatos = candidatoRepository.findByVotacaoIdOrderByCriadoEm(votacaoId);
-        
-        List<UUID> todasOpcoesIds = candidatos.stream()
-                .map(CandidatoOuChapa::getId)
-                .toList();
-        EstrategiaDesempate estrategiaDesempate = fabricarEstrategiaDesempate(candidatos, regra.tipoDesempate());
-
-        
-        ResultadoApuracao resultado = motorApuracao.apurar(
-                regra,
-                votos,
-                todasOpcoesIds, 
-                resultado.getTotalEleitoresAptos(),    
-                resultado.getTotalParticipantes(),    // Total de participantes (votos reais)
-                estrategiaDesempate
-        );
-
-        return resultado;
-    }
-
-    private EstrategiaDesempate fabricarEstrategiaDesempate(List<CandidatoOuChapa> candidatos, TipoDesempate tipo) {
-        if (tipo == null || tipo == TipoDesempate.NENHUM) {
-            return null; 
-        }
-        
-        if (tipo == TipoDesempate.IDADE) {
-            Map<UUID, String> nomes = candidatos.stream()
-            .collect(Collectors.toMap(
-                CandidatoOuChapa::getId, 
-                CandidatoOuChapa::getNome
-            ));
-           return new DesempateAlfabetico(nomes);
-        }
-        
-        if (tipo == TipoDesempate.ALFABETICO) {
-           Map<UUID, Integer> idades = candidatos.stream()
-            .collect(Collectors.toMap(
-                CandidatoOuChapa::getId, 
-                CandidatoOuChapa::getIdade 
-            ));
-        return new DesempateIdade(idades);
-        }
-        if (tipo == TipoDesempate.ALEATORIO) {
-        List<UUID> idsCandidatos = candidatos.stream()
-            .map(CandidatoOuChapa::getId)
-            .toList();
-        return new DesempateAleatorio(idsCandidatos);
-    }
-        
-        throw new IllegalArgumentException("Tipo de desempate não suportado: " + tipo);
     }
 }
