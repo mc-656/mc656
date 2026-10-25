@@ -2,6 +2,7 @@ package com.unicamp.engsoft.eleicao.votacao.domain;
 
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -40,6 +41,12 @@ public class Votacao {
     @Column(name = "descricao", nullable = false, length = 100)
     private String descricao;
 
+    /**
+     * Regras de apuração (RF-11), nulas enquanto o rascunho não for configurado. As cinco colunas
+     * em {@code votacoes} ficam todas nulas nesse caso.
+     */
+    @Embedded private RegraVotacao regras;
+
     protected Votacao() {}
 
     public Votacao(
@@ -77,6 +84,19 @@ public class Votacao {
 
     public String getDescricao() {
         return descricao;
+    }
+
+    /** Regras de apuração, ou {@code null} se ainda não configuradas. */
+    public RegraVotacao getRegras() {
+        return regras;
+    }
+
+    /**
+     * Só o {@code VotacaoService} chama este método: a checagem de que a votação está em {@code
+     * RascunhoVotacao} fica na camada de service, junto das outras regras de negócio.
+     */
+    public void configurarRegras(RegraVotacao regras) {
+        this.regras = regras;
     }
 
     /**
