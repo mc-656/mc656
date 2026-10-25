@@ -42,7 +42,8 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
 
     @Autowired PasswordEncoder passwordEncoder;
 
-    private ResultActions cadastrar(String nome, String cpf, String email, String senha, LocalDate datanasc)
+    private ResultActions cadastrar(
+            String nome, String cpf, String email, String senha, LocalDate datanasc)
             throws Exception {
         return mvc.perform(
                 post("/cadastro")
@@ -114,8 +115,7 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
     @DisplayName("E-mail repetido mostra a mensagem do domínio no formulário")
     void emailRepetidoMostraMensagemDoDominio() throws Exception {
         // Arrange
-        usuarioRepository.save(
-                new Usuario("Outro", OUTRO_CPF, EMAIL, "hash", DATA_NASCIMENTO));
+        usuarioRepository.save(new Usuario("Outro", OUTRO_CPF, EMAIL, "hash", DATA_NASCIMENTO));
 
         // Act & Assert
         cadastrar("Caio", CPF, EMAIL, SENHA, DATA_NASCIMENTO)

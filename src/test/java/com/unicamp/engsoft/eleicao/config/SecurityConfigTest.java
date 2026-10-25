@@ -14,6 +14,7 @@ import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
+import java.time.LocalDate;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,8 +25,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
 
 /**
  * Divisão entre as duas cadeias de segurança (SPECS §7.3): API com JWT e sem CSRF, views com
@@ -50,7 +49,12 @@ class SecurityConfigTest extends AbstractIntegrationTest {
     void criarUsuario() {
         usuario =
                 usuarioRepository.save(
-                        new Usuario("Caio", "12345678909", EMAIL, passwordEncoder.encode(SENHA), LocalDate.parse("1990-01-01")));
+                        new Usuario(
+                                "Caio",
+                                "12345678909",
+                                EMAIL,
+                                passwordEncoder.encode(SENHA),
+                                LocalDate.parse("1990-01-01")));
     }
 
     /**
