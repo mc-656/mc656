@@ -7,6 +7,11 @@ jwt:
   emitter: eleicao-api
   expiresIn: 120m
 
+comprovante:
+  # Chave fixa e pública (32 bytes em Base64): vale só para teste. A de produção vem de
+  # COMPROVANTE_CHAVE, no .env.
+  chave: dGVzdGUtY29tcHJvdmFudGUtY2hhdmUtMzItYnl0ZXM=
+
 votacao:
   agendador:
     # Os testes do job o chamam diretamente; rodando sozinho ele alteraria votações de outros casos.
