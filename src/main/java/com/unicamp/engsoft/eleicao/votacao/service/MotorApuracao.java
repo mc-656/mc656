@@ -92,14 +92,7 @@ public class MotorApuracao {
             return ResultadoApuracao.empate(totalizacao);
         }
 
-        return avaliarMaioria(
-                regra,
-                ranking,
-                totalVotosValidos,
-                totalParticipantes,
-                totalEleitoresAptos,
-                comparecimento,
-                estrategiaDesempate);
+        return avaliarMaioria(regra, totalizacao, estrategiaDesempate);
     }
 
     /** Sobrecarga conveniente quando não é necessário pré-cadastrar opções zeradas. */
@@ -179,13 +172,8 @@ public class MotorApuracao {
     }
 
     private ResultadoApuracao avaliarMaioria(
-            RegraVotacao regra,
-            List<OpcaoApurada> ranking,
-            BigDecimal totalVotosValidos,
-            long totalParticipantes,
-            long totalEleitoresAptos,
-            BigDecimal comparecimento,
-            EstrategiaDesempate estrategiaDesempate) {
+            RegraVotacao regra, Totalizacao totalizacao, EstrategiaDesempate estrategiaDesempate) {
+        List<OpcaoApurada> ranking = totalizacao.ranking();
         OpcaoApurada primeiro = ranking.get(0);
         OpcaoApurada segundo = ranking.size() > 1 ? ranking.get(1) : null;
 
@@ -194,26 +182,18 @@ public class MotorApuracao {
                     && primeiro.totalVotos().compareTo(segundo.totalVotos()) == 0
                     && (estrategiaDesempate == null
                             || estrategiaDesempate.compare(primeiro, segundo) == 0)) {
-                return new ResultadoApuracao(
-                        StatusApuracao.EMPATE,
-                        null,
-                        List.of(),
-                        ranking,
-                        totalVotosValidos,
-                        totalParticipantes,
-                        totalEleitoresAptos,
-                        comparecimento,
-                        true);
+                return ResultadoApuracao.empate(totalizacao);
             }
             return ResultadoApuracao.definido(primeiro.opcaoId(), totalizacao);
         }
 
         boolean atingiuCriterio =
                 regra.tipoMaioria() == TipoMaioria.MAIORIA_ABSOLUTA
-                        ? atingiuMaioriaAbsoluta(primeiro.totalVotos(), totalVotosValidos)
+                        ? atingiuMaioriaAbsoluta(
+                                primeiro.totalVotos(), totalizacao.totalVotosValidos())
                         : atingiuMaioriaQualificada(
                                 primeiro.totalVotos(),
-                                totalVotosValidos,
+                                totalizacao.totalVotosValidos(),
                                 regra.percentualQualificado());
 
         if (atingiuCriterio) {

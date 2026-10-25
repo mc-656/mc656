@@ -1,7 +1,6 @@
 package com.unicamp.engsoft.eleicao.votacao.domain;
 
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
-import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -39,12 +38,12 @@ import java.math.BigDecimal;
  */
 @Embeddable
 public record RegraVotacao(
-        TipoMaioria tipoMaioria,
+        @Enumerated(EnumType.STRING) TipoMaioria tipoMaioria,
         BigDecimal percentualQualificado,
         boolean segundoTurno,
         BigDecimal quorumMinimoPercentual,
         boolean votoPonderado,
-        TipoDesempate tipoDesempate) {
+        @Enumerated(EnumType.STRING) TipoDesempate tipoDesempate) {
 
     private static final BigDecimal CINQUENTA = BigDecimal.valueOf(50);
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
