@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,8 +32,9 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
 
     private static final String SENHA = "senha-secreta-123";
     private static final String EMAIL = "caio@example.com";
-    private static final String CPF = "12345678909";
+    private static final String CPF = "11144477735";
     private static final String OUTRO_CPF = "52998224725";
+    private static final LocalDate DATA_NASCIMENTO = LocalDate.of(1990, 1, 1);
 
     @Autowired MockMvc mvc;
 
@@ -40,7 +42,7 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
 
     @Autowired PasswordEncoder passwordEncoder;
 
-    private ResultActions cadastrar(String nome, String cpf, String email, String senha)
+    private ResultActions cadastrar(String nome, String cpf, String email, String senha, LocalDate datanasc)
             throws Exception {
         return mvc.perform(
                 post("/cadastro")
@@ -48,6 +50,7 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
                         .param("cpf", cpf)
                         .param("email", email)
                         .param("senha", senha)
+                        .param("dataNascimento", datanasc.toString())
                         .with(csrf()));
     }
 
@@ -84,7 +87,8 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
     @DisplayName("Cadastro válido persiste o usuário e redireciona para o login")
     void cadastroValidoRedirecionaParaLogin() throws Exception {
         // Act
-        cadastrar("Caio", CPF, EMAIL, SENHA).andExpect(redirectedUrl("/login?cadastrado"));
+        cadastrar("Caio", CPF, EMAIL, SENHA, DATA_NASCIMENTO)
+                .andExpect(redirectedUrl("/login?cadastrado"));
 
         // Assert
         Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
@@ -95,7 +99,7 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
     @DisplayName("Cadastro inválido reexibe o formulário com as mensagens do Bean Validation")
     void cadastroInvalidoMostraErrosDeCampo() throws Exception {
         // Act & Assert
-        cadastrar("", "123", "nao-e-email", "curta")
+        cadastrar("", "123", "nao-e-email", "curta", DATA_NASCIMENTO)
                 .andExpect(status().isOk())
                 .andExpect(view().name("cadastro"))
                 .andExpect(model().attributeHasFieldErrors("cadastro", "nome", "cpf", "email"))
@@ -110,10 +114,11 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
     @DisplayName("E-mail repetido mostra a mensagem do domínio no formulário")
     void emailRepetidoMostraMensagemDoDominio() throws Exception {
         // Arrange
-        usuarioRepository.save(new Usuario("Outro", OUTRO_CPF, EMAIL, "hash"));
+        usuarioRepository.save(
+                new Usuario("Outro", OUTRO_CPF, EMAIL, "hash", DATA_NASCIMENTO));
 
         // Act & Assert
-        cadastrar("Caio", CPF, EMAIL, SENHA)
+        cadastrar("Caio", CPF, EMAIL, SENHA, DATA_NASCIMENTO)
                 .andExpect(status().isOk())
                 .andExpect(view().name("cadastro"))
                 .andExpect(
@@ -124,7 +129,7 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
     @DisplayName("Formulário reexibido mantém os campos preenchidos, exceto a senha")
     void reexibicaoNaoDevolveSenha() throws Exception {
         // Act & Assert
-        cadastrar("Caio", "123", EMAIL, SENHA)
+        cadastrar("Caio", "123", EMAIL, SENHA, DATA_NASCIMENTO)
                 .andExpect(content().string(containsString("value=\"" + EMAIL + "\"")))
                 .andExpect(content().string(not(containsString(SENHA))));
     }

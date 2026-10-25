@@ -25,6 +25,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 /**
  * Divisão entre as duas cadeias de segurança (SPECS §7.3): API com JWT e sem CSRF, views com
  * sessão, form login e CSRF.
@@ -48,7 +50,7 @@ class SecurityConfigTest extends AbstractIntegrationTest {
     void criarUsuario() {
         usuario =
                 usuarioRepository.save(
-                        new Usuario("Caio", "12345678909", EMAIL, passwordEncoder.encode(SENHA)));
+                        new Usuario("Caio", "12345678909", EMAIL, passwordEncoder.encode(SENHA), LocalDate.parse("1990-01-01")));
     }
 
     /**
@@ -70,7 +72,7 @@ class SecurityConfigTest extends AbstractIntegrationTest {
         // Arrange
         String corpo =
                 """
-                {"nome": "Bia", "cpf": "52998224725", "email": "bia@example.com", "senha": "%s"}
+                {"nome": "Bia", "cpf": "52998224725", "email": "bia@example.com", "senha": "%s", "dataNascimento": "1990-01-01"}
                 """
                         .formatted(SENHA);
 
