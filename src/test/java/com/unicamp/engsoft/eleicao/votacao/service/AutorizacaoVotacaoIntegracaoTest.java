@@ -15,6 +15,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -66,7 +67,12 @@ class AutorizacaoVotacaoIntegracaoTest extends AbstractIntegrationTest {
     void semeia() {
         usuario =
                 usuarioRepository.save(
-                        new Usuario("Caio", "12345678909", "caio@example.com", "hash-da-senha"));
+                        new Usuario(
+                                "Caio",
+                                "12345678909",
+                                "caio@example.com",
+                                "hash-da-senha",
+                                LocalDate.of(2000, 1, 1)));
         votacao =
                 votacaoRepository.save(
                         new Votacao(
