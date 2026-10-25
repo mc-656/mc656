@@ -134,7 +134,7 @@ public class MotorApuracao {
     }
 
     private List<OpcaoApurada> totalizarVotos(
-            RegraVotacao regra, List<VotoApuravel> votos, Collection<UUID> todasOpcoes) {
+            RegraVotacao regra, List<VotoApuravel> votos, Collection<UUID> todasOpcoes, EstrategiaDesempate estrategiaDesempate) {
         Map<UUID, BigDecimal> contagem = new HashMap<>();
 
         if (todasOpcoes != null) {
@@ -170,7 +170,15 @@ public class MotorApuracao {
             ranking.add(new OpcaoApurada(entrada.getKey(), entrada.getValue(), percentual));
         }
 
-        ranking.sort((a, b) -> b.totalVotos().compareTo(a.totalVotos()));
+        ranking.sort((a, b) -> {
+
+        int comparacaoVotos = b.totalVotos().compareTo(a.totalVotos());
+        
+        if (comparacaoVotos == 0 && estrategiaDesempate != null) {
+            return estrategiaDesempate.compare(a, b);
+        }
+            return comparacaoVotos;
+    });
         return ranking;
     }
 

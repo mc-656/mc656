@@ -63,7 +63,7 @@ public record RegraVotacao(
             throw new DadosInvalidosException("O quórum mínimo deve estar entre 0 e 100");
         }
         if (tipoDesempate == null) {
-            tipoDesempate = tipoDesempate.NENHUM;
+            tipoDesempate = TipoDesempate.NENHUM;
         }
     }
 
