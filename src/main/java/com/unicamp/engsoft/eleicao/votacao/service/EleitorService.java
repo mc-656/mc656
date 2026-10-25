@@ -5,7 +5,7 @@ import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoExceptio
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
-import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.OperacaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelVotacaoId;
@@ -31,8 +31,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Ser eleitor é ter o papel {@code ELEITOR} em {@code papeis_votacao}; é essa linha que a
  * checagem de elegibilidade (#23) e o quórum (#59) consultam. A lista só muda com a votação em
  * {@code RascunhoVotacao}, como os candidatos (#22): depois de publicada, o colégio eleitoral é o
- * que os participantes viram, e mexer nele mudaria o denominador do quórum. A autorização (só
- * {@code ADMIN_VOTACAO}) fica no controller, via {@code @PreAuthorize}.
+ * que os participantes viram, e mexer nele mudaria o denominador do quórum. Essa regra não mora
+ * aqui: este service só declara a operação ({@link OperacaoVotacao#GERENCIAR_ELEITORES}) e delega a
+ * checagem — com lock de escrita, atômica frente a uma publicação concorrente — a {@link
+ * ExigenciaDeEstadoDaVotacao}, compartilhada com os demais services. A autorização (só {@code
+ * ADMIN_VOTACAO}) fica no controller, via {@code @PreAuthorize}.
  */
 @Service
 public class EleitorService {
@@ -41,21 +44,24 @@ public class EleitorService {
     private final VotacaoRepository votacaoRepository;
     private final UsuarioRepository usuarioRepository;
     private final ConsultaRegraVotacao consultaRegraVotacao;
+    private final ExigenciaDeEstadoDaVotacao exigenciaDeEstado;
 
     public EleitorService(
             PapelVotacaoRepository papelVotacaoRepository,
             VotacaoRepository votacaoRepository,
             UsuarioRepository usuarioRepository,
-            ConsultaRegraVotacao consultaRegraVotacao) {
+            ConsultaRegraVotacao consultaRegraVotacao,
+            ExigenciaDeEstadoDaVotacao exigenciaDeEstado) {
         this.papelVotacaoRepository = papelVotacaoRepository;
         this.votacaoRepository = votacaoRepository;
         this.usuarioRepository = usuarioRepository;
         this.consultaRegraVotacao = consultaRegraVotacao;
+        this.exigenciaDeEstado = exigenciaDeEstado;
     }
 
     @Transactional
     public EleitorResponse adicionar(UUID votacaoId, AdicionarEleitorRequest request) {
-        Votacao votacao = exigirRascunho(votacaoId);
+        Votacao votacao = exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.GERENCIAR_ELEITORES);
         BigDecimal peso = request.peso() == null ? BigDecimal.ONE : request.peso();
         validarPeso(votacao, peso);
 
@@ -100,7 +106,7 @@ public class EleitorService {
 
     @Transactional
     public void remover(UUID votacaoId, UUID usuarioId) {
-        exigirRascunho(votacaoId);
+        exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.GERENCIAR_ELEITORES);
         PapelVotacaoId id = new PapelVotacaoId(usuarioId, votacaoId, PapelUsuario.ELEITOR);
         PapelVotacao papel =
                 papelVotacaoRepository
@@ -127,25 +133,5 @@ public class EleitorService {
             throw new RegraDeNegocioException(
                     "Peso diferente de 1 só é permitido em votação com voto ponderado");
         }
-    }
-
-    /**
-     * Usa o mesmo lock de escrita das transições ({@code buscarParaTransicao}) para que checar o
-     * rascunho e alterar os eleitores seja atômico frente a uma publicação concorrente: sem ele, a
-     * votação poderia ser publicada entre a checagem e o commit, e o eleitor entraria (ou sairia)
-     * de uma votação já publicada. Com o lock, a operação que chegar depois espera a outra e vê o
-     * estado já atualizado.
-     */
-    private Votacao exigirRascunho(UUID votacaoId) {
-        Votacao votacao =
-                votacaoRepository
-                        .buscarParaTransicao(votacaoId)
-                        .orElseThrow(() -> new RecursoNaoEncontradoException("Votação", votacaoId));
-        if (votacao.getEstado() != EstadoVotacao.RascunhoVotacao) {
-            throw new RegraDeNegocioException(
-                    "Eleitores só podem ser alterados com a votação em rascunho (estado atual: %s)"
-                            .formatted(votacao.getEstado()));
-        }
-        return votacao;
     }
 }
