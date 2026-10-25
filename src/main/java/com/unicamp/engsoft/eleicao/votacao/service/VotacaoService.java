@@ -37,7 +37,6 @@ public class VotacaoService {
         papelVotacaoRepository.save(
                 new PapelVotacao(administradorId, votacao.getId(), PapelUsuario.ADMIN_VOTACAO));
 
-        // aí temos que adicionar os eleitores válidos para a votação
         return votacao;
     }
 

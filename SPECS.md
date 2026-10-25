@@ -58,6 +58,7 @@ Casos de uso centrais compartilhados entre perfis: `Validar Elegibilidade e Logi
   - segundo turno (sim/não), permitido só com maioria absoluta ou qualificada;
   - quórum mínimo, em percentual (0–100) dos eleitores aptos, contado por eleitor e não por peso;
   - voto ponderado (sim/não), com os pesos guardados em `PapelVotacao`.
+  - critério de desempate(ex: candidato mais velho), injetado no motor de apuração via padrão Strategy
   O orçamento total do orçamento participativo não faz parte da regra: é definido com as propostas (RF-20, M3).
 - **CandidatoOuChapa** — opção votável em eleição privada.
 - **Proposta** — item elegível a receber pontos em orçamento participativo.
@@ -127,7 +128,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 - **RF-12** Cadastrar candidatos/chapas.
 - **RF-13** Registrar voto único por eleitor elegível, com comprovante.
 - **RF-14** Impedir voto duplicado e voto fora da janela `EmVotacao`.
-- **RF-15** Apurar resultado respeitando regra configurada (incl. segundo turno quando necessário, como nova votação derivada com os 2 mais votados).
+- **RF-15** Apurar resultado respeitando regra configurada (incl. segundo turno quando necessário, como nova votação derivada com os 2 mais votados e critérios de desempate quando houver igualdade de votos).
 
 ### 5.3 Orçamento Participativo
 - **RF-20** Cadastrar propostas e definir orçamento total (limite de pontos).
@@ -204,8 +205,8 @@ Pacote base: `com.unicamp.engsoft.eleicao`, conforme o projeto inicializado no r
 - **Máquina de estados isolada no `service`**: transições de `EstadoVotacao` centralizadas em um único ponto (ex.: `VotacaoStateService`), nunca alteradas diretamente pelo controller ou repository.
 - **Separação apuração pública vs. privada**: `eleicaopublica` é somente leitura/conteúdo, nunca compartilha tabelas de voto com `votacao` (dados públicos não sofrem as mesmas exigências de sigilo/apuração).
 - **Papéis fora do token**: o JWT identifica o usuário (`sub` = id) mas não carrega papéis. A autorização consulta `papeis_votacao` a cada operação (`@PreAuthorize` com o bean `autorizacaoVotacao`), porque o papel pode ser concedido ou revogado enquanto o token ainda é válido.
-- **Autenticação das views (#64)**: duas `SecurityFilterChain`. A API (`/api/**`) segue com JWT stateless e CSRF desligado; as views Thymeleaf (todo o resto) usam sessão + form login com CSRF ligado, já que o cookie de sessão é anexado pelo navegador. Ambas usam o mesmo `UserDetailsService`. Escolhida em vez de páginas que chamam a API via JS guardando o JWT: mantém a renderização server-side prevista em §7.1 e deixa o token fora do alcance de JS (XSS).
-- **Voto como registro append-only**: sem update/delete de `Voto`; correção de erro é nova regra de negócio explícita, não edição de dado histórico.
+- **Voto como registro append-only e separado**: `Participacao` (quem votou) e `Cedula` (em quê) não têm update/delete nem vínculo entre si; correção de erro é nova regra de negócio explícita, não edição de dado histórico.
+- **Desacoplamento de regras de desempate (Strategy):** O motor de apuração (`MotorApuracao`) é mantido como uma lógica pura de contagem matemática. Regras específicas de candidatos (como desempate por idade) são injetadas via padrão **Strategy** (`EstrategiaDesempate`). Os dados necessários são carregados sob demanda pelo `VotacaoService`, evitando *Data Clumps* (inchar o domínio de apuração com dados pessoais) e respeitando o princípio Aberto/Fechado (Open/Closed Principle).
 
 ## 8. Processo de Desenvolvimento
 

@@ -1,7 +1,6 @@
 package com.unicamp.engsoft.eleicao.votacao.domain;
 
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
-import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -32,17 +31,19 @@ import java.math.BigDecimal;
  *     qualificada, já que na maioria simples sempre há um mais votado.
  * @param quorumMinimoPercentual Percentual mínimo de eleitores aptos que precisam votar, entre 0 e
  *     100. {@code null} indica votação sem quórum.
+ * @param tipoDesempate Critério adotado quando há algum empate na apuração. Se {@code null} assume
+ *     NENHUM
  * @param votoPonderado Indica se os votos usam o peso configurado para cada eleitor.
  * @throws DadosInvalidosException Se a combinação de parâmetros for inválida.
  */
 @Embeddable
 public record RegraVotacao(
-        @Enumerated(EnumType.STRING) @Column(name = "tipo_maioria", length = 30)
-                TipoMaioria tipoMaioria,
-        @Column(name = "percentual_qualificado") BigDecimal percentualQualificado,
-        @Column(name = "segundo_turno") boolean segundoTurno,
-        @Column(name = "quorum_minimo_percentual") BigDecimal quorumMinimoPercentual,
-        @Column(name = "voto_ponderado") boolean votoPonderado) {
+        @Enumerated(EnumType.STRING) TipoMaioria tipoMaioria,
+        BigDecimal percentualQualificado,
+        boolean segundoTurno,
+        BigDecimal quorumMinimoPercentual,
+        boolean votoPonderado,
+        @Enumerated(EnumType.STRING) TipoDesempate tipoDesempate) {
 
     private static final BigDecimal CINQUENTA = BigDecimal.valueOf(50);
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
@@ -61,6 +62,24 @@ public record RegraVotacao(
                         || quorumMinimoPercentual.compareTo(CEM) > 0)) {
             throw new DadosInvalidosException("O quórum mínimo deve estar entre 0 e 100");
         }
+        if (tipoDesempate == null) {
+            tipoDesempate = TipoDesempate.NENHUM;
+        }
+    }
+
+    public RegraVotacao(
+            TipoMaioria tipoMaioria,
+            BigDecimal percentualQualificado,
+            boolean segundoTurno,
+            BigDecimal quorumMinimoPercentual,
+            boolean votoPonderado) {
+        this(
+                tipoMaioria,
+                percentualQualificado,
+                segundoTurno,
+                quorumMinimoPercentual,
+                votoPonderado,
+                TipoDesempate.NENHUM);
     }
 
     private static void validarPercentualQualificado(
