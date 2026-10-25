@@ -38,7 +38,7 @@ public class UsuarioViewController {
 
     @GetMapping("/cadastro")
     public String formularioCadastro(Model model) {
-        model.addAttribute(CADASTRO, new CadastroUsuarioRequest(null, null, null, null));
+        model.addAttribute(CADASTRO, new CadastroUsuarioRequest(null, null, null, null, null));
         return CADASTRO;
     }
 
