@@ -3,7 +3,10 @@ package com.unicamp.engsoft.eleicao.usuario.dto;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import org.hibernate.validator.constraints.br.CPF;
 
 /**
@@ -23,9 +26,12 @@ public record CadastroUsuarioRequest(
                 String email,
         @NotBlank(message = "A senha é obrigatória")
                 @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72 caracteres")
-                String senha) {
+                String senha,
+        @NotNull(message = "A data de nascimento deve ser uma data no passado")
+                @Past(message = "A data de nascimento deve ser uma data no passado")
+                LocalDate dataNascimento) {
 
     public Usuario paraUsuario(String senhaHash) {
-        return new Usuario(nome, cpf, email, senhaHash);
+        return new Usuario(nome, cpf, email, senhaHash, dataNascimento);
     }
 }
