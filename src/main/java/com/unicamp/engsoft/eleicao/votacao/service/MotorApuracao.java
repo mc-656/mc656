@@ -3,8 +3,8 @@ package com.unicamp.engsoft.eleicao.votacao.service;
 import com.unicamp.engsoft.eleicao.votacao.domain.OpcaoApurada;
 import com.unicamp.engsoft.eleicao.votacao.domain.RegraVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao;
-import com.unicamp.engsoft.eleicao.votacao.domain.StatusApuracao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
+import com.unicamp.engsoft.eleicao.votacao.domain.Totalizacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.VotoApuravel;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -60,52 +60,27 @@ public class MotorApuracao {
                         .map(OpcaoApurada::totalVotos)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        Totalizacao totalizacao =
+                new Totalizacao(
+                        ranking,
+                        totalVotosValidos,
+                        totalParticipantes,
+                        totalEleitoresAptos,
+                        comparecimento);
+
         if (!quorumAtingido) {
-            return new ResultadoApuracao(
-                    StatusApuracao.QUORUM_NAO_ATINGIDO,
-                    null,
-                    List.of(),
-                    ranking,
-                    totalVotosValidos,
-                    totalParticipantes,
-                    totalEleitoresAptos,
-                    comparecimento,
-                    false);
+            return ResultadoApuracao.quorumNaoAtingido(totalizacao);
         }
 
         if (ranking.isEmpty()) {
-            return new ResultadoApuracao(
-                    StatusApuracao.SEM_VENCEDOR,
-                    null,
-                    List.of(),
-                    ranking,
-                    totalVotosValidos,
-                    totalParticipantes,
-                    totalEleitoresAptos,
-                    comparecimento,
-                    true);
+            return ResultadoApuracao.semVencedor(totalizacao);
         }
 
         if (totalVotosValidos.compareTo(BigDecimal.ZERO) == 0) {
-            return new ResultadoApuracao(
-                    StatusApuracao.EMPATE,
-                    null,
-                    List.of(),
-                    ranking,
-                    totalVotosValidos,
-                    totalParticipantes,
-                    totalEleitoresAptos,
-                    comparecimento,
-                    true);
+            return ResultadoApuracao.empate(totalizacao);
         }
 
-        return avaliarMaioria(
-                regra,
-                ranking,
-                totalVotosValidos,
-                totalParticipantes,
-                totalEleitoresAptos,
-                comparecimento);
+        return avaliarMaioria(regra, totalizacao);
     }
 
     /** Sobrecarga conveniente quando não é necessário pré-cadastrar opções zeradas. */
@@ -174,39 +149,17 @@ public class MotorApuracao {
         return ranking;
     }
 
-    private ResultadoApuracao avaliarMaioria(
-            RegraVotacao regra,
-            List<OpcaoApurada> ranking,
-            BigDecimal totalVotosValidos,
-            long totalParticipantes,
-            long totalEleitoresAptos,
-            BigDecimal comparecimento) {
+    private ResultadoApuracao avaliarMaioria(RegraVotacao regra, Totalizacao totalizacao) {
+        List<OpcaoApurada> ranking = totalizacao.ranking();
+        BigDecimal totalVotosValidos = totalizacao.totalVotosValidos();
         OpcaoApurada primeiro = ranking.get(0);
         OpcaoApurada segundo = ranking.size() > 1 ? ranking.get(1) : null;
 
         if (regra.tipoMaioria() == TipoMaioria.MAIORIA_SIMPLES) {
             if (segundo != null && primeiro.totalVotos().compareTo(segundo.totalVotos()) == 0) {
-                return new ResultadoApuracao(
-                        StatusApuracao.EMPATE,
-                        null,
-                        List.of(),
-                        ranking,
-                        totalVotosValidos,
-                        totalParticipantes,
-                        totalEleitoresAptos,
-                        comparecimento,
-                        true);
+                return ResultadoApuracao.empate(totalizacao);
             }
-            return new ResultadoApuracao(
-                    StatusApuracao.DEFINIDO,
-                    primeiro.opcaoId(),
-                    List.of(),
-                    ranking,
-                    totalVotosValidos,
-                    totalParticipantes,
-                    totalEleitoresAptos,
-                    comparecimento,
-                    true);
+            return ResultadoApuracao.definido(primeiro.opcaoId(), totalizacao);
         }
 
         boolean atingiuCriterio =
@@ -218,37 +171,14 @@ public class MotorApuracao {
                                 regra.percentualQualificado());
 
         if (atingiuCriterio) {
-            return new ResultadoApuracao(
-                    StatusApuracao.DEFINIDO,
-                    primeiro.opcaoId(),
-                    List.of(),
-                    ranking,
-                    totalVotosValidos,
-                    totalParticipantes,
-                    totalEleitoresAptos,
-                    comparecimento,
-                    true);
+            return ResultadoApuracao.definido(primeiro.opcaoId(), totalizacao);
         }
 
         if (regra.segundoTurno()) {
-            return definirSegundoTurno(
-                    ranking,
-                    totalVotosValidos,
-                    totalParticipantes,
-                    totalEleitoresAptos,
-                    comparecimento);
+            return definirSegundoTurno(totalizacao);
         }
 
-        return new ResultadoApuracao(
-                StatusApuracao.SEM_VENCEDOR,
-                null,
-                List.of(),
-                ranking,
-                totalVotosValidos,
-                totalParticipantes,
-                totalEleitoresAptos,
-                comparecimento,
-                true);
+        return ResultadoApuracao.semVencedor(totalizacao);
     }
 
     private boolean atingiuMaioriaAbsoluta(BigDecimal votos, BigDecimal totalValidos) {
@@ -260,23 +190,10 @@ public class MotorApuracao {
         return votos.multiply(CEM).compareTo(totalValidos.multiply(percentualQualificado)) >= 0;
     }
 
-    private ResultadoApuracao definirSegundoTurno(
-            List<OpcaoApurada> ranking,
-            BigDecimal totalVotosValidos,
-            long totalParticipantes,
-            long totalEleitoresAptos,
-            BigDecimal comparecimento) {
+    private ResultadoApuracao definirSegundoTurno(Totalizacao totalizacao) {
+        List<OpcaoApurada> ranking = totalizacao.ranking();
         if (ranking.size() < 2) {
-            return new ResultadoApuracao(
-                    StatusApuracao.SEM_VENCEDOR,
-                    null,
-                    List.of(),
-                    ranking,
-                    totalVotosValidos,
-                    totalParticipantes,
-                    totalEleitoresAptos,
-                    comparecimento,
-                    true);
+            return ResultadoApuracao.semVencedor(totalizacao);
         }
 
         OpcaoApurada primeiro = ranking.get(0);
@@ -285,28 +202,11 @@ public class MotorApuracao {
         if (ranking.size() > 2) {
             OpcaoApurada terceiro = ranking.get(2);
             if (segundo.totalVotos().compareTo(terceiro.totalVotos()) == 0) {
-                return new ResultadoApuracao(
-                        StatusApuracao.EMPATE,
-                        null,
-                        List.of(),
-                        ranking,
-                        totalVotosValidos,
-                        totalParticipantes,
-                        totalEleitoresAptos,
-                        comparecimento,
-                        true);
+                return ResultadoApuracao.empate(totalizacao);
             }
         }
 
-        return new ResultadoApuracao(
-                StatusApuracao.SEGUNDO_TURNO,
-                null,
-                List.of(primeiro.opcaoId(), segundo.opcaoId()),
-                ranking,
-                totalVotosValidos,
-                totalParticipantes,
-                totalEleitoresAptos,
-                comparecimento,
-                true);
+        return ResultadoApuracao.segundoTurno(
+                List.of(primeiro.opcaoId(), segundo.opcaoId()), totalizacao);
     }
 }
