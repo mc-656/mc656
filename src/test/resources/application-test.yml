@@ -1,0 +1,18 @@
+# Sobrepõe apenas o necessário para os testes; o restante vem do application.yml principal.
+# Profile separado de propósito: um application.yml aqui sombrearia o de produção inteiro,
+# levando junto flyway e jpa.
+jwt:
+  # Segredo fixo e público: vale só para teste. O de produção vem de HMAC, no .env.
+  secret: segredo-de-teste-apenas-com-tamanho-suficiente-para-hs256
+  emitter: eleicao-api
+  expiresIn: 120m
+
+comprovante:
+  # Chave fixa e pública (32 bytes em Base64): vale só para teste. A de produção vem de
+  # COMPROVANTE_CHAVE, no .env.
+  chave: dGVzdGUtY29tcHJvdmFudGUtY2hhdmUtMzItYnl0ZXM=
+
+votacao:
+  agendador:
+    # Os testes do job o chamam diretamente; rodando sozinho ele alteraria votações de outros casos.
+    habilitado: false

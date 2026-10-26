@@ -50,12 +50,20 @@ Casos de uso centrais compartilhados entre perfis: `Validar Elegibilidade e Logi
 
 ### 4.1 Entidades principais
 
-- **Usuario** — identidade, credenciais, papéis (`ADMIN_VOTACAO`, `ELEITOR`).
-- **Votacao** — agregado raiz de uma eleição privada ou orçamento participativo. Contém tipo (`ELEICAO_PRIVADA` | `ORCAMENTO_PARTICIPATIVO`), regras, datas de início/fim, estado.
-- **RegraVotacao** — value object: tipo de maioria (simples/qualificada), segundo turno (sim/não), pesos por eleitor, quórum mínimo, orçamento total (quando aplicável).
+- **Usuario** — identidade e credenciais. Não tem papel global: todo cadastro é um usuário comum.
+- **PapelVotacao** — papel (`ADMIN_VOTACAO`, `ELEITOR`) de um `Usuario` em uma `Votacao` específica. O mesmo usuário pode ser administrador de uma votação, eleitor de outra e ambos na mesma. O papel `ELEITOR` carrega o `peso` do voto (default 1; diferente de 1 só em votação com voto ponderado).
+- **Votacao** — agregado raiz de uma eleição privada ou orçamento participativo. Contém tipo (`ELEICAO_PRIVADA` | `ORCAMENTO_PARTICIPATIVO`), regras, datas de início/fim, estado. Um segundo turno é uma nova `Votacao` derivada, com referência à votação de origem.
+- **RegraVotacao** — value object:
+  - tipo de maioria: simples (vence o mais votado), absoluta (mais de 50% dos votos válidos ponderados) ou qualificada (percentual configurado, maior que 50%);
+  - segundo turno (sim/não), permitido só com maioria absoluta ou qualificada;
+  - quórum mínimo, em percentual (0–100) dos eleitores aptos, contado por eleitor e não por peso;
+  - voto ponderado (sim/não), com os pesos guardados em `PapelVotacao`.
+  - critério de desempate(ex: candidato mais velho), injetado no motor de apuração via padrão Strategy
+  O orçamento total do orçamento participativo não faz parte da regra: é definido com as propostas (RF-20, M3).
 - **CandidatoOuChapa** — opção votável em eleição privada.
 - **Proposta** — item elegível a receber pontos em orçamento participativo.
-- **Voto** — registro imutável de participação de um `Usuario` em uma `Votacao` (voto único ou distribuição de pontos), com comprovante criptografado.
+- **Participacao** — registro imutável de que um `Usuario` votou em uma `Votacao` (único por usuário e votação). Não contém a opção escolhida.
+- **Cedula** — registro imutável do voto em si (opção e peso), **sem referência ao usuário**. Nada no banco permite ligar uma `Cedula` a uma `Participacao` (sem FK, timestamp ou ordem em comum). O comprovante criptografado é gerado a partir da cédula. Risco residual aceito: em voto ponderado, um eleitor com peso único na votação tem a cédula identificável pelo peso.
 - **Apuracao** — snapshot do resultado computado (pesos, cotas, quórum atingido/não atingido).
 - **CandidatoPublico / EleicaoPublica** — dados informativos (propostas, agenda, notícias) do módulo público, sem lógica de apuração.
 
@@ -80,12 +88,24 @@ EmVotacao (composto)
   --[Cancelamento forçado]--> Cancelada
   --[Data de fim atingida]--> Apuracao
 
+Suspensa
+  --[Votação retomada]--> EmVotacao
+  --[Cancelamento forçado]--> Cancelada
+
 Apuracao
-  --[Regras validadas]--> Encerrada --[Resultado publicado e aceito]--> Homologada (final)
-  --[Falta de quórum / irregularidade]--> Anulada (final)
+  --[Regras validadas e quórum atingido]--> Encerrada --[Resultado publicado e aceito]--> Homologada (final)
+  --[Falta de quórum (automática) / irregularidade (admin)]--> Anulada (final)
 
 Cancelada (final)
 ```
+
+Regras complementares:
+
+- `RecebendoVotos`, `ComputandoPesos` e `ValidandoCotas` são subestados **conceituais** (etapas do processamento de cada voto), não valores persistidos de `EstadoVotacao`.
+- Transições por data (`Publicada → EmVotacao`, `EmVotacao → Apuracao`) são automáticas e auditadas com origem `SISTEMA` e autor nulo.
+- Se a data de fim passar com a votação `Suspensa`, ela continua `Suspensa`. O administrador estende o fim e retoma, ou cancela; retomar com o fim vencido leva direto para `Apuracao`.
+- Quórum não atingido leva automaticamente `Apuracao → Anulada`.
+- Segundo turno: a votação original segue para `Encerrada` e uma nova `Votacao` derivada nasce em `RascunhoVotacao`, com os 2 finalistas, os mesmos eleitores e pesos e regra sem segundo turno.
 
 Implementação sugerida: enum `EstadoVotacao` + padrão State (ou guard clauses no service) para impedir transições inválidas. Toda transição deve ser auditável (quem, quando, motivo).
 
@@ -100,7 +120,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 ### 5.1 Conta e Acesso
 - **RF-01** Cadastro e autenticação de usuário.
 - **RF-02** Validação de elegibilidade de um usuário para uma `Votacao` específica (ex.: pertence ao condomínio, é aluno matriculado).
-- **RF-03** Perfis/papéis: eleitor, administrador de votação.
+- **RF-03** Perfis/papéis: eleitor, administrador de votação. Os papéis valem **por votação**, não por usuário: são atribuídos em relação a uma `Votacao` e checados a cada operação naquela votação.
 
 ### 5.2 Eleições Privadas
 - **RF-10** Criar votação personalizada (nome, descrição, datas, elegíveis).
@@ -108,7 +128,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 - **RF-12** Cadastrar candidatos/chapas.
 - **RF-13** Registrar voto único por eleitor elegível, com comprovante.
 - **RF-14** Impedir voto duplicado e voto fora da janela `EmVotacao`.
-- **RF-15** Apurar resultado respeitando regra configurada (incl. segundo turno quando necessário).
+- **RF-15** Apurar resultado respeitando regra configurada (incl. segundo turno quando necessário, como nova votação derivada com os 2 mais votados e critérios de desempate quando houver igualdade de votos).
 
 ### 5.3 Orçamento Participativo
 - **RF-20** Cadastrar propostas e definir orçamento total (limite de pontos).
@@ -123,7 +143,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 - **RF-33** Consultar notícias/resumos de debates relacionados.
 
 ### 5.5 Apuração e Acompanhamento
-- **RF-40** Acompanhar resultado da apuração em tempo real (ou near-real-time) durante `EmVotacao`.
+- **RF-40** Acompanhar o comparecimento em tempo real (ou near-real-time) durante `EmVotacao`: participações, eleitores aptos e status do quórum. A contagem por opção só é exibida após a apuração, para não violar a RNF-02.
 - **RF-41** Publicar e homologar resultado final.
 - **RF-42** Anular votação por falta de quórum ou irregularidade, com justificativa registrada.
 
@@ -146,7 +166,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 
 - **Backend:** Java + Spring Boot (Spring Web, Spring Data JPA, Spring Security, Bean Validation).
 - **Banco de dados:** relacional (PostgreSQL em produção); migrações via Flyway (`src/main/resources/db/migration`, já presente no repositório).
-- **View:** Thymeleaf server-side (`src/main/resources/templates`) para MVP; possibilidade de expor API REST para um front-end separado em fase posterior.
+- **View:** Thymeleaf server-side (`src/main/resources/templates`) para MVP. Os endpoints REST JSON com JWT (`/api/...`) já existem e convivem com as views; a forma de autenticação das views é decidida na issue de configuração do Thymeleaf.
 - **CI/CD:** GitHub Actions (build, testes, lint, scan de segurança, deploy).
 - **Gerenciamento de projeto:** GitHub Projects (Kanban) + Issues + Milestones.
 
@@ -184,7 +204,9 @@ Pacote base: `com.unicamp.engsoft.eleicao`, conforme o projeto inicializado no r
 
 - **Máquina de estados isolada no `service`**: transições de `EstadoVotacao` centralizadas em um único ponto (ex.: `VotacaoStateService`), nunca alteradas diretamente pelo controller ou repository.
 - **Separação apuração pública vs. privada**: `eleicaopublica` é somente leitura/conteúdo, nunca compartilha tabelas de voto com `votacao` (dados públicos não sofrem as mesmas exigências de sigilo/apuração).
-- **Voto como registro append-only**: sem update/delete de `Voto`; correção de erro é nova regra de negócio explícita, não edição de dado histórico.
+- **Papéis fora do token**: o JWT identifica o usuário (`sub` = id) mas não carrega papéis. A autorização consulta `papeis_votacao` a cada operação (`@PreAuthorize` com o bean `autorizacaoVotacao`), porque o papel pode ser concedido ou revogado enquanto o token ainda é válido.
+- **Voto como registro append-only e separado**: `Participacao` (quem votou) e `Cedula` (em quê) não têm update/delete nem vínculo entre si; correção de erro é nova regra de negócio explícita, não edição de dado histórico.
+- **Desacoplamento de regras de desempate (Strategy):** O motor de apuração (`MotorApuracao`) é mantido como uma lógica pura de contagem matemática. Regras específicas de candidatos (como desempate por idade) são injetadas via padrão **Strategy** (`EstrategiaDesempate`). Os dados necessários são carregados sob demanda pelo `VotacaoService`, evitando *Data Clumps* (inchar o domínio de apuração com dados pessoais) e respeitando o princípio Aberto/Fechado (Open/Closed Principle).
 
 ## 8. Processo de Desenvolvimento
 
@@ -265,7 +287,7 @@ Pipeline de CI (GitHub Actions), executado automaticamente no fluxo de desenvolv
 |---|---|---|
 | Regra de apuração implementada incorretamente (ex.: segundo turno, cotas) | Resultado de votação inválido, perda de confiança | Testes automatizados por regra + revisão por pares obrigatória em PRs que tocam `service` de votação |
 | Falha do sistema durante `EmVotacao` | Votação pode precisar ser anulada | Monitoramento + estado `Suspensa` já modelado como transição de contingência |
-| Voto duplicado ou fora de janela | Quebra de integridade do processo | Validação no `service`, não só na UI; constraint de unicidade no banco (usuário + votação) |
+| Voto duplicado ou fora de janela | Quebra de integridade do processo | Validação no `service`, não só na UI; constraint de unicidade no banco (usuário + votação) em `Participacao` |
 | Escopo amplo (3 módulos) atrasar entrega do core | Atraso geral do projeto | Milestones priorizam Eleições Privadas (M1-M2) antes de Orçamento Participativo (M3) e módulo Público (M4) |
 
 ## 11. Definition of Done (por Issue)

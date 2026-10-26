@@ -2,20 +2,21 @@ package com.unicamp.engsoft.eleicao.usuario.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.validator.constraints.br.CPF;
 
 @Entity
@@ -42,20 +43,37 @@ public class Usuario {
     @Email(message = "O email deve ser válido")
     private String email;
 
+    /** Apenas o hash BCrypt da senha. Senha em texto plano nunca chega até aqui. */
     @NotBlank(message = "A senha é obrigatória")
-    @Column(nullable = false)
-    private String senha;
+    @Column(name = "senha_hash", nullable = false)
+    private String senhaHash;
 
-    @NotNull(message = "O papel do usuário é obrigatório")
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PapelUsuario papel;
+    /** Preenchidos pelo Hibernate: o DEFAULT do banco só cobriria o INSERT. */
+    @CreationTimestamp
+    @Column(name = "criado_em", nullable = false, updatable = false)
+    private Instant criadoEm;
 
-    public Usuario(String nome, String cpf, String email, String senha, PapelUsuario papel) {
+    @UpdateTimestamp
+    @Column(name = "modificado_em", nullable = false)
+    private Instant modificadoEm;
+
+    @Column(name = "data_nascimento", nullable = false)
+    private LocalDate dataNascimento;
+
+    public Usuario(
+            String nome, String cpf, String email, String senhaHash, LocalDate dataNascimento) {
         this.nome = nome;
         this.cpf = cpf;
         this.email = email;
-        this.senha = senha; // ela é criptografada
-        this.papel = papel;
+        this.senhaHash = senhaHash;
+        this.dataNascimento = dataNascimento;
+    }
+
+    public Usuario(String nome, String cpf, String email, String senhaHash) {
+        this.nome = nome;
+        this.cpf = cpf;
+        this.email = email;
+        this.senhaHash = senhaHash;
+        this.dataNascimento = null;
     }
 }

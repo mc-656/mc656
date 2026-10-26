@@ -1,0 +1,7 @@
+ALTER TABLE votacoes
+    ADD COLUMN nome VARCHAR(50) NOT NULL DEFAULT 'Votação sem nome',
+    ADD COLUMN descricao VARCHAR(100) NOT NULL DEFAULT '';
+
+ALTER TABLE votacoes
+    ALTER COLUMN nome DROP DEFAULT,
+    ALTER COLUMN descricao DROP DEFAULT;

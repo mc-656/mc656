@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!--
+  Layout mestre (Thymeleaf Layout Dialect). Cada página declara layout:decorate="~{layout}",
+  define o próprio <title> e preenche o bloco "conteudo".
+-->
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title layout:title-pattern="$CONTENT_TITLE · Decisão Coletiva">Decisão Coletiva</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+
+<header class="cabecalho">
+    <a th:href="@{/}" class="marca">Decisão Coletiva</a>
+
+    <!-- Logout é POST com token CSRF (injetado pelo th:action): via GET, qualquer site deslogaria o usuário. -->
+    <nav sec:authorize="isAuthenticated()">
+        <span sec:authentication="name">usuario@example.com</span>
+        <form th:action="@{/logout}" method="post" class="inline">
+            <button type="submit" class="link">Sair</button>
+        </form>
+    </nav>
+    <nav sec:authorize="isAnonymous()">
+        <a th:href="@{/login}">Entrar</a>
+        <a th:href="@{/cadastro}">Cadastrar</a>
+    </nav>
+</header>
+
+<main layout:fragment="conteudo"></main>
+
+<footer class="rodape">MC656 · Unicamp</footer>
+
+</body>
+</html>

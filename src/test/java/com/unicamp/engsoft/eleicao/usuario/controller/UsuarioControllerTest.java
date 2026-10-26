@@ -1,0 +1,217 @@
+package com.unicamp.engsoft.eleicao.usuario.controller;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.jayway.jsonpath.JsonPath;
+import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
+import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
+import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
+import java.time.LocalDate;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+/** Cadastro ponta a ponta (RF-01): validação, persistência e o que sai na resposta. */
+@AutoConfigureMockMvc
+@Transactional
+class UsuarioControllerTest extends AbstractIntegrationTest {
+
+    private static final String SENHA = "senha-secreta-123";
+    private static final String EMAIL = "caio@example.com";
+    private static final String CPF = "12345678909";
+    private static final String OUTRO_CPF = "52998224725";
+
+    @Autowired MockMvc mvc;
+
+    @Autowired UsuarioRepository usuarioRepository;
+
+    @Autowired PasswordEncoder passwordEncoder;
+
+    @Autowired JwtDecoder jwtDecoder;
+
+    private static String corpoCadastro(String cpf, String email) {
+        return """
+                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s",
+                 "dataNascimento": "2000-01-01"}
+                """
+                .formatted(cpf, email, SENHA);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions cadastrar(String corpo)
+            throws Exception {
+        return mvc.perform(
+                post("/api/usuarios").contentType(MediaType.APPLICATION_JSON).content(corpo));
+    }
+
+    @Test
+    @DisplayName("Cadastro bem-sucedido responde 201")
+    void respondeCriadoEmCasoDeSucesso() throws Exception {
+        cadastrar(corpoCadastro(CPF, EMAIL)).andExpect(status().isCreated());
+    }
+
+    /**
+     * Guarda o vazamento: a entidade tem getters para tudo, então devolvê-la publicaria o hash da
+     * senha e o CPF. A resposta precisa vir do UsuarioResponse.
+     */
+    @Test
+    @DisplayName("A resposta não expõe senhaHash nem CPF")
+    void naoExpoeSenhaNemCpfNaResposta() throws Exception {
+        cadastrar(corpoCadastro(CPF, EMAIL))
+                .andExpect(jsonPath("$.senhaHash").doesNotExist())
+                .andExpect(jsonPath("$.senha").doesNotExist())
+                .andExpect(jsonPath("$.cpf").doesNotExist())
+                .andExpect(jsonPath("$.email").value(EMAIL))
+                .andExpect(jsonPath("$.id").exists());
+    }
+
+    /**
+     * Guarda o mass assignment: papel só existe por votação (RF-03) e o id é do servidor. Se alguém
+     * trocar o DTO de entrada pela entidade, o cliente passa a escolher o próprio id e o teste
+     * quebra.
+     */
+    @Test
+    @DisplayName("Papel e id enviados no JSON são ignorados")
+    void ignoraPapelEIdEnviadosPeloCliente() throws Exception {
+        String idForjado = "00000000-0000-0000-0000-000000000001";
+        String corpo =
+                """
+                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s",
+                 "dataNascimento": "2000-01-01", "papel": "ADMIN_VOTACAO", "id": "%s"}
+                """
+                        .formatted(CPF, EMAIL, SENHA, idForjado);
+
+        cadastrar(corpo)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.papel").doesNotExist());
+
+        Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
+        assertThat(salvo.getId().toString()).isNotEqualTo(idForjado);
+    }
+
+    @Test
+    @DisplayName("A senha é gravada como hash BCrypt, nunca em texto plano")
+    void gravaSenhaHasheada() throws Exception {
+        cadastrar(corpoCadastro(CPF, EMAIL));
+
+        Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
+
+        assertThat(salvo.getSenhaHash()).isNotEqualTo(SENHA);
+        assertThat(passwordEncoder.matches(SENHA, salvo.getSenhaHash())).isTrue();
+    }
+
+    @Test
+    @DisplayName("Data de nascimento válida é persistida")
+    void persisteDataNascimento() throws Exception {
+        cadastrar(corpoCadastro(CPF, EMAIL)).andExpect(status().isCreated());
+
+        Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
+
+        assertThat(salvo.getDataNascimento()).isEqualTo(LocalDate.of(2000, 1, 1));
+    }
+
+    @Test
+    @DisplayName("Data de nascimento ausente é rejeitada")
+    void recusaDataNascimentoAusente() throws Exception {
+        String corpo =
+                """
+                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s"}
+                """
+                        .formatted(CPF, EMAIL, SENHA);
+
+        cadastrar(corpo).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Data de nascimento futura é rejeitada")
+    void recusaDataNascimentoFutura() throws Exception {
+        String corpo =
+                """
+                {"nome": "Caio", "cpf": "%s", "email": "%s", "senha": "%s",
+                 "dataNascimento": "%s"}
+                """
+                        .formatted(CPF, EMAIL, SENHA, LocalDate.now().plusDays(1));
+
+        cadastrar(corpo).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Payload inválido é barrado pela validação com 400")
+    void recusaPayloadInvalido() throws Exception {
+        cadastrar(corpoCadastro(CPF, "nao-e-email")).andExpect(status().isBadRequest());
+        cadastrar(
+                        """
+                {"nome": "", "cpf": "%s", "email": "%s", "senha": "curta",
+                 "dataNascimento": "2000-01-01"}
+                """
+                                .formatted(CPF, EMAIL))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("E-mail já cadastrado responde 409, e não 500")
+    void recusaEmailDuplicado() throws Exception {
+        usuarioRepository.save(
+                new Usuario(
+                        "Caio",
+                        CPF,
+                        EMAIL,
+                        passwordEncoder.encode(SENHA),
+                        LocalDate.of(2000, 1, 1)));
+
+        cadastrar(corpoCadastro(OUTRO_CPF, EMAIL)).andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("CPF já cadastrado responde 409, e não 500")
+    void recusaCpfDuplicado() throws Exception {
+        usuarioRepository.save(
+                new Usuario(
+                        "Caio",
+                        CPF,
+                        EMAIL,
+                        passwordEncoder.encode(SENHA),
+                        LocalDate.of(2000, 1, 1)));
+
+        cadastrar(corpoCadastro(CPF, "outro@example.com")).andExpect(status().isConflict());
+    }
+
+    /**
+     * O único teste que pega incompatibilidade entre o BCrypt do cadastro e o da autenticação: se
+     * os dois lados divergirem, o usuário se cadastra e nunca consegue entrar.
+     */
+    @Test
+    @DisplayName("Quem se cadastra pela API consegue fazer login em seguida")
+    void cadastraEDepoisAutentica() throws Exception {
+        cadastrar(corpoCadastro(CPF, EMAIL));
+
+        String corpo =
+                mvc.perform(
+                                post("/api/auth/login")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                """
+                                                {"email": "%s", "senha": "%s"}
+                                                """
+                                                        .formatted(EMAIL, SENHA)))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+
+        Jwt token = jwtDecoder.decode(JsonPath.read(corpo, "$.token"));
+
+        Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
+        assertThat(token.getSubject()).isEqualTo(salvo.getId().toString());
+        assertThat(token.hasClaim("papeis")).isFalse();
+    }
+}

@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS votacoes (
+    id UUID PRIMARY KEY,
+    tipo VARCHAR(30) NOT NULL,
+    inicio_em TIMESTAMPTZ NOT NULL,
+    fim_em TIMESTAMPTZ NOT NULL,
+    estado VARCHAR(30) NOT NULL DEFAULT 'RascunhoVotacao'
+);
