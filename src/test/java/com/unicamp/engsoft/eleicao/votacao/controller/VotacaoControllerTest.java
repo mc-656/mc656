@@ -124,8 +124,8 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
                 """
                 {
                   "tipo": "ELEICAO_PRIVADA",
-                  "inicioEm": "2026-11-01T12:00:00Z",
-                  "fimEm": "2026-10-01T12:00:00Z",
+                  "inicioEm": "2099-11-01T12:00:00Z",
+                  "fimEm": "2099-10-01T12:00:00Z",
                   "nome": "Eleição Impossível",
                   "descricao": "Fim antes do início"
                 }
