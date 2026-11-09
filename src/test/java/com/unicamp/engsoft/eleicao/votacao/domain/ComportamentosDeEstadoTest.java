@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
+import java.util.EnumSet;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -14,6 +16,13 @@ import org.junit.jupiter.params.provider.EnumSource;
  * Um estado responde por si: quem permite, quem nega e com que mensagem (padrão State, SPECS §4.2).
  */
 class ComportamentosDeEstadoTest {
+
+    /** Operações de configuração: só o rascunho as permite. */
+    private static final Set<OperacaoVotacao> CONFIGURACAO =
+            EnumSet.of(
+                    OperacaoVotacao.CONFIGURAR_REGRAS,
+                    OperacaoVotacao.GERENCIAR_CANDIDATOS,
+                    OperacaoVotacao.GERENCIAR_ELEITORES);
 
     @ParameterizedTest
     @EnumSource(EstadoVotacao.class)
@@ -26,15 +35,16 @@ class ComportamentosDeEstadoTest {
     }
 
     @Test
-    @DisplayName("RascunhoVotacao permite as três operações de configuração")
+    @DisplayName("RascunhoVotacao permite as três operações de configuração e não permite votar")
     void rascunhoPermiteOperacoesDeConfiguracao() {
         EstadoVotacaoComportamento comportamento =
                 ComportamentosDeEstado.de(EstadoVotacao.RascunhoVotacao);
 
-        for (OperacaoVotacao operacao : OperacaoVotacao.values()) {
+        for (OperacaoVotacao operacao : CONFIGURACAO) {
             assertThatCode(() -> comportamento.exigir(operacao)).doesNotThrowAnyException();
             assertThat(comportamento.permite(operacao)).isTrue();
         }
+        assertThat(comportamento.permite(OperacaoVotacao.VOTAR)).isFalse();
     }
 
     @ParameterizedTest
@@ -42,11 +52,11 @@ class ComportamentosDeEstadoTest {
             value = EstadoVotacao.class,
             names = "RascunhoVotacao",
             mode = EnumSource.Mode.EXCLUDE)
-    @DisplayName("Nenhum outro estado (inclusive os finais) permite operação de escrita")
-    void estadosForaDoRascunhoNaoPermitemOperacoes(EstadoVotacao estado) {
+    @DisplayName("Nenhum outro estado (inclusive os finais) permite operação de configuração")
+    void estadosForaDoRascunhoNaoPermitemConfiguracao(EstadoVotacao estado) {
         EstadoVotacaoComportamento comportamento = ComportamentosDeEstado.de(estado);
 
-        for (OperacaoVotacao operacao : OperacaoVotacao.values()) {
+        for (OperacaoVotacao operacao : CONFIGURACAO) {
             assertThat(comportamento.permite(operacao)).isFalse();
             assertThatThrownBy(() -> comportamento.exigir(operacao))
                     .isInstanceOf(RegraDeNegocioException.class)
@@ -56,7 +66,20 @@ class ComportamentosDeEstadoTest {
     }
 
     @Test
-    @DisplayName("As três operações respondem com o mesmo texto, mudando só o rótulo")
+    @DisplayName("Votar só é permitido em EmVotacao (RF-14)")
+    void votarSoEmVotacao() {
+        // Act
+        var estadosQueVotam = ComportamentosDeEstado.estadosQuePermitem(OperacaoVotacao.VOTAR);
+        var operacoesEmVotacao = ComportamentosDeEstado.de(EstadoVotacao.EmVotacao).permitidas();
+
+        // Assert
+        assertThat(estadosQueVotam).containsExactly(EstadoVotacao.EmVotacao);
+        assertThat(operacoesEmVotacao).containsExactly(OperacaoVotacao.VOTAR);
+    }
+
+    @Test
+    @DisplayName(
+            "As três operações de configuração respondem com o mesmo texto, mudando só o rótulo")
     void mensagensSaoConsistentesEntreOperacoes() {
         EstadoVotacaoComportamento publicada = ComportamentosDeEstado.de(EstadoVotacao.Publicada);
 
@@ -70,7 +93,7 @@ class ComportamentosDeEstadoTest {
                 .contains("{operacao}")
                 .contains("só pode ser feita com a votação em RascunhoVotacao")
                 .contains("(estado atual: Publicada)");
-        for (OperacaoVotacao operacao : OperacaoVotacao.values()) {
+        for (OperacaoVotacao operacao : CONFIGURACAO) {
             assertThat(publicada.mensagemDeErro(operacao))
                     .isEqualTo(
                             modelo.replace("{operacao}", operacao.rotulo()),
