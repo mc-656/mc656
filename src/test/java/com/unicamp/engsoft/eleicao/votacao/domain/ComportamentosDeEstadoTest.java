@@ -26,7 +26,7 @@ class ComportamentosDeEstadoTest {
     }
 
     @Test
-    @DisplayName("RascunhoVotacao permite as três operações de configuração")
+    @DisplayName("RascunhoVotacao permite todas as operações de configuração")
     void rascunhoPermiteOperacoesDeConfiguracao() {
         EstadoVotacaoComportamento comportamento =
                 ComportamentosDeEstado.de(EstadoVotacao.RascunhoVotacao);
@@ -56,7 +56,7 @@ class ComportamentosDeEstadoTest {
     }
 
     @Test
-    @DisplayName("As três operações respondem com o mesmo texto, mudando só o rótulo")
+    @DisplayName("Todas as operações respondem com o mesmo texto, mudando só o rótulo")
     void mensagensSaoConsistentesEntreOperacoes() {
         EstadoVotacaoComportamento publicada = ComportamentosDeEstado.de(EstadoVotacao.Publicada);
 
@@ -65,7 +65,7 @@ class ComportamentosDeEstadoTest {
                         .mensagemDeErro(OperacaoVotacao.CONFIGURAR_REGRAS)
                         .replace(OperacaoVotacao.CONFIGURAR_REGRAS.rotulo(), "{operacao}");
 
-        // Diz qual estado é o exigido e em qual a votação está — e faz isso igual para as três.
+        // Diz qual estado é o exigido e em qual a votação está — e faz isso igual para todas.
         assertThat(modelo)
                 .contains("{operacao}")
                 .contains("só pode ser feita com a votação em RascunhoVotacao")
