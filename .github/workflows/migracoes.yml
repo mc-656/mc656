@@ -1,0 +1,103 @@
+name: Migrações
+# RNF-08: migrações versionadas e reprodutíveis.
+# - imutabilidade: nenhuma migração já presente na base do PR pode ser editada,
+#   renomeada ou removida, e não pode haver versões duplicadas;
+# - reprodutibilidade: a cadeia Flyway inteira é aplicada num Postgres vazio e o
+#   Hibernate valida o schema resultante (ddl-auto: validate) subindo a aplicação.
+on:
+    pull_request:
+        branches:
+            - main
+            - develop
+permissions:
+    contents: read
+
+jobs:
+    imutabilidade:
+        name: Migrações não editadas
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+              with:
+                fetch-depth: 0
+            - name: Verificar cadeia de migrações
+              run: bash .github/scripts/verifica-migracoes.sh "origin/${{ github.base_ref }}"
+
+    banco-vazio:
+        name: Cadeia Flyway em banco vazio
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        concurrency:
+            group: ${{ github.workflow }}-banco-${{ github.ref }}
+            cancel-in-progress: true
+        services:
+            postgres:
+                image: postgres:17-alpine
+                env:
+                    POSTGRES_USER: eleicao
+                    POSTGRES_PASSWORD: eleicao
+                    POSTGRES_DB: eleicao
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U eleicao -d eleicao"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
+        env:
+            DB_HOST: localhost
+            DB_PORT: '5432'
+            DB_NAME: eleicao
+            DB_USERNAME: eleicao
+            DB_PASSWORD: eleicao
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - uses: actions/setup-java@v6
+              name: Setup Java
+              with:
+                distribution: temurin
+                java-version: '21'
+                cache: maven
+            - name: Empacotar aplicação
+              run: chmod +x mvnw && ./mvnw -B -q package -DskipTests
+            - name: Subir aplicação (Flyway migrate + validação do schema)
+              run: |
+                # Segredos descartáveis, gerados só para este job.
+                HMAC="$(openssl rand -hex 64)"
+                COMPROVANTE_CHAVE="$(openssl rand -base64 32)"
+                export HMAC COMPROVANTE_CHAVE
+                java -jar target/eleicao-*.jar > app.log 2>&1 &
+                echo $! > app.pid
+                for _ in $(seq 1 60); do
+                  if curl -fsS http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
+                    echo "Aplicação UP: migrações aplicadas e schema validado."
+                    exit 0
+                  fi
+                  if ! kill -0 "$(cat app.pid)" 2>/dev/null; then
+                    echo "::error::A aplicação encerrou durante o start (migração ou validação do schema falhou)."
+                    cat app.log
+                    exit 1
+                  fi
+                  sleep 3
+                done
+                echo "::error::Timeout esperando /actuator/health."
+                cat app.log
+                exit 1
+            - name: Conferir histórico do Flyway
+              run: |
+                esperadas=$(find src/main/resources/db/migration -name 'V*__*.sql' | wc -l)
+                aplicadas=$(PGPASSWORD=eleicao psql -h localhost -U eleicao -d eleicao -tAc \
+                  "select count(*) from flyway_schema_history where success and type = 'SQL' and version is not null")
+                echo "Migrações versionadas: $esperadas; aplicadas com sucesso: $aplicadas"
+                if [ "$esperadas" -ne "$aplicadas" ]; then
+                  echo "::error::Nem todas as migrações foram aplicadas."
+                  exit 1
+                fi
+            - name: Logs da aplicação
+              if: always()
+              run: |
+                [ -f app.pid ] && kill "$(cat app.pid)" 2>/dev/null || true
+                [ -f app.log ] && tail -n 200 app.log || true
