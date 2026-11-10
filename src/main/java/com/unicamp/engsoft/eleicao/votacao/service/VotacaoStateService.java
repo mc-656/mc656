@@ -23,10 +23,12 @@ public interface VotacaoStateService {
      * @param destino Novo estado desejado para a votação.
      * @param autorId Identificador do usuário que solicitou a transição, ou {@code null} quando a
      *     transição é automática (job agendado por data). Nulo implica origem {@code SISTEMA} na
-     *     auditoria; transições que só ocorrem por data rejeitam autor, e as demais o exigem.
+     *     auditoria; transições que só ocorrem por data rejeitam autor, e as demais o exigem,
+     *     exceto a anulação ({@code Apuracao → Anulada}), que aceita as duas origens: falta de
+     *     quórum (automática) ou irregularidade (admin).
      * @param motivo Justificativa ou motivo da transição de estado. Opcional, exceto na suspensão e
-     *     no cancelamento forçado ({@code EmVotacao}/{@code Suspensa → Cancelada}), em que é
-     *     obrigatório.
+     *     no cancelamento forçado ({@code EmVotacao}/{@code Suspensa → Cancelada}) e na anulação
+     *     ({@code Apuracao → Anulada}), em que é obrigatório.
      * @throws TransicaoInvalidaException Caso a transição seja negada pelas regras da máquina de
      *     estados ou pelas guardas de publicação.
      */
