@@ -5,9 +5,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
+import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /** Regras do bean de autorização, sem banco. */
 @ExtendWith(MockitoExtension.class)
@@ -79,5 +83,29 @@ class AutorizacaoVotacaoTest {
                 .thenReturn(false);
 
         assertThat(autorizacao.ehEleitor(VOTACAO, token(USUARIO.toString()))).isFalse();
+    }
+
+    @Test
+    @DisplayName("Nas views, identifica o usuário pelo UsuarioAutenticado da sessão")
+    void consultaPapelDoUsuarioDaSessao() {
+        // Arrange
+        Usuario usuario =
+                new Usuario(
+                        "Caio",
+                        "11144477735",
+                        "caio@example.com",
+                        "hash",
+                        LocalDate.of(1990, 1, 1));
+        ReflectionTestUtils.setField(usuario, "id", USUARIO);
+        UsuarioAutenticado principal = UsuarioAutenticado.de(usuario);
+        UsernamePasswordAuthenticationToken sessao =
+                UsernamePasswordAuthenticationToken.authenticated(
+                        principal, null, principal.getAuthorities());
+        when(papelVotacaoRepository.existsByIdUsuarioIdAndIdVotacaoIdAndIdPapel(
+                        USUARIO, VOTACAO, PapelUsuario.ADMIN_VOTACAO))
+                .thenReturn(true);
+
+        // Act & Assert
+        assertThat(autorizacao.ehAdmin(VOTACAO, sessao)).isTrue();
     }
 }
