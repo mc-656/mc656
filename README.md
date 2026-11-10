@@ -108,3 +108,32 @@ Para recomeçar de um banco vazio: `make db-reset`.
 
 java -jar target/eleicao-0.0.1-SNAPSHOT.jar   # executa o jar gerado
 ```
+
+### Verificações de CI e segurança (RNF-04)
+
+Todo PR para `main` e `develop` passa pelas verificações abaixo. As configurações
+ficam versionadas no repositório:
+
+| Check | Onde | O que faz | Falha quando |
+|---|---|---|---|
+| `Build` | `.github/workflows/ci.yml` | `./mvnw package -DskipTests` | não compila |
+| `Lint` | `.github/workflows/ci.yml` | `spotless:check` (google-java-format AOSP) | código fora do formato |
+| `SpotBugs` | `.github/workflows/ci.yml` + `pom.xml` | análise estática de bugs (`spotbugs:check`, também na fase `verify`) | qualquer bug de prioridade média ou alta |
+| `Test & Coverage` | `.github/workflows/ci.yml` | testes + relatório JaCoCo | teste falhando |
+| `CodeQL (Java)` | `.github/workflows/codeql.yml` | análise de segurança do código (consultas `security-extended`); também roda semanalmente | alerta de segurança no código |
+| `Dependency Review` | `.github/workflows/dependency-review.yml` | compara as dependências do PR com o GitHub Advisory Database | o PR introduz dependência com vulnerabilidade **alta** ou **crítica** |
+
+O Dependabot (`.github/dependabot.yml`) abre PRs semanais contra `develop`
+atualizando dependências Maven e versões das GitHub Actions.
+
+Para rodar o SpotBugs localmente:
+
+```bash
+./mvnw verify                          # testes + SpotBugs
+./mvnw -DskipTests compile spotbugs:check   # só a análise
+./mvnw compile spotbugs:gui            # abre o relatório na interface gráfica
+```
+
+Bugs reais se corrigem no código. Falsos positivos vão para
+`spotbugs-exclude.xml`, escopados ao menor conjunto de classes possível e com a
+justificativa comentada.

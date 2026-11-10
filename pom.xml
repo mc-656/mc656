@@ -224,6 +224,28 @@
           </pom>
         </configuration>
       </plugin>
+      <!-- SpotBugs (RNF-04): análise estática de bugs; o goal check na fase verify
+           falha o build se encontrar bugs. Falsos positivos ficam em spotbugs-exclude.xml. -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.10.5.0</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Medium</threshold>
+          <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+          <includeTests>false</includeTests>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotbugs-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
       <!-- JaCoCo Plugin para cobertura de testes-->
       <plugin>
         <groupId>org.jacoco</groupId>
