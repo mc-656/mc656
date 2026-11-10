@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Convite</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao">
+    <h1>Convite para votação</h1>
+
+    <th:block th:if="${aceito}">
+        <p class="alerta sucesso" th:unless="${aceito.jaEraEleitor}">
+            Você agora é eleitor(a) da votação <strong th:text="${aceito.nomeVotacao}">Votação</strong>.
+        </p>
+        <p class="alerta" th:if="${aceito.jaEraEleitor}">
+            Você já era eleitor(a) da votação <strong th:text="${aceito.nomeVotacao}">Votação</strong>.
+        </p>
+    </th:block>
+
+    <p th:if="${erro}" class="alerta erro" th:text="${erro}">Convite indisponível.</p>
+
+    <p><a th:href="@{/}">Ir para o início</a></p>
+</main>
+</body>
+</html>

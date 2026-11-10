@@ -41,6 +41,12 @@ Variáveis disponíveis:
 | `DB_PASSWORD` | Senha do Postgres                  | —         |
 | `DB_NAME`     | Nome do banco                      | `eleicao` |
 | `DB_PORT`     | Porta do Postgres no host          | `5433`    |
+| `MAIL_HOST`     | Servidor SMTP dos convites (RF-17)   | `localhost` |
+| `MAIL_PORT`     | Porta SMTP                           | `1025`      |
+| `MAIL_USERNAME` | Usuário SMTP (vazio = sem auth)      | —           |
+| `MAIL_PASSWORD` | Senha SMTP                           | —           |
+| `MAIL_FROM`     | Remetente dos convites               | `nao-responda@eleicao.local` |
+| `APP_URL_BASE`  | Base dos links de convite            | `http://localhost:8080` |
 
 O Spring lê esse `.env` automaticamente (dependência `spring-dotenv`), então as
 mesmas variáveis servem para o container e para a aplicação.
@@ -65,6 +71,32 @@ docker compose up -d postgres
 docker compose down
 docker compose down -v      # remove também o volume de dados
 ```
+
+## E-mail de convites (Mailpit)
+
+O envio de convites por e-mail (RF-17) usa SMTP comum (`spring-boot-starter-mail`).
+Em desenvolvimento, o `compose.yaml` traz o [Mailpit](https://mailpit.axllent.org/),
+um servidor SMTP falso e gratuito que captura as mensagens sem entregá-las:
+
+```bash
+docker compose up -d mailpit   # SMTP em localhost:1025
+```
+
+As mensagens aparecem em `http://localhost:8025` (ou via API em
+`http://localhost:8025/api/v1/messages`). Os padrões de `MAIL_HOST`/`MAIL_PORT` já
+apontam para ele; para um SMTP real basta preencher as variáveis `MAIL_*` no `.env`.
+
+### Fluxo do convite
+
+1. Com a votação em `Publicada` ou `EmVotacao`, o `ADMIN_VOTACAO` gera o convite:
+   `PUT /api/votacoes/{id}/convite` com `{"modo": "ABERTO"}` ou `{"modo": "RESTRITO"}`.
+   A resposta traz o `link` (para WhatsApp etc.).
+2. QR Code em PNG: `GET /api/votacoes/{id}/convite/qrcode`.
+3. Envio por e-mail: `POST /api/votacoes/{id}/convite/emails` com `{"emails": [...]}`.
+   No modo restrito, só esses e-mails conseguem entrar.
+4. Quem abre o link (`/convites/{token}`) sem sessão vai para o login/cadastro e volta
+   ao convite já incluído como eleitor. Clientes da API usam
+   `POST /api/convites/{token}/aceite` com o JWT.
 
 ## Rodando a aplicação (Spring Boot)
 

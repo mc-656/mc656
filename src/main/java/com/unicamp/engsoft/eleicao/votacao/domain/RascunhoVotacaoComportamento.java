@@ -4,7 +4,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Único estado que permite operações de escrita hoje: regras (RF-11), candidatos/chapas (RF-12) e
+ * Único estado que permite operações de configuração: regras (RF-11), candidatos/chapas (RF-12) e
  * eleitores (RF-02/RF-10) só mudam antes da publicação — depois ela fica visível para os
  * participantes e qualquer alteração mudaria a eleição que eles viram (ou o denominador do quórum).
  *

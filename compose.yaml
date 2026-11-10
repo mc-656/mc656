@@ -16,5 +16,14 @@ services:
       timeout: 5s
       retries: 5
 
+  # SMTP falso para desenvolvimento (RF-17): captura os e-mails de convite sem enviá-los de verdade.
+  # SMTP em 1025, interface web em http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: eleicao-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   eleicao-pgdata:

@@ -24,3 +24,20 @@ comprovante:
   # Chave AES-256 (32 bytes em Base64) do comprovante de voto (RNF-01). Sem default de propósito:
   # uma chave embutida no repositório permitiria forjar comprovantes.
   chave: ${COMPROVANTE_CHAVE}
+
+# Envio de convites por e-mail (RF-17). O padrão aponta para o Mailpit do compose.yaml, que
+# captura as mensagens localmente; em produção basta trocar as variáveis por um SMTP real.
+spring.mail:
+  host: ${MAIL_HOST:localhost}
+  port: ${MAIL_PORT:1025}
+  username: ${MAIL_USERNAME:}
+  password: ${MAIL_PASSWORD:}
+  default-encoding: UTF-8
+
+convite:
+  # Base dos links de convite: precisa ser o endereço que o eleitor alcança, não o do servidor.
+  url-base: ${APP_URL_BASE:http://localhost:8080}
+  remetente: ${MAIL_FROM:nao-responda@eleicao.local}
+
+# SMTP fora do ar não deixa a API fora do ar: só o envio de convites falha, com erro próprio.
+management.health.mail.enabled: false
