@@ -43,6 +43,6 @@ public class CargoPublico {
                 .toLowerCase(Locale.ROOT)
                 .trim()
                 .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("(^-|-$)", "");
+                .replaceAll("(?:^-)|(?:-$)", "");
     }
 }
