@@ -24,3 +24,41 @@ comprovante:
   # Chave AES-256 (32 bytes em Base64) do comprovante de voto (RNF-01). Sem default de propósito:
   # uma chave embutida no repositório permitiria forjar comprovantes.
   chave: ${COMPROVANTE_CHAVE}
+
+# Observabilidade (RNF-06). Health/probes são públicos para o orquestrador; o Prometheus exige
+# token (ver SecurityConfig.actuatorFilterChain). Readiness inclui o banco: sem ele a API não
+# registra voto e não deve receber tráfego. Liveness não inclui, de propósito: reiniciar a
+# aplicação não conserta um banco fora do ar e só derrubaria as instâncias saudáveis.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      # Nome e status de cada componente (ex.: db UP), sem detalhes como versão do banco ou URL:
+      # basta para diagnosticar por que a readiness caiu sem expor a infraestrutura.
+      show-details: never
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+        liveness:
+          include: livenessState
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+observabilidade:
+  metricas:
+    # Contas (e-mail) que podem ler /actuator/prometheus, separadas por vírgula. Vazio nega a
+    # todos: estar logado não basta, porque o cadastro é público (ver AutorizacaoMetricas).
+    emails-autorizados: ${METRICAS_EMAILS:}
+
+# Log em texto no dev local; em produção, ativar o profile "log-json" (application-log-json.yml)
+# para JSON estruturado. O id de correlação (CorrelationIdFilter) aparece nos dois formatos.
+logging:
+  pattern:
+    correlation: "[%X{correlationId:-}] "

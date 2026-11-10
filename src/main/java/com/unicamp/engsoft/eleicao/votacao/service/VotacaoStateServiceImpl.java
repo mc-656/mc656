@@ -84,16 +84,19 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
     private final TransicaoVotacaoRepository transicaoRepository;
     private final List<GuardaPublicacao> guardasPublicacao;
     private final Clock clock;
+    private final MetricasVotacao metricas;
 
     public VotacaoStateServiceImpl(
             VotacaoRepository votacaoRepository,
             TransicaoVotacaoRepository transicaoRepository,
             List<GuardaPublicacao> guardasPublicacao,
-            Clock clock) {
+            Clock clock,
+            MetricasVotacao metricas) {
         this.votacaoRepository = votacaoRepository;
         this.transicaoRepository = transicaoRepository;
         this.guardasPublicacao = guardasPublicacao;
         this.clock = clock;
+        this.metricas = metricas;
     }
 
     /**
@@ -107,9 +110,26 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
         transitar(votacaoId, destino, autorId, motivo, null);
     }
 
+    /**
+     * Só instrumenta (RNF-06): a regra fica em {@link #executarTransicao}. A métrica é registrada
+     * aqui, e não na sobrecarga de quatro argumentos, porque ela delega para esta: cada transição
+     * conta uma única vez.
+     */
     @Override
     @Transactional
     public void transitar(
+            UUID votacaoId, EstadoVotacao destino, UUID autorId, String motivo, Instant novoFimEm) {
+        OrigemTransicao origem = autorId == null ? SISTEMA : USUARIO;
+        try {
+            executarTransicao(votacaoId, destino, autorId, motivo, novoFimEm);
+        } catch (RuntimeException e) {
+            metricas.falhaTransicao(destino, origem, e);
+            throw e;
+        }
+        metricas.transicaoRealizada(destino, origem);
+    }
+
+    private void executarTransicao(
             UUID votacaoId, EstadoVotacao destino, UUID autorId, String motivo, Instant novoFimEm) {
         Votacao votacao =
                 votacaoRepository

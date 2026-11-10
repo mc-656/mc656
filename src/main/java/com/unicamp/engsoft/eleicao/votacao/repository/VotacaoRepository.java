@@ -22,6 +22,9 @@ public interface VotacaoRepository extends JpaRepository<Votacao, UUID> {
     @Query("select v from Votacao v where v.id = :id")
     Optional<Votacao> buscarParaTransicao(@Param("id") UUID id);
 
+    /** Alimenta o gauge de votações em andamento ({@code MetricasVotacao}, RNF-06). */
+    long countByEstado(EstadoVotacao estado);
+
     @Query("select v.id from Votacao v where v.estado = :estado and v.inicioEm <= :instante")
     List<UUID> idsPorEstadoComInicioAte(
             @Param("estado") EstadoVotacao estado, @Param("instante") Instant instante);
