@@ -13,7 +13,8 @@ package com.unicamp.engsoft.eleicao.votacao.domain;
 public enum OperacaoVotacao {
     CONFIGURAR_REGRAS("configurar as regras"),
     GERENCIAR_CANDIDATOS("gerenciar candidatos/chapas"),
-    GERENCIAR_ELEITORES("gerenciar eleitores");
+    GERENCIAR_ELEITORES("gerenciar eleitores"),
+    GERENCIAR_PROPOSTAS("gerenciar propostas e orçamento");
 
     private final String rotulo;
 
