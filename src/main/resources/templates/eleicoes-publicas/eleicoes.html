@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Eleições públicas</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="pagina">
+    <h1>Eleições públicas</h1>
+    <p th:if="${#lists.isEmpty(eleicoes)}">Nenhuma eleição pública cadastrada.</p>
+    <ul class="lista-blocos">
+        <li th:each="e : ${eleicoes}" class="bloco">
+            <h2><a th:href="@{/eleicoes-publicas/{id}(id=${e.id})}" th:text="${e.nome}">Eleição</a></h2>
+            <p>
+                <span th:text="${e.abrangencia}">Abrangência</span> ·
+                1º turno em <span th:text="${#temporals.format(e.dataPrimeiroTurno, 'dd/MM/yyyy')}">01/10/2028</span>
+            </p>
+            <p th:replace="~{eleicoes-publicas/fonte :: fonte(${e.fonte})}"></p>
+        </li>
+    </ul>
+</main>
+</body>
+</html>
