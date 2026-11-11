@@ -25,7 +25,7 @@ public class ConteudoDidaticoViewController {
     @GetMapping("/tipos-voto")
     public String tiposVoto(Model model) {
         model.addAttribute("conteudo", conteudoDidatico.tiposVoto());
-        return "eleicaopublica/tipos-voto"; 
+        return "eleicaopublica/tipos-voto";
     }
 
     @GetMapping("/cargos")
