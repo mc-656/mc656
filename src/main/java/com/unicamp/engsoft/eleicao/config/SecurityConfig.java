@@ -96,6 +96,11 @@ public class SecurityConfig {
                                 auth.requestMatchers("/login", "/cadastro", "/error", "/css/**")
                                         .permitAll()
                                         .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/eleicoes-publicas/tipos-voto",
+                                                "/eleicoes-publicas/cargos")
+                                        .permitAll()
+                                        .requestMatchers(
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
                                                 "/swagger-ui.html",
