@@ -88,7 +88,7 @@ class ComportamentosDeEstadoTest {
                         .mensagemDeErro(OperacaoVotacao.CONFIGURAR_REGRAS)
                         .replace(OperacaoVotacao.CONFIGURAR_REGRAS.rotulo(), "{operacao}");
 
-        // Diz qual estado é o exigido e em qual a votação está — e faz isso igual para as três.
+        // Diz qual estado é o exigido e em qual a votação está — e faz isso igual para todas.
         assertThat(modelo)
                 .contains("{operacao}")
                 .contains("só pode ser feita com a votação em RascunhoVotacao")

@@ -141,4 +141,25 @@ class ResultadoApuracaoTest {
         assertNotNull(vazia.ranking());
         assertTrue(vazia.ranking().isEmpty());
     }
+
+    @Test
+    @DisplayName("Construtor: finalistas e ranking nulos viram listas vazias")
+    void deveTratarFinalistasERankingNulosComoListasVazias() {
+        // Act
+        ResultadoApuracao resultado =
+                new ResultadoApuracao(
+                        StatusApuracao.SEM_VENCEDOR,
+                        null,
+                        null,
+                        null,
+                        BigDecimal.ZERO,
+                        0,
+                        0,
+                        BigDecimal.ZERO,
+                        true);
+
+        // Assert
+        assertTrue(resultado.finalistasSegundoTurno().isEmpty());
+        assertTrue(resultado.ranking().isEmpty());
+    }
 }
