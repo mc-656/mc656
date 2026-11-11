@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="${dados.eleicao.nome}">Candidatos</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="pagina">
+    <p><a th:href="@{/eleicoes-publicas}">← Eleições públicas</a></p>
+    <h1 th:text="${dados.eleicao.nome}">Eleição</h1>
+    <p th:replace="~{eleicoes-publicas/fonte :: fonte(${dados.eleicao.fonte})}"></p>
+
+    <section th:each="cargo : ${dados.cargos}">
+        <h2 th:text="${cargo.nome}">Cargo</h2>
+        <p th:if="${#lists.isEmpty(cargo.candidatos)}">Nenhum candidato registrado para este cargo.</p>
+        <ul class="lista-blocos">
+            <li th:each="c : ${cargo.candidatos}" class="bloco">
+                <a th:href="@{/eleicoes-publicas/candidatos/{id}(id=${c.id})}">
+                    <strong th:text="${c.nomeUrna}">Nome de urna</strong>
+                </a>
+                <span th:text="|${c.numero} · ${c.partidoSigla}|">91 · PEX</span>
+                <p th:replace="~{eleicoes-publicas/fonte :: fonte(${c.fonte})}"></p>
+            </li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>
