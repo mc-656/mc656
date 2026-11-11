@@ -108,3 +108,30 @@ Para recomeçar de um banco vazio: `make db-reset`.
 
 java -jar target/eleicao-0.0.1-SNAPSHOT.jar   # executa o jar gerado
 ```
+
+### Cobertura de testes (RNF-05)
+
+O JaCoCo gera o relatório em `target/site/jacoco` na fase `test` e, na fase
+`verify`, aplica um gate (`jacoco:check`) que **reprova o build** se a
+cobertura ficar abaixo dos limites:
+
+| Escopo | Linhas | Branches | Propriedade |
+| ------ | ------ | -------- | ----------- |
+| Global (projeto inteiro) | 93% | 85% | `jacoco.minimo.linha` / `jacoco.minimo.branch` |
+| Cada classe de apuração | 90% | 90% | `jacoco.minimo.apuracao` |
+
+As classes de apuração são `MotorApuracao`, as estratégias `Desempate*`,
+`ResultadoApuracao`, `Totalizacao`, `OpcaoApurada`, `VotoApuravel` e qualquer
+classe em um pacote `com.unicamp.engsoft.eleicao.*.apuracao.*` (onde deve
+entrar o motor de cotas do orçamento participativo). O piso global fica um
+pouco abaixo da cobertura medida, para travar regressões sem quebrar por
+oscilação pequena; se a cobertura subir de forma estável, suba o piso.
+
+```bash
+./mvnw verify                                   # testes + gate de cobertura
+./mvnw verify -Djacoco.minimo.apuracao=0.99     # simula um limite mais alto
+```
+
+No CI, o job `Test & Coverage` roda `./mvnw verify` e publica os percentuais
+no resumo da execução (`$GITHUB_STEP_SUMMARY`), lidos de
+`target/site/jacoco/jacoco.csv`.

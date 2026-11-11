@@ -16,6 +16,8 @@ import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -119,17 +121,22 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
     @DisplayName("Devolve 409 Conflict se a data de fim for antes do início")
     void rejeitaCriacaoSeFimForAntesDeInicio() throws Exception {
         String token = tokenService.gerar(UsuarioAutenticado.de(usuario));
+        // Datas relativas a agora: com data fixa, o início acaba caindo no passado e o
+        // @FutureOrPresent devolve 400 antes de chegar à regra de fim antes do início.
+        Instant inicio = Instant.now().plus(30, ChronoUnit.DAYS);
+        Instant fim = inicio.minus(1, ChronoUnit.DAYS);
 
         String corpoInvalido =
                 """
                 {
                   "tipo": "ELEICAO_PRIVADA",
-                  "inicioEm": "2026-11-01T12:00:00Z",
-                  "fimEm": "2026-10-01T12:00:00Z",
+                  "inicioEm": "2099-11-01T12:00:00Z",
+                  "fimEm": "2099-10-01T12:00:00Z",
                   "nome": "Eleição Impossível",
                   "descricao": "Fim antes do início"
                 }
-                """;
+                """
+                        .formatted(inicio, fim);
 
         mvc.perform(
                         post("/api/votacoes")

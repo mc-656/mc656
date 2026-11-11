@@ -61,7 +61,16 @@ public class VotacaoService {
      */
     @Transactional
     public RegraVotacao configurarRegras(UUID votacaoId, ConfigurarRegrasRequest request) {
-        RegraVotacao regra = request.paraRegra();
+        return configurarRegras(votacaoId, request.paraRegra());
+    }
+
+    /**
+     * Mesma operação de {@link #configurarRegras(UUID, ConfigurarRegrasRequest)} para quem já tem a
+     * regra montada — a criação por modelo (RF-16) aplica a regra pré-definida por aqui, passando
+     * pela mesma checagem de estado com lock em vez de escrever direto na entidade.
+     */
+    @Transactional
+    public RegraVotacao configurarRegras(UUID votacaoId, RegraVotacao regra) {
         Votacao votacao = exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.CONFIGURAR_REGRAS);
         votacao.configurarRegras(regra);
         return regra;
