@@ -14,6 +14,7 @@ public enum OperacaoVotacao {
     CONFIGURAR_REGRAS("configurar as regras"),
     GERENCIAR_CANDIDATOS("gerenciar candidatos/chapas"),
     GERENCIAR_ELEITORES("gerenciar eleitores"),
+    GERENCIAR_PROPOSTAS("gerenciar propostas e orçamento"),
     /** Gerar o link/QR Code do convite e enviá-lo por e-mail (RF-17). */
     CONVIDAR_ELEITORES("convidar eleitores"),
     /** Entrar como eleitor abrindo o link de convite (RF-17, RF-02). */
