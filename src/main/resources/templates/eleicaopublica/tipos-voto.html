@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!-- Tipos de voto (RF-32, #91). O texto vem de ConteudoDidaticoService, o mesmo da API JSON. -->
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Tipos de voto</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao conteudo-didatico">
+    <h1 th:text="${conteudo.titulo}">Voto nulo, em branco e na legenda</h1>
+    <p class="resumo" th:text="${conteudo.resumo}">Resumo</p>
+
+    <nav class="sumario" aria-label="Tipos de voto">
+        <a th:each="tipo : ${conteudo.tipos}" th:href="'#' + ${tipo.id}" th:text="${tipo.nome}">Voto</a>
+    </nav>
+
+    <section th:each="tipo : ${conteudo.tipos}" th:id="${tipo.id}" class="topico">
+        <h2>
+            <span th:text="${tipo.nome}">Voto</span>
+            <span th:if="${tipo.contaComoValido}" class="selo valido">Voto válido</span>
+            <span th:unless="${tipo.contaComoValido}" class="selo invalido">Não é voto válido</span>
+        </h2>
+        <h3>O que é</h3>
+        <p th:text="${tipo.oQueE}">Explicação</p>
+        <h3>Como registrar na urna</h3>
+        <p th:text="${tipo.comoRegistrarNaUrna}">Passos</p>
+        <h3>Efeito no resultado</h3>
+        <p th:text="${tipo.efeitoNoResultado}">Efeito</p>
+    </section>
+
+    <section id="legenda-no-quociente" class="topico">
+        <h2 th:text="${conteudo.legendaNoQuociente.titulo}">Legenda no quociente</h2>
+        <p th:each="paragrafo : ${conteudo.legendaNoQuociente.paragrafos}" th:text="${paragrafo}">Parágrafo</p>
+        <p>
+            <a th:href="@{${conteudo.urlExplicacaoQuociente}}">Entenda o quociente eleitoral passo a passo</a>
+        </p>
+    </section>
+
+    <section class="topico">
+        <h2>Fontes oficiais</h2>
+        <ul>
+            <li th:each="fonte : ${conteudo.fontes}">
+                <a th:href="${fonte.url}" th:text="${fonte.descricao}" rel="noopener" target="_blank">Fonte</a>
+            </li>
+        </ul>
+        <p><a th:href="@{/eleicoes-publicas/cargos}">Veja também: cargos em disputa e formação de chapas</a></p>
+    </section>
+</main>
+</body>
+</html>

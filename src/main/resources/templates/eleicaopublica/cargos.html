@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+  Cargos e chapas (RF-32, #92). O texto vem de ConteudoDidaticoService, o mesmo da API JSON.
+  Os ids das seções de cargo são âncoras estáveis (/eleicoes-publicas/cargos#vereador) usadas pelo perfil do candidato.
+-->
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Cargos e chapas</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao conteudo-didatico">
+    <h1 th:text="${conteudo.titulo}">Cargos em disputa e formação de chapas</h1>
+    <p class="resumo" th:text="${conteudo.resumo}">Resumo</p>
+
+    <nav class="sumario" aria-label="Cargos">
+        <a th:each="cargo : ${conteudo.cargos}" th:href="'#' + ${cargo.id}" th:text="${cargo.nome}">Cargo</a>
+    </nav>
+
+    <section th:each="secao : ${conteudo.secoes}" th:id="${secao.id}" class="topico">
+        <h2 th:text="${secao.titulo}">Seção</h2>
+        <p th:each="paragrafo : ${secao.paragrafos}" th:text="${paragrafo}">Parágrafo</p>
+        <p th:if="${secao.id == 'majoritario-proporcional'}">
+            <a th:href="@{/eleicoes-publicas/quociente-eleitoral}">Entenda o quociente eleitoral passo a passo</a>
+        </p>
+    </section>
+
+    <section th:each="cargo : ${conteudo.cargos}" th:id="${cargo.id}" class="topico">
+        <h2>
+            <span th:text="${cargo.nome}">Cargo</span>
+            <span class="selo"
+                  th:text="${cargo.sistema.name() == 'MAJORITARIO'} ? 'Majoritário' : 'Proporcional'">Majoritário</span>
+        </h2>
+        <p class="detalhe">
+            <span th:text="'Esfera: ' + ${cargo.esfera}">Esfera</span> ·
+            <span th:text="'Mandato: ' + ${cargo.mandato}">Mandato</span>
+        </p>
+        <h3>Principais atribuições</h3>
+        <ul>
+            <li th:each="atribuicao : ${cargo.atribuicoes}" th:text="${atribuicao}">Atribuição</li>
+        </ul>
+        <h3>Chapa</h3>
+        <p th:text="${cargo.composicaoChapa}">Composição da chapa</p>
+    </section>
+
+    <section class="topico">
+        <h2>Fontes oficiais</h2>
+        <ul>
+            <li th:each="fonte : ${conteudo.fontes}">
+                <a th:href="${fonte.url}" th:text="${fonte.descricao}" rel="noopener" target="_blank">Fonte</a>
+            </li>
+        </ul>
+        <p><a th:href="@{/eleicoes-publicas/tipos-voto}">Veja também: voto nulo, em branco e na legenda</a></p>
+    </section>
+</main>
+</body>
+</html>
