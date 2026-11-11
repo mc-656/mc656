@@ -30,7 +30,9 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * <p>O conteúdo didático ({@code GET /api/eleicoes-publicas/didatico/**}, RF-32) é público
  * <em>porque</em> é informativo, igual para todos e não toca dados de usuário nem de votação; o
  * público-alvo inclui eleitores leigos (RNF-07), e exigir cadastro só para ler uma explicação
- * afastaria justamente quem mais precisa dela. Só o {@code GET} é liberado.
+ * afastaria justamente quem mais precisa dela. Só o {@code GET} é liberado. Pelo mesmo motivo, as
+ * páginas equivalentes da cadeia de views ({@code /eleicoes-publicas/tipos-voto} e {@code
+ * /eleicoes-publicas/cargos}) também são públicas.
  *
  * <p><b>Views</b> (todo o resto): Thymeleaf com sessão e form login. Aqui a credencial é o cookie
  * de sessão, que o navegador anexa sozinho, então o CSRF fica <em>ligado</em>. As duas cadeias usam
@@ -143,6 +145,11 @@ public class SecurityConfig {
         return http.authorizeHttpRequests(
                         auth ->
                                 auth.requestMatchers("/login", "/cadastro", "/error", "/css/**")
+                                        .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/eleicoes-publicas/tipos-voto",
+                                                "/eleicoes-publicas/cargos")
                                         .permitAll()
                                         .requestMatchers(
                                                 "/v3/api-docs/**",
