@@ -83,7 +83,7 @@ public class SecurityConfig {
             HttpSecurity http, AutorizacaoMetricas autorizacaoMetricas) throws Exception {
         BearerTokenResolver padrao = new DefaultBearerTokenResolver();
         return http.securityMatcher("/actuator/**")
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // NOSONAR: JWT no header, sem cookie
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->
@@ -114,7 +114,7 @@ public class SecurityConfig {
     @Order(1)
     SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
         return http.securityMatcher("/api/**")
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // NOSONAR: JWT no header, sem cookie
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->

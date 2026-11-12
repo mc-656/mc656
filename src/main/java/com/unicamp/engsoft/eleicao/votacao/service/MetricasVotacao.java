@@ -59,7 +59,7 @@ public class MetricasVotacao {
      * Pré-registrados para aparecerem zerados desde o primeiro scrape: sem a série, {@code
      * rate()}/{@code increase()} não têm ponto de partida e o primeiro evento passa despercebido.
      */
-    private final Map<EstadoVotacao, Map<OrigemTransicao, Counter>> transicoes =
+    private final Map<EstadoVotacao, Map<OrigemTransicao, Counter>> contadoresTransicao =
             new EnumMap<>(EstadoVotacao.class);
 
     public MetricasVotacao(MeterRegistry registry, VotacaoRepository votacaoRepository) {
@@ -85,7 +85,7 @@ public class MetricasVotacao {
                                 .tag("origem", origem.name())
                                 .register(registry));
             }
-            transicoes.put(destino, porOrigem);
+            contadoresTransicao.put(destino, porOrigem);
         }
     }
 
@@ -95,7 +95,7 @@ public class MetricasVotacao {
      */
     public void transicaoRealizada(EstadoVotacao destino, OrigemTransicao origem) {
         noFimDaTransacao(
-                () -> transicoes.get(destino).get(origem).increment(),
+                () -> contadoresTransicao.get(destino).get(origem).increment(),
                 () -> contarFalhaTransicao(destino, origem, FALHA_NO_COMMIT));
     }
 
