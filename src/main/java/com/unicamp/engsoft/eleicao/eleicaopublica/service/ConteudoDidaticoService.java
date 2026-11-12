@@ -5,6 +5,7 @@ import com.unicamp.engsoft.eleicao.eleicaopublica.dto.CargosResponse.Cargo;
 import com.unicamp.engsoft.eleicao.eleicaopublica.dto.CargosResponse.Sistema;
 import com.unicamp.engsoft.eleicao.eleicaopublica.dto.TiposVotoResponse;
 import com.unicamp.engsoft.eleicao.eleicaopublica.dto.TiposVotoResponse.TipoVoto;
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Service;
  * (RNF-07).
  */
 @Service
-public class ConteudoDidaticoService {
+public final class ConteudoDidaticoService {
 
     /** Página da explicação do quociente eleitoral, para onde o voto na legenda remete. */
     public static final String URL_EXPLICACAO_QUOCIENTE = "/eleicoes-publicas/quociente-eleitoral";
@@ -35,15 +36,21 @@ public class ConteudoDidaticoService {
     static final String URL_CODIGO_ELEITORAL =
             "https://www.planalto.gov.br/ccivil_03/leis/l4737compilado.htm";
 
-    private final TiposVotoResponse tiposVoto = montarTiposVoto();
-    private final CargosResponse cargos = montarCargos();
+    private TiposVotoResponse tiposVoto = montarTiposVoto();
+    private CargosResponse cargos = montarCargos();
 
-    public TiposVotoResponse tiposVoto() {
-        return tiposVoto;
+    @PostConstruct
+    public void init() {
+        this.tiposVoto = montarTiposVoto();
+        this.cargos = montarCargos();
     }
 
     public CargosResponse cargos() {
-        return cargos;
+        return this.cargos;
+    }
+
+    public TiposVotoResponse tiposVoto() {
+        return this.tiposVoto;
     }
 
     private static TiposVotoResponse montarTiposVoto() {

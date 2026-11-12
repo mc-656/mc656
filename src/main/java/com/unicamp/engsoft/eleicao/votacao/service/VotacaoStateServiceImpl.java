@@ -105,7 +105,7 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
             Clock clock) {
         this.votacaoRepository = votacaoRepository;
         this.transicaoRepository = transicaoRepository;
-        this.guardasPublicacao = guardasPublicacao;
+        this.guardasPublicacao = List.copyOf(guardasPublicacao);
         this.clock = clock;
     }
 
