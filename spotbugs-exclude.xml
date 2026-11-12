@@ -73,4 +73,15 @@
         </Or>
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
+    <!-- Ignorar injeção de dependência no Service -->
+    <Match>
+        <Class name="com.unicamp.engsoft.eleicao.votacao.service.VotacaoPorModeloService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+
+    <!-- Ignorar erro de construtor em Entidades JPA (Proposta) -->
+    <Match>
+        <Class name="com.unicamp.engsoft.eleicao.votacao.domain.Proposta" />
+        <Bug pattern="CT_CONSTRUCTOR_THROW" />
+    </Match>
 </FindBugsFilter>

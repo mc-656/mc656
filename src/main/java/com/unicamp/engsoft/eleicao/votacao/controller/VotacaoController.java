@@ -61,6 +61,12 @@ public class VotacaoController {
     public VotacaoPorModeloResponse criarPorModelo(
             @RequestBody @Valid CriarVotacaoPorModeloRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        return votacaoPorModeloService.criar(request, UUID.fromString(jwt.getSubject()));
+        String subject = jwt.getSubject();
+        if (subject == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "Token JWT inválido: subject ausente");
+        }
+
+        return votacaoPorModeloService.criar(request, UUID.fromString(subject));
     }
 }
