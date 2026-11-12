@@ -1,0 +1,85 @@
+/* Telas de votação (#67). Folha própria para não disputar linhas com app.css. */
+
+.cartao.largo { width: min(100% - 2rem, 48rem); }
+
+h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+
+select, textarea {
+    padding: 0.5rem;
+    font: inherit;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    background: var(--superficie);
+    color: inherit;
+}
+select.invalido, textarea.invalido { border-color: var(--erro); }
+
+label.opcao { display: flex; gap: 0.5rem; align-items: center; font-weight: 400; }
+
+.ajuda { margin: 0; color: var(--suave); font-size: 0.875rem; }
+.suave { color: var(--suave); font-size: 0.875rem; }
+.migalha { margin: 0 0 0.5rem; font-size: 0.875rem; }
+
+.estado { margin: 0 0 0.75rem; }
+
+.etapas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--borda);
+}
+.etapas a[aria-current="page"] { font-weight: 600; text-decoration: none; color: var(--texto); }
+
+.botao {
+    display: inline-block;
+    padding: 0.6rem 1rem;
+    color: #fff;
+    background: var(--primaria);
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+.etiqueta {
+    display: inline-block;
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--borda);
+    border-radius: 999px;
+}
+
+.lista-votacoes, .lista-itens { list-style: none; padding: 0; margin: 0; }
+.lista-votacoes li, .lista-itens li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    align-items: baseline;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--borda);
+}
+.lista-votacoes .suave { flex-basis: 100%; }
+.lista-itens li { justify-content: space-between; }
+.lista-itens li div { display: flex; flex-direction: column; }
+
+.dados { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0; }
+.dados dt { font-weight: 500; }
+.dados dd { margin: 0; overflow-wrap: anywhere; }
+
+.tabela-rolavel { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--borda); }
+td { overflow-wrap: anywhere; }
+
+.visualmente-oculto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (max-width: 30rem) {
+    .dados { grid-template-columns: 1fr; }
+    .dados dd { margin-bottom: 0.5rem; }
+}

@@ -41,6 +41,7 @@ Variáveis disponíveis:
 | `DB_PASSWORD` | Senha do Postgres                  | —         |
 | `DB_NAME`     | Nome do banco                      | `eleicao` |
 | `DB_PORT`     | Porta do Postgres no host          | `5433`    |
+| `DB_HOST`     | Host do Postgres (útil no Docker)  | `localhost` |
 
 O Spring lê esse `.env` automaticamente (dependência `spring-dotenv`), então as
 mesmas variáveis servem para o container e para a aplicação.
@@ -109,29 +110,102 @@ Para recomeçar de um banco vazio: `make db-reset`.
 java -jar target/eleicao-0.0.1-SNAPSHOT.jar   # executa o jar gerado
 ```
 
-### Cobertura de testes (RNF-05)
+## Deploy (Docker e CD)
 
-O JaCoCo gera o relatório em `target/site/jacoco` na fase `test` e, na fase
-`verify`, aplica um gate (`jacoco:check`) que **reprova o build** se a
-cobertura ficar abaixo dos limites:
+Requisito RNF-08. Por decisão do time a aplicação roda só local por enquanto
+(sem hospedagem paga); o pipeline publica a imagem e deixa o passo de deploy
+pronto para um alvo genérico.
 
-| Escopo | Linhas | Branches | Propriedade |
-| ------ | ------ | -------- | ----------- |
-| Global (projeto inteiro) | 93% | 85% | `jacoco.minimo.linha` / `jacoco.minimo.branch` |
-| Cada classe de apuração | 90% | 90% | `jacoco.minimo.apuracao` |
+### Rodando a imagem localmente
 
-As classes de apuração são `MotorApuracao`, as estratégias `Desempate*`,
-`ResultadoApuracao`, `Totalizacao`, `OpcaoApurada`, `VotoApuravel` e qualquer
-classe em um pacote `com.unicamp.engsoft.eleicao.*.apuracao.*` (onde deve
-entrar o motor de cotas do orçamento participativo). O piso global fica um
-pouco abaixo da cobertura medida, para travar regressões sem quebrar por
-oscilação pequena; se a cobertura subir de forma estável, suba o piso.
+O `Dockerfile` faz build multi-stage (Maven wrapper + JDK 21 → JRE 21 Alpine),
+roda como usuário não-root `eleicao` e tem `HEALTHCHECK` em `/actuator/health`.
+A configuração entra **só por variáveis de ambiente**: o `.env` não é copiado
+para a imagem (`.dockerignore`) e o `springboot4-dotenv` ignora a ausência dele.
 
 ```bash
-./mvnw verify                                   # testes + gate de cobertura
-./mvnw verify -Djacoco.minimo.apuracao=0.99     # simula um limite mais alto
+docker build -t eleicao:local .
+
+docker network create eleicao-net
+docker run -d --name eleicao-pg --network eleicao-net \
+  -e POSTGRES_USER=eleicao -e POSTGRES_PASSWORD=eleicao -e POSTGRES_DB=eleicao postgres:17-alpine
+
+docker run --rm --name eleicao-app --network eleicao-net -p 8080:8080 \
+  -e DB_HOST=eleicao-pg -e DB_PORT=5432 -e DB_NAME=eleicao \
+  -e DB_USERNAME=eleicao -e DB_PASSWORD=eleicao \
+  -e HMAC="$(openssl rand -hex 64)" -e COMPROVANTE_CHAVE="$(openssl rand -base64 32)" \
+  eleicao:local
+
+curl localhost:8080/actuator/health   # {"status":"UP"}
 ```
 
-No CI, o job `Test & Coverage` roda `./mvnw verify` e publica os percentuais
-no resumo da execução (`$GITHUB_STEP_SUMMARY`), lidos de
-`target/site/jacoco/jacoco.csv`.
+Com o `.env` preenchido, o `compose.yaml` faz o mesmo (o serviço `app` fica
+num profile, então `make db-up` continua subindo só o Postgres):
+
+```bash
+docker compose --profile app up -d --build   # API em :${APP_PORT:-8080}
+```
+
+### Como funciona o CD
+
+- **CI** (`ci.yml`): build, lint e testes em todo PR.
+- **Migrações** (`migracoes.yml`, PRs para `main`/`develop`):
+  - falha se alguma migração que já existe na base do PR foi modificada,
+    renomeada ou removida (só adição é permitida), se há versão duplicada ou
+    nome fora do padrão. O mesmo script roda local:
+    `bash .github/scripts/verifica-migracoes.sh origin/develop`;
+  - sobe um Postgres 17 vazio, inicia a aplicação (Flyway aplica a cadeia
+    inteira e o Hibernate valida o schema) e confere se todas as versões
+    constam em `flyway_schema_history`.
+- **CD** (`cd.yml`, push em `main` = produção, `develop` = homologação):
+  1. build e push da imagem no GHCR (`ghcr.io/<owner>/<repo>`, gratuito, via
+     `GITHUB_TOKEN`), com tags `sha-<commit>`, `<branch>` e `latest` (só `main`);
+  2. job `deploy` no GitHub Environment `producao` ou `homologacao`. Se o
+     environment não tiver o secret `DEPLOY_WEBHOOK_URL`, o job só registra a
+     imagem e termina com sucesso. Se tiver, envia um `POST` ao webhook e faz
+     health check em `DEPLOY_HEALTH_URL`; se não ficar `UP` em ~5 min o job
+     falha e a versão não é considerada promovida.
+
+### Configurando um alvo real (futuro)
+
+Qualquer host que aceite um webhook de deploy serve (Render, Railway, Fly.io,
+Coolify, um VPS com um receptor de webhook etc.). O mantenedor precisa:
+
+1. Em *Settings → Environments*, criar `producao` e `homologacao` (o GitHub
+   também cria ao primeiro uso; em `producao` vale exigir revisores).
+2. Em cada environment, cadastrar os secrets:
+   - `DEPLOY_WEBHOOK_URL`: endpoint que dispara o deploy;
+   - `DEPLOY_WEBHOOK_TOKEN` (opcional): enviado como `Authorization: Bearer`;
+   - `DEPLOY_HEALTH_URL` (secret ou variable): ex.
+     `https://api.exemplo.com/actuator/health`;
+   - `DEPLOY_VERSAO_URL` (variable, recomendada): URL que responde com o SHA
+     do commit em execução. Como webhooks costumam ser assíncronos, logo após
+     o `POST` o health ainda pode vir da versão antiga; com essa URL o job só
+     aceita o deploy quando a versão nova está no ar. Sem ela, o job espera
+     `DEPLOY_ESPERA_SEGUNDOS` (variable, padrão 30) e exige 3 respostas `UP`
+     seguidas, o que só é confiável se o webhook for síncrono.
+3. No alvo, configurar `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`,
+   `DB_PASSWORD`, `HMAC` e `COMPROVANTE_CHAVE` como variáveis de ambiente do
+   serviço (nunca no repositório) e apontar para um PostgreSQL 17 gerenciado.
+4. Se o pacote do GHCR ficar privado, dar ao alvo um token com `read:packages`
+   (ou tornar o pacote público em *Packages → Package settings*).
+
+O webhook recebe:
+
+```json
+{"imagem": "ghcr.io/<owner>/<repo>:sha-abc1234", "ambiente": "producao", "sha": "<commit completo>"}
+```
+
+### Rollback
+
+- **Aplicação:** re-implantar uma tag anterior da imagem (`sha-<commit>` de uma
+  versão boa, listada em *Packages* do repositório). Com webhook configurado,
+  basta reexecutar o workflow `CD` daquele commit (*Actions → CD → Re-run*) ou
+  chamar o webhook com a tag antiga; localmente,
+  `docker run ... ghcr.io/<owner>/<repo>:sha-<commit>`.
+- **Banco:** migrações são *forward-only*. O Flyway não desfaz versões e uma
+  migração aplicada nunca é editada; se a versão nova trouxe uma migração
+  problemática, a correção é uma **nova** migração (`V<n+1>__...`). Antes de
+  voltar a imagem, confirme que o código antigo é compatível com o schema
+  atual (por isso migrações devem ser aditivas/retrocompatíveis sempre que
+  possível).

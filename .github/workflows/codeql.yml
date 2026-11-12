@@ -1,0 +1,49 @@
+name: CodeQL
+on:
+    push:
+        branches:
+            - main
+            - develop
+    pull_request:
+        branches:
+            - main
+            - develop
+    schedule:
+        # Semanal, para pegar consultas novas do CodeQL mesmo sem commits.
+        - cron: '0 6 * * 1'
+permissions:
+    contents: read
+
+jobs:
+    analyze:
+        name: CodeQL (Java)
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            security-events: write
+            actions: read
+        concurrency:
+            group: ${{ github.workflow }}-${{ github.ref }}
+            cancel-in-progress: true
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - uses: actions/setup-java@v6
+              name: Setup Java
+              with:
+                distribution: temurin
+                java-version: '21'
+                cache: maven
+            - name: Inicializar CodeQL
+              uses: github/codeql-action/init@v4
+              with:
+                languages: java-kotlin
+                build-mode: manual
+                queries: security-extended
+            - name: Compilar
+              run: ./mvnw -B -DskipTests package
+            - name: Analisar
+              uses: github/codeql-action/analyze@v4
+              with:
+                category: /language:java-kotlin
+        timeout-minutes: 20
