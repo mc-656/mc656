@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Minhas votações</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao largo">
+    <h1>Minhas votações</h1>
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
+
+    <p><a th:href="@{/votacoes/nova}" class="botao">Criar votação</a></p>
+
+    <p th:if="${#lists.isEmpty(votacoes)}">Você ainda não administra nenhuma votação.</p>
+
+    <ul th:unless="${#lists.isEmpty(votacoes)}" class="lista-votacoes">
+        <li th:each="item : ${votacoes}">
+            <a th:href="@{/votacoes/{id}(id=${item.id})}" th:text="${item.nome}">Votação</a>
+            <span class="etiqueta" th:text="${@rotulosVotacao.estado(item.estado)}">Rascunho</span>
+            <span class="suave">
+                <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
+                <time th:datetime="${item.inicioEm}"
+                      th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
+                a
+                <time th:datetime="${item.fimEm}"
+                      th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+            </span>
+        </li>
+    </ul>
+</main>
+</body>
+</html>
