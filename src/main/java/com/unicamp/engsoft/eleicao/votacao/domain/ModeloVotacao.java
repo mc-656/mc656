@@ -68,7 +68,7 @@ public enum ModeloVotacao {
 
     /** Opções cadastradas quando o organizador não informa nenhuma; vazia se não houver padrão. */
     public List<String> opcoesPadrao() {
-        return opcoesPadrao;
+        return opcoesPadrao == null ? List.of() : List.copyOf(opcoesPadrao);
     }
 
     public boolean votoSecreto() {

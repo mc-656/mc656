@@ -94,7 +94,7 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
             MetricasVotacao metricas) {
         this.votacaoRepository = votacaoRepository;
         this.transicaoRepository = transicaoRepository;
-        this.guardasPublicacao = guardasPublicacao;
+        this.guardasPublicacao = List.copyOf(guardasPublicacao);
         this.clock = clock;
         this.metricas = metricas;
     }
