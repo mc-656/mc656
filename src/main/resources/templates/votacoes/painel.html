@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="${v.nome}">Votação</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao largo">
+    <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'painel')}"></header>
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
+
+    <section aria-labelledby="titulo-dados">
+        <h2 id="titulo-dados">Dados</h2>
+        <dl class="dados">
+            <dt>Descrição</dt>
+            <dd th:text="${v.descricao}">Descrição</dd>
+            <dt>Tipo</dt>
+            <dd th:text="${@rotulosVotacao.tipo(v.tipo)}">Eleição privada</dd>
+            <dt>Início</dt>
+            <dd><time th:datetime="${v.inicioEm}" th:text="${@rotulosVotacao.dataHora(v.inicioEm)}"></time></dd>
+            <dt>Fim</dt>
+            <dd><time th:datetime="${v.fimEm}" th:text="${@rotulosVotacao.dataHora(v.fimEm)}"></time></dd>
+        </dl>
+    </section>
+
+    <section aria-labelledby="titulo-config">
+        <h2 id="titulo-config">Configuração</h2>
+        <dl class="dados">
+            <dt>Regras</dt>
+            <dd th:if="${v.regras == null}">
+                Não configuradas. <a th:href="@{/votacoes/{id}/regras(id=${v.id})}">Configurar</a>
+            </dd>
+            <dd th:if="${v.regras != null}">
+                <span th:text="${@rotulosVotacao.maioria(v.regras.tipoMaioria)}">Maioria simples</span>
+                <span th:if="${v.regras.percentualQualificado != null}"
+                      th:text="|(${v.regras.percentualQualificado}%)|"></span>
+                <span th:if="${v.regras.segundoTurno}">· segundo turno</span>
+                <span th:if="${v.regras.quorumMinimoPercentual != null}"
+                      th:text="|· quórum de ${v.regras.quorumMinimoPercentual}%|"></span>
+                <span th:if="${v.regras.votoPonderado}">· voto ponderado</span>
+            </dd>
+            <dt>Candidatos/chapas</dt>
+            <dd th:text="${totalCandidatos}">0</dd>
+            <dt>Eleitores</dt>
+            <dd th:text="${totalEleitores}">0</dd>
+        </dl>
+    </section>
+
+    <section th:if="${podePublicar}" aria-labelledby="titulo-publicar">
+        <h2 id="titulo-publicar">Publicar</h2>
+        <p>Depois de publicada, a votação não aceita mais mudanças em regras, candidatos ou
+            eleitores, e abre automaticamente na data de início.</p>
+        <form th:action="@{/votacoes/{id}/publicar(id=${v.id})}" method="post">
+            <button type="submit">Publicar votação</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

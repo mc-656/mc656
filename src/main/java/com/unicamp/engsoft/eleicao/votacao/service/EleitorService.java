@@ -141,6 +141,12 @@ public class EleitorService {
         papelVotacaoRepository.delete(papel);
     }
 
+    /** Quantidade de eleitores, para resumos que não precisam carregar os usuários. */
+    @Transactional(readOnly = true)
+    public long contar(UUID votacaoId) {
+        return papelVotacaoRepository.countByIdVotacaoIdAndIdPapel(votacaoId, PapelUsuario.ELEITOR);
+    }
+
     /**
      * Peso negativo não tem significado em nenhuma regra. Peso diferente de 1 só faz sentido com
      * voto ponderado: sem ele a apuração ignora o peso, e aceitar o valor daria ao administrador a
