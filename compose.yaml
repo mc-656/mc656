@@ -16,5 +16,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # Imagem da API (Dockerfile). Opcional: só sobe com `docker compose --profile app up -d`,
+  # então `make db-up` continua subindo apenas o Postgres.
+  app:
+    profiles: ["app"]
+    build: .
+    image: eleicao:local
+    container_name: eleicao-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      HMAC: ${HMAC}
+      COMPROVANTE_CHAVE: ${COMPROVANTE_CHAVE}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
 volumes:
   eleicao-pgdata:
