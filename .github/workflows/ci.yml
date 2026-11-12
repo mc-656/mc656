@@ -50,6 +50,25 @@ jobs:
             - name: Verificar formatação
               run: ./mvnw -B spotless:check
         timeout-minutes: 10
+    spotbugs:
+        name: SpotBugs
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ${{ github.workflow }}-spotbugs-${{ github.ref }}
+            cancel-in-progress: true
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - uses: actions/setup-java@v6
+              name: Setup Java
+              with:
+                distribution: temurin
+                java-version: '21'
+                cache: maven
+            # Mesmo goal que roda na fase verify; aqui sem testes para dar feedback rápido.
+            - name: Análise estática (SpotBugs)
+              run: ./mvnw -B -DskipTests compile spotbugs:check
+        timeout-minutes: 15
     test:
         name: Test & Coverage
         runs-on: ubuntu-latest
