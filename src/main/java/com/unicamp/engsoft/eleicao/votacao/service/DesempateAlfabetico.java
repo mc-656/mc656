@@ -2,6 +2,7 @@ package com.unicamp.engsoft.eleicao.votacao.service;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.EstrategiaDesempate;
 import com.unicamp.engsoft.eleicao.votacao.domain.OpcaoApurada;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -9,7 +10,7 @@ public class DesempateAlfabetico implements EstrategiaDesempate {
     private final Map<UUID, String> opcoes;
 
     public DesempateAlfabetico(Map<UUID, String> opcoes) {
-        this.opcoes = opcoes;
+        this.opcoes = new HashMap<>(opcoes);
     }
 
     @Override

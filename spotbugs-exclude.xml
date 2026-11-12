@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Exclusões do SpotBugs (RNF-04). Só entram aqui falsos positivos, sempre escopados ao menor
+  conjunto de classes possível e com a justificativa ao lado. Bug real se corrige no código.
+-->
+<FindBugsFilter
+        xmlns="https://github.com/spotbugs/filter/3.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+
+    <!--
+      DTOs são records de resposta/requisição: só transportam dados entre a API e o service e
+      são serializados para JSON logo em seguida. Fazer cópia defensiva de cada lista em cada
+      record não protege nenhuma invariante e só polui o código.
+    -->
+    <Match>
+        <Package name="~com\.unicamp\.engsoft\.eleicao\..*\.dto"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
+      Controllers recebem services por injeção de construtor. O "objeto mutável externo" é um
+      singleton gerenciado pelo Spring, que deve mesmo ser compartilhado.
+    -->
+    <Match>
+        <Package name="~com\.unicamp\.engsoft\.eleicao\..*\.controller"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
+      Jwt.getSubject() e Authentication.getPrincipal() são anotados como @Nullable, mas nestes
+      pontos nunca são nulos: o resource server só aceita tokens emitidos pelo TokenService, que
+      sempre preenche o sub, e AuthenticationManager.authenticate() devolve uma autenticação com
+      principal ou lança exceção.
+    -->
+    <Match>
+        <Or>
+            <And>
+                <Class name="com.unicamp.engsoft.eleicao.usuario.controller.AutenticacaoController"/>
+                <Method name="login"/>
+            </And>
+            <And>
+                <Class name="com.unicamp.engsoft.eleicao.votacao.controller.TransicaoVotacaoController"/>
+                <Method name="transitar"/>
+            </And>
+            <And>
+                <Class name="com.unicamp.engsoft.eleicao.votacao.controller.VotacaoController"/>
+                <Method name="criar"/>
+            </And>
+        </Or>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+
+    <!--
+      As estratégias de desempate são Comparators usados só em memória durante a apuração; nunca
+      vão para coleções serializadas (sessão HTTP, cache, RMI).
+    -->
+    <Match>
+        <Class name="~com\.unicamp\.engsoft\.eleicao\.votacao\.service\.Desempate.*"/>
+        <Bug pattern="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE"/>
+    </Match>
+
+    <!--
+      CT_CONSTRUCTOR_THROW alerta para ataques de finalizer em objetos parcialmente construídos.
+      Estes services são singletons do Spring, criados uma vez no start; lançar no construtor é
+      intencional (chave de comprovante inválida deve impedir o contexto de subir) e não há
+      código não confiável instanciando ou estendendo essas classes.
+    -->
+    <Match>
+        <Or>
+            <Class name="com.unicamp.engsoft.eleicao.votacao.service.ComprovanteService"/>
+            <Class name="com.unicamp.engsoft.eleicao.eleicaopublica.service.ExplicacaoQuocienteEleitoralService"/>
+        </Or>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+    <!-- Ignorar injeção de dependência no Service -->
+    <Match>
+        <Class name="com.unicamp.engsoft.eleicao.votacao.service.VotacaoPorModeloService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+
+    <!-- Ignorar erro de construtor em Entidades JPA (Proposta) -->
+    <Match>
+        <Class name="com.unicamp.engsoft.eleicao.votacao.domain.Proposta" />
+        <Bug pattern="CT_CONSTRUCTOR_THROW" />
+    </Match>
+</FindBugsFilter>

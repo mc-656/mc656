@@ -1,0 +1,16 @@
+# Segredos nunca entram no contexto de build da imagem.
+.env
+.env.*
+!.env.example
+
+# Artefatos e metadados que não fazem parte do build.
+target/
+.git/
+.github/
+.claude/
+.idea/
+.vscode/
+docs/
+*.iml
+*.md
+graphify-out/
