@@ -86,20 +86,60 @@ jobs:
                 cache: maven
             - name: Tornar mvnw executável
               run: chmod +x mvnw
-            - name: Executar Testes com Cobertura
-              run: ./mvnw -B clean test
-            - name: Exibir resumo da cobertura no log
+            # verify roda os testes, gera o relatório (fase test) e aplica o gate
+            # jacoco:check (fase verify): o build falha abaixo dos mínimos do pom.xml.
+            - name: Executar testes e gate de cobertura
+              run: ./mvnw -B clean verify
+            - name: Publicar resumo da cobertura
               if: always()
               run: |
-                echo "=== Resumo dos Relatórios de Cobertura ==="
-                if [ -d "target/site/jacoco" ]; then
-                  ls -lh target/site/jacoco/
-                  echo "Relatórios gerados com sucesso."
-                else
-                  echo "Diretório de cobertura não encontrado. Verifique se os testes rodaram."
+                CSV=target/site/jacoco/jacoco.csv
+                # Se algum teste falhou, o surefire interrompe o build antes do jacoco:report;
+                # gera o relatório a partir do jacoco.exec para não perder a cobertura da execução.
+                if [ ! -f "$CSV" ] && [ -f target/jacoco.exec ]; then
+                  ./mvnw -B -q jacoco:report || true
                 fi
-                echo "### 📊 Cobertura de Testes (JaCoCo)" >> "$GITHUB_STEP_SUMMARY"
-                echo "O relatório completo em HTML está disponível para download na seção de **Artifacts** desta execução." >> "$GITHUB_STEP_SUMMARY"
+                limite() { sed -n "s:.*<jacoco.minimo.$1>\(.*\)</jacoco.minimo.$1>.*:\1:p" pom.xml; }
+                {
+                  echo "### Cobertura de testes (JaCoCo)"
+                  echo
+                  if [ ! -f "$CSV" ]; then
+                    echo "Relatório \`$CSV\` não encontrado: os testes não chegaram a gerar cobertura."
+                  else
+                    awk -F, -v linha="$(limite linha)" -v branch="$(limite branch)" -v apuracao="$(limite apuracao)" '
+                      function pct(c, m) { return (c + m) == 0 ? "n/a" : sprintf("%.2f%%", 100 * c / (c + m)) }
+                      function lim(v) { return sprintf("%.0f%%", 100 * v) }
+                      function ehApuracao(p, c) {
+                        return (p == "com.unicamp.engsoft.eleicao.votacao.service" && c ~ /^(MotorApuracao|Desempate)/) \
+                          || (p == "com.unicamp.engsoft.eleicao.votacao.domain" && c ~ /^(ResultadoApuracao|Totalizacao|OpcaoApurada|VotoApuravel)$/) \
+                          || p ~ /^com\.unicamp\.engsoft\.eleicao\..*\.apuracao(\.|$)/
+                      }
+                      NR > 1 {
+                        im += $4; ic += $5; bm += $6; bc += $7; lm += $8; lc += $9
+                        if (ehApuracao($2, $3)) {
+                          n++; nome[n] = $3; cl[n] = pct($9, $8); cb[n] = pct($7, $6)
+                          alm += $8; alc += $9; abm += $6; abc += $7
+                        }
+                      }
+                      END {
+                        print "| Escopo | Linhas | Branches | Mínimo exigido |"
+                        print "| --- | --- | --- | --- |"
+                        printf "| Global | %s | %s | %s linhas / %s branches |\n", pct(lc, lm), pct(bc, bm), lim(linha), lim(branch)
+                        printf "| Apuração (agregado) | %s | %s | %s por classe |\n", pct(alc, alm), pct(abc, abm), lim(apuracao)
+                        print ""
+                        printf "Instruções (global): %s\n\n", pct(ic, im)
+                        print "<details><summary>Classes de apuração</summary>"
+                        print ""
+                        print "| Classe | Linhas | Branches |"
+                        print "| --- | --- | --- |"
+                        for (i = 1; i <= n; i++) printf "| `%s` | %s | %s |\n", nome[i], cl[i], cb[i]
+                        print ""
+                        print "</details>"
+                      }' "$CSV"
+                    echo
+                    echo "O relatório HTML completo está nos **Artifacts** desta execução (\`jacoco-coverage-report\`)."
+                  fi
+                } >> "$GITHUB_STEP_SUMMARY"
             - name: Publicar relatório como Artifact
               uses: actions/upload-artifact@v4
               if: always()

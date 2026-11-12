@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- Fragmento reutilizado: toda informação do módulo mostra fonte e data de atualização (#87). -->
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+<p th:fragment="fonte(f)" class="fonte">
+    Fonte:
+    <a th:if="${f.url != null}" th:href="${f.url}" th:text="${f.nome}" rel="noopener noreferrer" target="_blank">TSE</a>
+    <span th:unless="${f.url != null}" th:text="${f.nome}">TSE</span>
+    · atualizado em <time th:datetime="${f.atualizadoEm}"
+                          th:text="${#temporals.format(f.atualizadoEm, 'dd/MM/yyyy')}">01/01/2026</time>
+</p>
+</body>
+</html>

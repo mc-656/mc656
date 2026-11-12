@@ -29,6 +29,10 @@
   <properties>
     <java.version>21</java.version>
     <sonar.organization>mc-656</sonar.organization>
+    <!-- Gate de cobertura (RNF-05): razões de 0 a 1, sobrescrevíveis com -D na linha de comando -->
+    <jacoco.minimo.linha>0.93</jacoco.minimo.linha>
+    <jacoco.minimo.branch>0.85</jacoco.minimo.branch>
+    <jacoco.minimo.apuracao>0.90</jacoco.minimo.apuracao>
   </properties>
   <dependencies>
     <dependency>
@@ -266,6 +270,64 @@
               <goal>report</goal>
             </goals>
             <phase>test</phase>
+          </execution>
+          <!--
+            Gate de cobertura (RNF-05, issue #137): reprova o build na fase verify.
+            - Global: piso ligeiramente abaixo da cobertura medida, para travar regressões.
+            - Apuração: >= jacoco.minimo.apuracao de linha e branch em cada classe, pois apuração
+              incorreta é o principal risco do projeto (SPECS §10).
+            O padrão *.apuracao.* já cobre pacotes de apuração futuros, como o motor de cotas do
+            orçamento participativo (#130): basta criá-lo num pacote "apuracao" ou incluí-lo aqui.
+          -->
+          <execution>
+            <id>check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.linha}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.branch}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
+                  <element>CLASS</element>
+                  <includes>
+                    <include>com.unicamp.engsoft.eleicao.votacao.service.MotorApuracao*</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.service.Desempate*</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.Totalizacao</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.OpcaoApurada</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.VotoApuravel</include>
+                    <include>com.unicamp.engsoft.eleicao.*.apuracao.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.apuracao}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.apuracao}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
           </execution>
         </executions>
       </plugin>

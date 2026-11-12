@@ -109,31 +109,29 @@ Para recomeçar de um banco vazio: `make db-reset`.
 java -jar target/eleicao-0.0.1-SNAPSHOT.jar   # executa o jar gerado
 ```
 
-### Verificações de CI e segurança (RNF-04)
+### Cobertura de testes (RNF-05)
 
-Todo PR para `main` e `develop` passa pelas verificações abaixo. As configurações
-ficam versionadas no repositório:
+O JaCoCo gera o relatório em `target/site/jacoco` na fase `test` e, na fase
+`verify`, aplica um gate (`jacoco:check`) que **reprova o build** se a
+cobertura ficar abaixo dos limites:
 
-| Check | Onde | O que faz | Falha quando |
-|---|---|---|---|
-| `Build` | `.github/workflows/ci.yml` | `./mvnw package -DskipTests` | não compila |
-| `Lint` | `.github/workflows/ci.yml` | `spotless:check` (google-java-format AOSP) | código fora do formato |
-| `SpotBugs` | `.github/workflows/ci.yml` + `pom.xml` | análise estática de bugs (`spotbugs:check`, também na fase `verify`) | qualquer bug de prioridade média ou alta |
-| `Test & Coverage` | `.github/workflows/ci.yml` | testes + relatório JaCoCo | teste falhando |
-| `CodeQL (Java)` | `.github/workflows/codeql.yml` | análise de segurança do código (consultas `security-extended`); também roda semanalmente | alerta de segurança no código |
-| `Dependency Review` | `.github/workflows/dependency-review.yml` | compara as dependências do PR com o GitHub Advisory Database | o PR introduz dependência com vulnerabilidade **alta** ou **crítica** |
+| Escopo | Linhas | Branches | Propriedade |
+| ------ | ------ | -------- | ----------- |
+| Global (projeto inteiro) | 93% | 85% | `jacoco.minimo.linha` / `jacoco.minimo.branch` |
+| Cada classe de apuração | 90% | 90% | `jacoco.minimo.apuracao` |
 
-O Dependabot (`.github/dependabot.yml`) abre PRs semanais contra `develop`
-atualizando dependências Maven e versões das GitHub Actions.
-
-Para rodar o SpotBugs localmente:
+As classes de apuração são `MotorApuracao`, as estratégias `Desempate*`,
+`ResultadoApuracao`, `Totalizacao`, `OpcaoApurada`, `VotoApuravel` e qualquer
+classe em um pacote `com.unicamp.engsoft.eleicao.*.apuracao.*` (onde deve
+entrar o motor de cotas do orçamento participativo). O piso global fica um
+pouco abaixo da cobertura medida, para travar regressões sem quebrar por
+oscilação pequena; se a cobertura subir de forma estável, suba o piso.
 
 ```bash
-./mvnw verify                          # testes + SpotBugs
-./mvnw -DskipTests compile spotbugs:check   # só a análise
-./mvnw compile spotbugs:gui            # abre o relatório na interface gráfica
+./mvnw verify                                   # testes + gate de cobertura
+./mvnw verify -Djacoco.minimo.apuracao=0.99     # simula um limite mais alto
 ```
 
-Bugs reais se corrigem no código. Falsos positivos vão para
-`spotbugs-exclude.xml`, escopados ao menor conjunto de classes possível e com a
-justificativa comentada.
+No CI, o job `Test & Coverage` roda `./mvnw verify` e publica os percentuais
+no resumo da execução (`$GITHUB_STEP_SUMMARY`), lidos de
+`target/site/jacoco/jacoco.csv`.
