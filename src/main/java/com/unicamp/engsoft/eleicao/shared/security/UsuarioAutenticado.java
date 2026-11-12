@@ -28,7 +28,7 @@ public final class UsuarioAutenticado implements UserDetails {
         this.id = id;
         this.email = email;
         this.senhaHash = senhaHash;
-        this.autoridades = autoridades;
+        this.autoridades = List.copyOf(autoridades);
     }
 
     public static UsuarioAutenticado de(Usuario usuario) {
