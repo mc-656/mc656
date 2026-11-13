@@ -48,16 +48,11 @@ public class EnvioConvitePorEmail {
         mensagem.setTo(destinatario);
         mensagem.setSubject("Convite para a votação \"%s\"".formatted(nomeVotacao));
         mensagem.setText(
-                """
-                Olá!
-
-                Você foi convidado(a) para participar da votação "%s".
-
-                Para entrar como eleitor(a), abra o link abaixo. Se ainda não tiver conta, \
-                faça o cadastro e você voltará ao convite em seguida:
-
-                %s
-                """
+                ("Olá!%n%n"
+                                + "Você foi convidado(a) para participar da votação \"%s\".%n%n"
+                                + "Para entrar como eleitor(a), abra o link abaixo. Se ainda não tiver conta, "
+                                + "faça o cadastro e você voltará ao convite em seguida:%n%n"
+                                + "%s%n")
                         .formatted(nomeVotacao, link));
         return mensagem;
     }
