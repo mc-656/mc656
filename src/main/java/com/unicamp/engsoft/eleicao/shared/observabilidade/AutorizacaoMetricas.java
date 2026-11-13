@@ -42,29 +42,27 @@ public class AutorizacaoMetricas implements AuthorizationManager<RequestAuthoriz
     }
 
     @Override
-        public AuthorizationResult authorize(
-                Supplier<? extends Authentication> authentication,
-                RequestAuthorizationContext ctx) {
+    public AuthorizationResult authorize(
+            Supplier<? extends Authentication> authentication, RequestAuthorizationContext ctx) {
 
         Authentication auth = authentication.get();
 
         if (auth == null || !auth.isAuthenticated()) {
-                return new AuthorizationDecision(false);
+            return new AuthorizationDecision(false);
         }
 
         if (!(auth.getPrincipal() instanceof Jwt jwt)) {
-                return new AuthorizationDecision(false);
+            return new AuthorizationDecision(false);
         }
 
         String email = jwt.getClaimAsString("email");
 
         if (email == null) {
-                return new AuthorizationDecision(false);
+            return new AuthorizationDecision(false);
         }
 
-        boolean permitido =
-                emailsAutorizados.contains(email.toLowerCase(Locale.ROOT));
+        boolean permitido = emailsAutorizados.contains(email.toLowerCase(Locale.ROOT));
 
         return new AuthorizationDecision(permitido);
-        }
+    }
 }
