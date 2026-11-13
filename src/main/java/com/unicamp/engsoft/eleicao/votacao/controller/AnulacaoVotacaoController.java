@@ -14,14 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Anulação manual de votação por irregularidade (RF-42, #53).
- *
- * <p>Rota própria, e não só o {@code destino: Anulada} do endpoint genérico de transições, porque
- * aqui a justificativa é obrigatória já na validação do corpo e tem nome de negócio. A anulação
- * fica consultável no histórico de transições ({@code GET /api/votacoes/{id}/transicoes}).
- */
 @RestController
 @RequestMapping("/api/votacoes/{votacaoId}/anulacao")
 public class AnulacaoVotacaoController {
@@ -39,7 +33,24 @@ public class AnulacaoVotacaoController {
             @PathVariable UUID votacaoId,
             @RequestBody @Valid AnulacaoRequest request,
             @AuthenticationPrincipal Jwt jwt) {
+
+        if (jwt == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Token JWT não encontrado");
+        }
+
+        String subject = jwt.getSubject();
+
+        if (subject == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Token JWT sem identificação do usuário");
+        }
+
+        UUID usuarioId = UUID.fromString(subject);
+
         anulacaoService.anularPorIrregularidade(
-                votacaoId, UUID.fromString(jwt.getSubject()), request.justificativa());
+                votacaoId, usuarioId, request.justificativa());
     }
 }
