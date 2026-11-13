@@ -42,7 +42,7 @@ public class AceiteConviteController {
         if (subject == null) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "JWT sem identificação do usuário");
-        }
+        } 
 
         UUID usuarioId = UUID.fromString(subject);
 
