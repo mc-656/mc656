@@ -26,8 +26,7 @@ class RotulosVotacaoTest {
     void dataHoraUtilizaFusoDeBrasilia() {
         Instant instante = Instant.parse("2026-01-15T15:30:00Z");
 
-        assertThat(rotulos.dataHora(instante))
-                .isEqualTo("15/01/2026 12:30");
+        assertThat(rotulos.dataHora(instante)).isEqualTo("15/01/2026 12:30");
     }
 
     @ParameterizedTest
