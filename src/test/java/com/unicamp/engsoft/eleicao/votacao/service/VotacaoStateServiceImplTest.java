@@ -106,7 +106,9 @@ class VotacaoStateServiceImplTest {
         "EmVotacao, Suspensa, USUARIO",
         "Suspensa, EmVotacao, USUARIO",
         "EmVotacao, Cancelada, USUARIO",
-        "Suspensa, Cancelada, USUARIO"
+        "Suspensa, Cancelada, USUARIO",
+        "Apuracao, Anulada, USUARIO",
+        "Apuracao, Anulada, SISTEMA"
     })
     @DisplayName("Transições válidas alteram o estado e geram auditoria")
     void transicoesValidas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
@@ -147,7 +149,14 @@ class VotacaoStateServiceImplTest {
         "Cancelada, Suspensa, USUARIO",
         "Cancelada, Apuracao, SISTEMA",
         "Apuracao, EmVotacao, USUARIO",
-        "Apuracao, Suspensa, USUARIO"
+        "Apuracao, Suspensa, USUARIO",
+        "EmVotacao, Anulada, USUARIO",
+        "Suspensa, Anulada, USUARIO",
+        "Anulada, Homologada, USUARIO",
+        "Anulada, Encerrada, USUARIO",
+        "Anulada, Encerrada, SISTEMA",
+        "Anulada, Apuracao, SISTEMA",
+        "Anulada, Cancelada, USUARIO"
     })
     @DisplayName("Transições inválidas são rejeitadas sem alterar estado nem auditar")
     void transicoesInvalidas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
@@ -166,6 +175,14 @@ class VotacaoStateServiceImplTest {
                         });
         assertThat(votacao.getEstado()).isEqualTo(origem);
         verify(transicaoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Anulada e Cancelada são finais: não têm nenhuma transição de saída")
+    void estadosFinaisSemSaida() {
+        // Assert
+        assertThat(VotacaoStateServiceImpl.TRANSICOES)
+                .doesNotContainKeys(EstadoVotacao.Anulada, EstadoVotacao.Cancelada);
     }
 
     @Test
@@ -253,8 +270,13 @@ class VotacaoStateServiceImplTest {
     }
 
     @ParameterizedTest(name = "{0} -> {1} com motivo vazio")
-    @CsvSource({"EmVotacao, Suspensa", "EmVotacao, Cancelada", "Suspensa, Cancelada"})
-    @DisplayName("Suspensão e cancelamento forçado exigem motivo não vazio")
+    @CsvSource({
+        "EmVotacao, Suspensa",
+        "EmVotacao, Cancelada",
+        "Suspensa, Cancelada",
+        "Apuracao, Anulada"
+    })
+    @DisplayName("Suspensão, cancelamento forçado e anulação exigem motivo não vazio")
     void motivoObrigatorio(EstadoVotacao origem, EstadoVotacao destino) {
         for (String motivo : new String[] {null, "", "   "}) {
             // Arrange
