@@ -37,9 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
  * (#63). A autorização de administrador fica no controller, via {@code @PreAuthorize}.
  */
 @Service
-@SuppressFBWarnings(
-        value = "EI_EXPOSE_REP2",
-        justification = "EleitorService é uma dependência gerenciada pelo Spring")
 public class ConviteService {
 
     private final ConviteVotacaoRepository conviteRepository;
