@@ -35,22 +35,18 @@ public class AnulacaoVotacaoController {
             @AuthenticationPrincipal Jwt jwt) {
 
         if (jwt == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Token JWT não encontrado");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token JWT não encontrado");
         }
 
         String subject = jwt.getSubject();
 
         if (subject == null) {
             throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Token JWT sem identificação do usuário");
+                    HttpStatus.UNAUTHORIZED, "Token JWT sem identificação do usuário");
         }
 
         UUID usuarioId = UUID.fromString(subject);
 
-        anulacaoService.anularPorIrregularidade(
-                votacaoId, usuarioId, request.justificativa());
+        anulacaoService.anularPorIrregularidade(votacaoId, usuarioId, request.justificativa());
     }
 }
