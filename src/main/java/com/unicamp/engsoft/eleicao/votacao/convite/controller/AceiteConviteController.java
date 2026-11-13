@@ -3,13 +3,14 @@ package com.unicamp.engsoft.eleicao.votacao.convite.controller;
 import com.unicamp.engsoft.eleicao.votacao.convite.dto.ConviteAceitoResponse;
 import com.unicamp.engsoft.eleicao.votacao.convite.service.ConviteService;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.server.ResponseStatusException;
 /**
  * Entrada como eleitor pelo token do convite, para clientes da API (RF-17). Qualquer usuário
  * autenticado pode chamar: quem decide se ele entra é o modo do convite, não um papel prévio.
@@ -30,6 +31,14 @@ public class AceiteConviteController {
     @PostMapping("/aceite")
     public ConviteAceitoResponse aceitar(
             @PathVariable String token, @AuthenticationPrincipal Jwt jwt) {
-        return conviteService.aceitar(token, UUID.fromString(jwt.getSubject()));
+
+        if (jwt == null || jwt.getSubject() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+
+        UUID usuarioId = UUID.fromString(jwt.getSubject());
+
+        return conviteService.aceitar(token, usuarioId);
     }
 }
