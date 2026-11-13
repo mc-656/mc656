@@ -148,3 +148,64 @@ jobs:
                 path: target/site/jacoco/
                 retention-days: 14
         timeout-minutes: 15
+    mutation:
+        name: Mutation (PIT)
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ${{ github.workflow }}-mutation-${{ github.ref }}
+            cancel-in-progress: true
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - uses: actions/setup-java@v6
+              name: Setup Java
+              with:
+                distribution: temurin
+                java-version: '21'
+                cache: maven
+            - name: Tornar mvnw executável
+              run: chmod +x mvnw
+            # Só os testes de unidade da apuração (ver pom.xml): roda em segundos, então cabe em
+            # todo PR. O goal falha se o score ficar abaixo de pit.minimo.mutacao.
+            - name: Teste de mutação no motor de apuração
+              run: ./mvnw -B test-compile org.pitest:pitest-maven:mutationCoverage
+            - name: Publicar resumo da mutação
+              if: always()
+              run: |
+                XML=target/pit-reports/mutations.xml
+                {
+                  echo "### Teste de mutação (PIT)"
+                  echo
+                  if [ ! -f "$XML" ]; then
+                    echo "Relatório \`$XML\` não encontrado: a análise não chegou ao fim."
+                  else
+                    python3 -I - "$XML" "$(sed -n 's:.*<pit.minimo.mutacao>\(.*\)</pit.minimo.mutacao>.*:\1:p' pom.xml)" <<'PY'
+                import collections, sys, xml.etree.ElementTree as ET
+                mutantes = list(ET.parse(sys.argv[1]).getroot())
+                status = collections.Counter(m.get("status") for m in mutantes)
+                mortos = status["KILLED"] + status["TIMED_OUT"] + status["MEMORY_ERROR"]
+                score = 100 * mortos / len(mutantes) if mutantes else 100
+                print("| Mutantes | Mortos | Sobreviventes | Sem cobertura | Score | Mínimo |")
+                print("| --- | --- | --- | --- | --- | --- |")
+                print(f"| {len(mutantes)} | {mortos} | {status['SURVIVED']} | {status['NO_COVERAGE']} | {score:.1f}% | {sys.argv[2]}% |")
+                vivos = [m for m in mutantes if m.get("status") in ("SURVIVED", "NO_COVERAGE")]
+                if vivos:
+                    print()
+                    print("| Status | Classe | Linha | Mutação |")
+                    print("| --- | --- | --- | --- |")
+                    for m in vivos:
+                        classe = m.findtext("mutatedClass").rsplit(".", 1)[-1]
+                        print(f"| {m.get('status')} | `{classe}` | {m.findtext('lineNumber')} | {m.findtext('description')} |")
+                PY
+                    echo
+                    echo "O relatório HTML completo está nos **Artifacts** desta execução (\`pit-mutation-report\`)."
+                  fi
+                } >> "$GITHUB_STEP_SUMMARY"
+            - name: Publicar relatório como Artifact
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                name: pit-mutation-report
+                path: target/pit-reports/
+                retention-days: 14
+        timeout-minutes: 15

@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: db-up db-down db-logs db-reset db-psql fmt lint
+.PHONY: db-up db-down db-logs db-reset db-psql fmt lint test mutacao
 
 ## Sobe o Postgres em background
 db-up:
@@ -35,3 +35,7 @@ lint:
 ## Roda os testes
 test:
 	./mvnw test
+
+## Teste de mutação (PIT) no motor de apuração; relatório em target/pit-reports
+mutacao:
+	./mvnw test-compile org.pitest:pitest-maven:mutationCoverage
