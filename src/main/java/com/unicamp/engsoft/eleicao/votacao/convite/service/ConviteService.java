@@ -14,6 +14,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.EleitorService;
 import com.unicamp.engsoft.eleicao.votacao.service.ExigenciaDeEstadoDaVotacao;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -37,6 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
  * (#63). A autorização de administrador fica no controller, via {@code @PreAuthorize}.
  */
 @Service
+@SuppressFBWarnings(
+        value = "EI_EXPOSE_REP2",
+        justification = "EleitorService é uma dependência gerenciada pelo Spring")
 public class ConviteService {
 
     private final ConviteVotacaoRepository conviteRepository;

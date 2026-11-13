@@ -31,21 +31,17 @@ public class AceiteConviteController {
 
     @PostMapping("/aceite")
     public ConviteAceitoResponse aceitar(
-            @PathVariable String token,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable String token, @AuthenticationPrincipal Jwt jwt) {
 
         if (jwt == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Usuário não autenticado");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
         }
 
         String subject = jwt.getSubject();
 
         if (subject == null) {
             throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "JWT sem identificação do usuário");
+                    HttpStatus.UNAUTHORIZED, "JWT sem identificação do usuário");
         }
 
         UUID usuarioId = UUID.fromString(subject);
