@@ -22,7 +22,8 @@ class ComportamentosDeEstadoTest {
             EnumSet.of(
                     OperacaoVotacao.CONFIGURAR_REGRAS,
                     OperacaoVotacao.GERENCIAR_CANDIDATOS,
-                    OperacaoVotacao.GERENCIAR_ELEITORES);
+                    OperacaoVotacao.GERENCIAR_ELEITORES,
+                    OperacaoVotacao.GERENCIAR_PROPOSTAS);
 
     @ParameterizedTest
     @EnumSource(EstadoVotacao.class)
