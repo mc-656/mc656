@@ -36,7 +36,36 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/** Tabela de transições, guardas e auditoria do state service, sem banco (#24, #55). */
+/**
+ * Tabela de transições, guardas e auditoria do state service, sem banco (#24, #55).
+ *
+ * <p>Organizado por particionamento em classes de equivalência das entradas de {@code transitar}
+ * (#151): votação, par estado atual → destino, origem ({@code USUARIO} com autor, {@code SISTEMA}
+ * sem), data de fim, motivo, {@code novoFimEm} e guardas de publicação. Cada teste traz no
+ * {@code @DisplayName} o ID da classe:
+ *
+ * <ul>
+ *   <li>CE-V1: par previsto na tabela e origem permitida;
+ *   <li>CE-V2: transição que não exige motivo, sem motivo;
+ *   <li>CE-V3: transição que exige motivo, com motivo de até 500 caracteres;
+ *   <li>CE-V4: {@code Apuracao} com data de fim já atingida;
+ *   <li>CE-V5: retomada de {@code Suspensa} com prorrogação válida;
+ *   <li>CE-V6: publicação com todas as guardas aprovando;
+ *   <li>CE-I1: votação inexistente;
+ *   <li>CE-I2: par não previsto na tabela (inclui saída de estado final);
+ *   <li>CE-I3: usuário dispara transição que só ocorre por data;
+ *   <li>CE-I4: sistema dispara transição que exige usuário;
+ *   <li>CE-I5: {@code Apuracao} antes da data de fim;
+ *   <li>CE-I6: motivo exigido nulo, vazio ou em branco;
+ *   <li>CE-I7: motivo acima de 500 caracteres, com ou sem o registro da prorrogação;
+ *   <li>CE-I8: prorrogação fora da retomada de {@code Suspensa};
+ *   <li>CE-I9: novo fim que não passa do fim atual;
+ *   <li>CE-I10: novo fim que não está no futuro;
+ *   <li>CE-I11: guarda de publicação reprova.
+ * </ul>
+ *
+ * <p>Toda classe inválida confere também que o estado não mudou e que nada foi auditado.
+ */
 @ExtendWith(MockitoExtension.class)
 class VotacaoStateServiceImplTest {
 
@@ -110,7 +139,7 @@ class VotacaoStateServiceImplTest {
         "Apuracao, Anulada, USUARIO",
         "Apuracao, Anulada, SISTEMA"
     })
-    @DisplayName("Transições válidas alteram o estado e geram auditoria")
+    @DisplayName("CE-V1: transições válidas alteram o estado e geram auditoria")
     void transicoesValidas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
         // Arrange
         Votacao votacao = votacaoEm(origem);
@@ -135,16 +164,11 @@ class VotacaoStateServiceImplTest {
     @CsvSource({
         "RascunhoVotacao, EmVotacao, USUARIO",
         "RascunhoVotacao, Cancelada, USUARIO",
-        "Publicada, EmVotacao, USUARIO",
-        "RascunhoVotacao, Publicada, SISTEMA",
         "Cancelada, Publicada, USUARIO",
         "EmVotacao, Publicada, USUARIO",
         "Suspensa, Apuracao, SISTEMA",
         "Suspensa, Apuracao, USUARIO",
         "Publicada, Suspensa, USUARIO",
-        "EmVotacao, Apuracao, USUARIO",
-        "Suspensa, EmVotacao, SISTEMA",
-        "EmVotacao, Suspensa, SISTEMA",
         "Cancelada, EmVotacao, USUARIO",
         "Cancelada, Suspensa, USUARIO",
         "Cancelada, Apuracao, SISTEMA",
@@ -158,15 +182,47 @@ class VotacaoStateServiceImplTest {
         "Anulada, Apuracao, SISTEMA",
         "Anulada, Cancelada, USUARIO"
     })
-    @DisplayName("Transições inválidas são rejeitadas sem alterar estado nem auditar")
-    void transicoesInvalidas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
+    @DisplayName("CE-I2: transições não previstas são rejeitadas sem alterar estado nem auditar")
+    void transicoesNaoPrevistas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
+        assertTransicaoRejeitada(origem, destino, quem, "não prevista na máquina de estados");
+    }
+
+    @ParameterizedTest(name = "{0} -> {1} por USUARIO")
+    @CsvSource({"Publicada, EmVotacao", "EmVotacao, Apuracao"})
+    @DisplayName("CE-I3: usuário não dispara transição que só ocorre por data")
+    void usuarioEmTransicaoAutomatica(EstadoVotacao origem, EstadoVotacao destino) {
+        assertTransicaoRejeitada(
+                origem, destino, OrigemTransicao.USUARIO, "apenas automaticamente, por data");
+    }
+
+    @ParameterizedTest(name = "{0} -> {1} por SISTEMA")
+    @CsvSource({
+        "RascunhoVotacao, Publicada",
+        "Publicada, Cancelada",
+        "EmVotacao, Suspensa",
+        "Suspensa, EmVotacao",
+        "Suspensa, Cancelada"
+    })
+    @DisplayName("CE-I4: sistema não dispara transição que exige ação de um usuário")
+    void sistemaEmTransicaoDeUsuario(EstadoVotacao origem, EstadoVotacao destino) {
+        assertTransicaoRejeitada(
+                origem, destino, OrigemTransicao.SISTEMA, "exige ação de um usuário");
+    }
+
+    /**
+     * Confere que a transição é recusada com o motivo esperado e deixa a votação intacta. O motivo
+     * enviado é preenchido para que a recusa não venha da checagem de motivo obrigatório.
+     */
+    private void assertTransicaoRejeitada(
+            EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem, String mensagem) {
         // Arrange
         Votacao votacao = votacaoEm(origem);
         UUID autor = quem == OrigemTransicao.USUARIO ? ADMIN : null;
 
         // Act + Assert
-        assertThatThrownBy(() -> service.transitar(VOTACAO, destino, autor, null))
+        assertThatThrownBy(() -> service.transitar(VOTACAO, destino, autor, "motivo do teste"))
                 .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining(mensagem)
                 .satisfies(
                         e -> {
                             TransicaoInvalidaException ex = (TransicaoInvalidaException) e;
@@ -178,7 +234,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Anulada e Cancelada são finais: não têm nenhuma transição de saída")
+    @DisplayName("CE-I2: Anulada e Cancelada são finais: não têm nenhuma transição de saída")
     void estadosFinaisSemSaida() {
         // Assert
         assertThat(VotacaoStateServiceImpl.TRANSICOES)
@@ -186,7 +242,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Publicação executa todas as guardas registradas")
+    @DisplayName("CE-V6: publicação executa todas as guardas registradas")
     void publicacaoExecutaGuardas() {
         // Arrange
         votacaoEm(EstadoVotacao.RascunhoVotacao);
@@ -199,7 +255,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Publicação é bloqueada quando alguma guarda falha")
+    @DisplayName("CE-I11: publicação é bloqueada quando alguma guarda falha")
     void guardaFalhaBloqueiaPublicacao() {
         // Arrange
         Votacao votacao = votacaoEm(EstadoVotacao.RascunhoVotacao);
@@ -214,7 +270,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Guardas de publicação não rodam em outras transições")
+    @DisplayName("CE-V1: guardas de publicação não rodam em outras transições")
     void guardasSoNaPublicacao() {
         // Arrange
         votacaoEm(EstadoVotacao.Publicada);
@@ -228,7 +284,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Votação inexistente resulta em RecursoNaoEncontradoException")
+    @DisplayName("CE-I1: votação inexistente resulta em RecursoNaoEncontradoException")
     void votacaoInexistente() {
         // Arrange
         when(votacaoRepository.buscarParaTransicao(VOTACAO)).thenReturn(Optional.empty());
@@ -239,7 +295,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("EmVotacao → Apuracao ocorre por data de fim atingida, com origem SISTEMA")
+    @DisplayName("CE-V4: EmVotacao → Apuracao ocorre por data de fim atingida, com origem SISTEMA")
     void apuracaoPorDataDeFim() {
         // Arrange
         Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao, AGORA);
@@ -256,7 +312,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("EmVotacao → Apuracao é rejeitada antes da data de fim")
+    @DisplayName("CE-I5: EmVotacao → Apuracao é rejeitada antes da data de fim")
     void apuracaoAntesDoFimRejeitada() {
         // Arrange
         Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao, AGORA.plusSeconds(1));
@@ -276,7 +332,7 @@ class VotacaoStateServiceImplTest {
         "Suspensa, Cancelada",
         "Apuracao, Anulada"
     })
-    @DisplayName("Suspensão, cancelamento forçado e anulação exigem motivo não vazio")
+    @DisplayName("CE-I6: suspensão, cancelamento forçado e anulação exigem motivo não vazio")
     void motivoObrigatorio(EstadoVotacao origem, EstadoVotacao destino) {
         for (String motivo : new String[] {null, "", "   "}) {
             // Arrange
@@ -293,7 +349,7 @@ class VotacaoStateServiceImplTest {
 
     @ParameterizedTest(name = "motivo = [{0}]")
     @NullAndEmptySource
-    @DisplayName("Retomada da votação suspensa não exige motivo")
+    @DisplayName("CE-V2: retomada da votação suspensa não exige motivo")
     void retomadaSemMotivo(String motivo) {
         // Arrange
         Votacao votacao = votacaoEm(EstadoVotacao.Suspensa);
@@ -306,7 +362,8 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Retomada com prorrogação estende o fim e registra a prorrogação na auditoria")
+    @DisplayName(
+            "CE-V5: retomada com prorrogação estende o fim e registra a prorrogação na auditoria")
     void retomadaComProrrogacao() {
         // Arrange
         Instant fimVencido = AGORA.minusSeconds(60);
@@ -327,7 +384,7 @@ class VotacaoStateServiceImplTest {
 
     @ParameterizedTest(name = "novo fim = agora + {0}s")
     @ValueSource(longs = {-30, 0})
-    @DisplayName("Prorrogação para data que não está no futuro é rejeitada")
+    @DisplayName("CE-I10: prorrogação para data que não está no futuro é rejeitada")
     void prorrogacaoParaOPassadoRejeitada(long deslocamento) {
         // Arrange
         Instant fimVencido = AGORA.minusSeconds(60);
@@ -349,7 +406,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Prorrogação que não passa do fim atual é rejeitada")
+    @DisplayName("CE-I9: prorrogação que não passa do fim atual é rejeitada")
     void prorrogacaoQueEncurtaRejeitada() {
         // Arrange
         Instant fim = AGORA.plusSeconds(7200);
@@ -370,7 +427,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Prorrogação fora da retomada de votação suspensa é rejeitada")
+    @DisplayName("CE-I8: prorrogação fora da retomada de votação suspensa é rejeitada")
     void prorrogacaoForaDaRetomadaRejeitada() {
         // Arrange
         Instant fim = AGORA.plusSeconds(7200);
@@ -392,7 +449,8 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Motivo que não cabe junto com o registro da prorrogação é rejeitado, sem truncar")
+    @DisplayName(
+            "CE-I7: motivo que não cabe junto com o registro da prorrogação é rejeitado, sem truncar")
     void motivoLongoComProrrogacaoRejeitado() {
         // Arrange
         Instant fim = AGORA.minusSeconds(60);
@@ -416,7 +474,7 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Motivo acima do tamanho da coluna é rejeitado mesmo fora do controller")
+    @DisplayName("CE-I7: motivo acima do tamanho da coluna é rejeitado mesmo fora do controller")
     void motivoLongoRejeitado() {
         // Arrange
         Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao);
@@ -424,7 +482,84 @@ class VotacaoStateServiceImplTest {
 
         // Act + Assert
         assertThatThrownBy(() -> service.transitar(VOTACAO, EstadoVotacao.Suspensa, ADMIN, motivo))
-                .isInstanceOf(DadosInvalidosException.class);
+                .isInstanceOf(DadosInvalidosException.class)
+                .hasMessageContaining("Motivo excede");
         assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.EmVotacao);
+        verify(transicaoRepository, never()).save(any());
+    }
+
+    @ParameterizedTest(name = "{0} -> {1} sem motivo")
+    @CsvSource({"RascunhoVotacao, Publicada", "Publicada, RascunhoVotacao", "Publicada, Cancelada"})
+    @DisplayName("CE-V2: transições que não interrompem votação em andamento aceitam motivo nulo")
+    void transicaoSemMotivoObrigatorio(EstadoVotacao origem, EstadoVotacao destino) {
+        // Arrange
+        Votacao votacao = votacaoEm(origem);
+
+        // Act
+        service.transitar(VOTACAO, destino, ADMIN, null);
+
+        // Assert
+        assertThat(votacao.getEstado()).isEqualTo(destino);
+        assertThat(auditoriaSalva().getMotivo()).isNull();
+    }
+
+    @Test
+    @DisplayName("CE-V3: motivo com exatamente o tamanho da coluna é aceito e auditado inteiro")
+    void motivoNoTamanhoMaximoAceito() {
+        // Arrange
+        Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao);
+        String motivo = "a".repeat(VotacaoStateServiceImpl.TAMANHO_MAXIMO_MOTIVO);
+
+        // Act
+        service.transitar(VOTACAO, EstadoVotacao.Suspensa, ADMIN, motivo);
+
+        // Assert
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Suspensa);
+        assertThat(auditoriaSalva().getMotivo()).isEqualTo(motivo);
+    }
+
+    @Test
+    @DisplayName("CE-V4: EmVotacao → Apuracao também ocorre com a data de fim já vencida")
+    void apuracaoComFimVencido() {
+        // Arrange
+        Votacao votacao = votacaoEm(EstadoVotacao.EmVotacao, AGORA.minusSeconds(3600));
+
+        // Act
+        service.transitar(VOTACAO, EstadoVotacao.Apuracao, null, null);
+
+        // Assert
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Apuracao);
+    }
+
+    @Test
+    @DisplayName("CE-V5: prorrogação sem motivo audita só o registro da prorrogação")
+    void prorrogacaoSemMotivo() {
+        // Arrange
+        Instant fimVencido = AGORA.minusSeconds(60);
+        Instant novoFim = AGORA.plusSeconds(86400);
+        votacaoEm(EstadoVotacao.Suspensa, fimVencido);
+
+        // Act
+        service.transitar(VOTACAO, EstadoVotacao.EmVotacao, ADMIN, null, novoFim);
+
+        // Assert
+        assertThat(auditoriaSalva().getMotivo())
+                .isEqualTo("[fim prorrogado de " + fimVencido + " para " + novoFim + "]");
+    }
+
+    @Test
+    @DisplayName("CE-I9: prorrogação para a mesma data de fim atual é rejeitada")
+    void prorrogacaoParaOMesmoFimRejeitada() {
+        // Arrange
+        Instant fim = AGORA.plusSeconds(7200);
+        Votacao votacao = votacaoEm(EstadoVotacao.Suspensa, fim);
+
+        // Act + Assert
+        assertThatThrownBy(
+                        () -> service.transitar(VOTACAO, EstadoVotacao.EmVotacao, ADMIN, null, fim))
+                .isInstanceOf(DadosInvalidosException.class)
+                .hasMessageContaining("posterior à data de fim atual");
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Suspensa);
+        verify(transicaoRepository, never()).save(any());
     }
 }
