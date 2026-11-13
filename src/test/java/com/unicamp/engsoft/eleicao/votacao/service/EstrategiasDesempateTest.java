@@ -1,6 +1,7 @@
 package com.unicamp.engsoft.eleicao.votacao.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.OpcaoApurada;
@@ -83,7 +84,7 @@ class EstrategiasDesempateTest {
 
     @Test
     @DisplayName(
-            "Desempate por sorteio: resultado é consistente e antissimétrico na mesma instância")
+            "Desempate por sorteio: distingue as opções, de forma consistente e antissimétrica")
     void desempateAleatorio_deveSerConsistenteNaMesmaInstancia() {
         // Arrange: a estratégia sorteia os pesos no construtor
         UUID idCandidato1 = UUID.randomUUID();
@@ -97,7 +98,8 @@ class EstrategiasDesempateTest {
         int resultado2 = estrategia.compare(op1, op2);
         int resultadoInvertido = estrategia.compare(op2, op1);
 
-        // Assert
+        // Assert: os pesos são inteiros sorteados, então coincidem com chance de 1 em 2^32
+        assertNotEquals(0, resultado1, "O sorteio deve distinguir opções diferentes");
         assertEquals(resultado1, resultado2, "O sorteio deve ser consistente");
         assertEquals(
                 Integer.signum(resultado1),
