@@ -89,4 +89,9 @@
         <Field name="registry"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <Match>
+        <Class name="com.unicamp.engsoft.eleicao.votacao.convite.service.ConviteService"/>
+        <Field name="eleitorService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>
