@@ -33,6 +33,8 @@
     <jacoco.minimo.linha>0.93</jacoco.minimo.linha>
     <jacoco.minimo.branch>0.85</jacoco.minimo.branch>
     <jacoco.minimo.apuracao>0.90</jacoco.minimo.apuracao>
+    <!-- Gate de mutação do motor de apuração: percentual de 0 a 100 de mutantes mortos -->
+    <pit.minimo.mutacao>95</pit.minimo.mutacao>
   </properties>
   <dependencies>
     <dependency>
@@ -340,6 +342,48 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <!--
+        Teste de mutação (PIT) sobre o motor de apuração. Não fica preso a nenhuma fase: roda com
+        ./mvnw test-compile org.pitest:pitest-maven:mutationCoverage (make mutacao) e, no CI, em
+        job próprio. O escopo é o mesmo do gate de cobertura da apuração, porque cobertura alta não
+        prova que os testes conferem o resultado: um teste que executa a linha sem checar a saída
+        mantém o JaCoCo verde e deixa o mutante vivo.
+        Os testes alvo são só os de unidade da apuração. Os que sobem Spring/Testcontainers rodariam
+        uma vez por mutante e não exercitam o motor.
+      -->
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>1.30.1</version>
+        <configuration>
+          <targetClasses>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.MotorApuracao*</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.Desempate*</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao*</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.domain.Totalizacao</param>
+          </targetClasses>
+          <targetTests>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.MotorApuracao*Test</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.EstrategiasDesempateTest</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracaoTest</param>
+          </targetTests>
+          <outputFormats>
+            <param>HTML</param>
+            <param>XML</param>
+          </outputFormats>
+          <timestampedReports>false</timestampedReports>
+          <threads>2</threads>
+          <!-- Piso abaixo do score medido, como o gate do JaCoCo: trava regressões sem exigir 100%. -->
+          <mutationThreshold>${pit.minimo.mutacao}</mutationThreshold>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.3</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>
