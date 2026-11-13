@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
 /**
  * Entrada como eleitor pelo token do convite, para clientes da API (RF-17). Qualquer usuário
  * autenticado pode chamar: quem decide se ele entra é o modo do convite, não um papel prévio.
@@ -33,8 +34,7 @@ public class AceiteConviteController {
             @PathVariable String token, @AuthenticationPrincipal Jwt jwt) {
 
         if (jwt == null || jwt.getSubject() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
         }
 
         UUID usuarioId = UUID.fromString(jwt.getSubject());
