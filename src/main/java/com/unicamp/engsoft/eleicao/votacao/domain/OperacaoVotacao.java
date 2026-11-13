@@ -14,6 +14,7 @@ public enum OperacaoVotacao {
     CONFIGURAR_REGRAS("configurar as regras"),
     GERENCIAR_CANDIDATOS("gerenciar candidatos/chapas"),
     GERENCIAR_ELEITORES("gerenciar eleitores"),
+    GERENCIAR_PROPOSTAS("gerenciar propostas"),
     /** Registrar voto (RF-13/RF-14); só {@code EmVotacao} permite. */
     VOTAR("votar");
 
