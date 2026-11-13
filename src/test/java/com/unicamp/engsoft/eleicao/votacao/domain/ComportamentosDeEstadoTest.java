@@ -102,13 +102,12 @@ class ComportamentosDeEstadoTest {
                                     .formatted(operacao.rotulo()));
         }
     }
+
     @Test
     @DisplayName("Estado nulo deve lançar exceção")
     void estadoNuloDeveLancarExcecao() {
-    assertThatThrownBy(() -> ComportamentosDeEstado.de(null))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining(
-                    "Sem comportamento cadastrado para o estado null"
-            );
+        assertThatThrownBy(() -> ComportamentosDeEstado.de(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Sem comportamento cadastrado para o estado null");
     }
 }
