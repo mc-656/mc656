@@ -1,5 +1,6 @@
 package com.unicamp.engsoft.eleicao.votacao.service;
 
+import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Anulada;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Apuracao;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Cancelada;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.EmVotacao;
@@ -43,6 +44,12 @@ import org.springframework.transaction.annotation.Transactional;
  * prorrogar, e aí o job de encerramento a leva para {@code Apuracao}). Os subestados {@code
  * RecebendoVotos}, {@code ComputandoPesos} e {@code ValidandoCotas} são conceituais e não entram na
  * tabela. {@code Cancelada} não tem linha: é estado final.
+ *
+ * <p>Anulação (#53, RF-42): {@code Apuracao → Anulada} aceita as duas origens porque há dois
+ * caminhos. Falta de quórum é automática (a apuração da #50 chama com origem {@code SISTEMA});
+ * irregularidade é decisão do admin. Os dois exigem motivo, que fica na auditoria como a
+ * justificativa consultável. {@code Anulada} também não tem linha: é final, então homologar ou
+ * encerrar uma votação anulada cai em "transição não prevista".
  */
 @Service
 public class VotacaoStateServiceImpl implements VotacaoStateService {
@@ -63,15 +70,21 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
                     Suspensa,
                             Map.of(
                                     EmVotacao, Set.of(USUARIO),
-                                    Cancelada, Set.of(USUARIO)));
+                                    Cancelada, Set.of(USUARIO)),
+                    Apuracao, Map.of(Anulada, Set.of(USUARIO, SISTEMA)));
 
     /**
      * Transições que interrompem uma votação em andamento: sem justificativa registrada, a
      * auditoria (RNF-03) não explica aos eleitores por que a votação parou. O cancelamento antes do
-     * início ({@code Publicada → Cancelada}) segue opcional, como na #24.
+     * início ({@code Publicada → Cancelada}) segue opcional, como na #24. A anulação ({@code
+     * Apuracao → Anulada}, RF-42) descarta o resultado de uma votação já realizada, então a
+     * justificativa é obrigatória em qualquer origem.
      */
     static final Map<EstadoVotacao, Set<EstadoVotacao>> EXIGEM_MOTIVO =
-            Map.of(EmVotacao, Set.of(Suspensa, Cancelada), Suspensa, Set.of(Cancelada));
+            Map.of(
+                    EmVotacao, Set.of(Suspensa, Cancelada),
+                    Suspensa, Set.of(Cancelada),
+                    Apuracao, Set.of(Anulada));
 
     /**
      * Tamanho da coluna {@code motivo} da V7. Conferido também aqui (além do {@code @Size} do DTO)

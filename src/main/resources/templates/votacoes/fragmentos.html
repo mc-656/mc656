@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- Fragmentos compartilhados pelas telas de votação (#67). -->
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Cabeçalho de uma votação: nome, estado e navegação entre as etapas de configuração. -->
+<header th:fragment="cabecalho(v, atual)" class="cabecalho-votacao">
+    <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
+    <h1 th:text="${v.nome}">Nome da votação</h1>
+    <p class="estado">
+        Estado: <strong th:text="${@rotulosVotacao.estado(v.estado)}">Rascunho</strong>
+    </p>
+    <nav aria-label="Etapas da votação" class="etapas">
+        <a th:href="@{/votacoes/{id}(id=${v.id})}"
+           th:attr="aria-current=${atual == 'painel'} ? 'page' : null">Resumo</a>
+        <a th:href="@{/votacoes/{id}/regras(id=${v.id})}"
+           th:attr="aria-current=${atual == 'regras'} ? 'page' : null">Regras</a>
+        <a th:href="@{/votacoes/{id}/candidatos(id=${v.id})}"
+           th:attr="aria-current=${atual == 'candidatos'} ? 'page' : null">Candidatos</a>
+        <a th:href="@{/votacoes/{id}/eleitores(id=${v.id})}"
+           th:attr="aria-current=${atual == 'eleitores'} ? 'page' : null">Eleitores</a>
+    </nav>
+</header>
+
+<!-- Mensagens de flash (PRG): sucesso e erro de ações sem formulário próprio. -->
+<div th:fragment="mensagens">
+    <p th:if="${sucesso}" th:text="${sucesso}" class="alerta sucesso" role="status"></p>
+    <p th:if="${erro}" th:text="${erro}" class="alerta erro" role="alert"></p>
+</div>
+
+<!-- Aviso de que a votação não aceita mais mudanças nesta etapa. -->
+<p th:fragment="bloqueada" class="alerta">
+    Esta votação não está mais em rascunho: esta etapa não pode ser alterada.
+</p>
+
+</body>
+</html>

@@ -27,6 +27,8 @@ public final class ComportamentosDeEstado {
         }
         // Estados com comportamento próprio sobrescrevem o fallback.
         POR_ESTADO.put(EstadoVotacao.RascunhoVotacao, new RascunhoVotacaoComportamento());
+        POR_ESTADO.put(EstadoVotacao.Publicada, new AceitaConvites(EstadoVotacao.Publicada));
+        POR_ESTADO.put(EstadoVotacao.EmVotacao, new AceitaConvites(EstadoVotacao.EmVotacao));
     }
 
     private ComportamentosDeEstado() {}

@@ -129,7 +129,7 @@ Identificadores `RF-xx`, agrupados por módulo. Cada um deve virar Issue no GitH
 - **RF-13** Registrar voto único por eleitor elegível, com comprovante.
 - **RF-14** Impedir voto duplicado e voto fora da janela `EmVotacao`.
 - **RF-15** Apurar resultado respeitando regra configurada (incl. segundo turno quando necessário, como nova votação derivada com os 2 mais votados e critérios de desempate quando houver igualdade de votos).
-- **RF-16** Criar votação a partir de modelo pronto (eleição de chapa, assembleia, decisão sim/não), com regras pré-definidas e publicável sem alterá-las; as regras seguem editáveis em rascunho.
+- **RF-17** Convidar eleitores por link, e-mail ou QR Code após a publicação. O organizador escolhe o modo: aberto (qualquer usuário autenticado com o link) ou restrito (apenas os e-mails da lista). Abrir o link inclui o usuário como eleitor (RF-02) enquanto a votação estiver em `Publicada` ou `EmVotacao`; fora desses estados o link não inclui mais ninguém.
 
 ### 5.3 Orçamento Participativo
 - **RF-20** Cadastrar propostas e definir orçamento total (limite de pontos).
