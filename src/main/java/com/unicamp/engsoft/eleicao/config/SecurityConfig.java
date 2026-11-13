@@ -113,7 +113,9 @@ public class SecurityConfig {
                                 form.loginPage("/login")
                                         .usernameParameter("email")
                                         .passwordParameter("senha")
-                                        .defaultSuccessUrl("/", true)
+                                        // Sem "sempre usar": quem chegou por um link protegido
+                                        // (o convite, RF-17) volta a ele depois do login.
+                                        .defaultSuccessUrl("/")
                                         .failureUrl("/login?erro"))
                 .logout(logout -> logout.logoutUrl("/logout").logoutSuccessUrl("/login?saiu"))
                 .httpBasic(basic -> basic.disable())
