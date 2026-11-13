@@ -22,6 +22,16 @@ public interface VotacaoRepository extends JpaRepository<Votacao, UUID> {
     @Query("select v from Votacao v where v.id = :id")
     Optional<Votacao> buscarParaTransicao(@Param("id") UUID id);
 
+    /**
+     * Carrega a votação com lock compartilhado ({@code FOR SHARE}) para registrar voto (RF-14).
+     * Votos simultâneos não se bloqueiam entre si, mas uma transição ({@link #buscarParaTransicao},
+     * {@code FOR UPDATE}) espera os votos em andamento e vice-versa: nenhum voto é gravado depois
+     * de a votação ter sido suspensa ou encerrada por outra transação.
+     */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select v from Votacao v where v.id = :id")
+    Optional<Votacao> buscarParaVoto(@Param("id") UUID id);
+
     @Query("select v.id from Votacao v where v.estado = :estado and v.inicioEm <= :instante")
     List<UUID> idsPorEstadoComInicioAte(
             @Param("estado") EstadoVotacao estado, @Param("instante") Instant instante);
