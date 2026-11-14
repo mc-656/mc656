@@ -143,5 +143,5 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(corpoInvalido))
                 .andExpect(status().isConflict());
-        }
+    }
 }
