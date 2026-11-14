@@ -1,5 +1,6 @@
 package com.unicamp.engsoft.eleicao.config;
 
+import com.unicamp.engsoft.eleicao.shared.observabilidade.AutorizacaoMetricas;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -15,6 +16,7 @@ import org.springframework.security.oauth2.server.resource.web.BearerTokenResolv
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
@@ -57,6 +59,54 @@ public class SecurityConfig {
     }
 
     /**
+     * Health e probes que o orquestrador consulta sem credencial (RNF-06). HEAD junto com GET
+     * porque balanceadores costumam checar com HEAD.
+     */
+    private static final RequestMatcher HEALTH =
+            new OrRequestMatcher(
+                    PathPatternRequestMatcher.withDefaults()
+                            .matcher(HttpMethod.GET, "/actuator/health/{*probe}"),
+                    PathPatternRequestMatcher.withDefaults()
+                            .matcher(HttpMethod.HEAD, "/actuator/health/{*probe}"));
+
+    /**
+     * Actuator (RNF-06) em cadeia própria, antes das demais: na cadeia das views, um Prometheus sem
+     * token receberia 302 para a tela de login, e um coletor precisa de 401. Health e probes ficam
+     * públicos (o orquestrador não tem conta) e não mostram detalhes. {@code /actuator/prometheus}
+     * exige JWT de uma conta autorizada ({@link AutorizacaoMetricas}): as métricas revelam volume
+     * de uso e falhas, e o cadastro é público. O token é ignorado no health pelo mesmo motivo do
+     * conteúdo didático: um token vencido não pode derrubar a probe.
+     */
+    @Bean
+    @Order(0)
+    SecurityFilterChain actuatorFilterChain(
+            HttpSecurity http, AutorizacaoMetricas autorizacaoMetricas) throws Exception {
+        BearerTokenResolver padrao = new DefaultBearerTokenResolver();
+        return http.securityMatcher("/actuator/**")
+                .csrf(csrf -> csrf.disable()) // NOSONAR: JWT no header, sem cookie
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(
+                        auth ->
+                                auth.requestMatchers(HEALTH)
+                                        .permitAll()
+                                        .requestMatchers("/actuator/prometheus")
+                                        .access(autorizacaoMetricas)
+                                        .anyRequest()
+                                        .authenticated())
+                .oauth2ResourceServer(
+                        oauth ->
+                                oauth.bearerTokenResolver(
+                                                request ->
+                                                        HEALTH.matches(request)
+                                                                ? null
+                                                                : padrao.resolve(request))
+                                        .jwt(Customizer.withDefaults()))
+                .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
+                .build();
+    }
+
+    /**
      * Ordem 1 com {@code securityMatcher}: sem isso a cadeia das views, que não restringe caminho,
      * capturaria {@code /api/**} e a API passaria a responder com redirecionamento para o login.
      */
@@ -64,7 +114,7 @@ public class SecurityConfig {
     @Order(1)
     SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
         return http.securityMatcher("/api/**")
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // NOSONAR: JWT no header, sem cookie
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->
@@ -103,8 +153,7 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
-                                                "/swagger-ui.html",
-                                                "/actuator/health")
+                                                "/swagger-ui.html")
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
