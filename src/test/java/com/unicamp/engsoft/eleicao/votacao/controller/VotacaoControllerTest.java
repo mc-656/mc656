@@ -121,19 +121,18 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
     @DisplayName("Devolve 409 Conflict se a data de fim for antes do início")
     void rejeitaCriacaoSeFimForAntesDeInicio() throws Exception {
         String token = tokenService.gerar(UsuarioAutenticado.de(usuario));
-        // Datas relativas a agora: com data fixa, o início acaba caindo no passado e o
-        // @FutureOrPresent devolve 400 antes de chegar à regra de fim antes do início.
+
         Instant inicio = Instant.now().plus(30, ChronoUnit.DAYS);
         Instant fim = inicio.minus(1, ChronoUnit.DAYS);
 
         String corpoInvalido =
                 """
                 {
-                  "tipo": "ELEICAO_PRIVADA",
-                  "inicioEm": "2099-11-01T12:00:00Z",
-                  "fimEm": "2099-10-01T12:00:00Z",
-                  "nome": "Eleição Impossível",
-                  "descricao": "Fim antes do início"
+                "tipo": "ELEICAO_PRIVADA",
+                "inicioEm": "%s",
+                "fimEm": "%s",
+                "nome": "Eleição Impossível",
+                "descricao": "Fim antes do início"
                 }
                 """
                         .formatted(inicio, fim);
@@ -144,5 +143,5 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(corpoInvalido))
                 .andExpect(status().isConflict());
-    }
+        }
 }
