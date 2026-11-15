@@ -16,3 +16,8 @@ votacao:
   agendador:
     # Os testes do job o chamam diretamente; rodando sozinho ele alteraria votações de outros casos.
     habilitado: false
+
+observabilidade:
+  metricas:
+    # Conta usada por ObservabilidadeIntegracaoTest para ler /actuator/prometheus.
+    emails-autorizados: metricas@example.com
