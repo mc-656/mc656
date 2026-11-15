@@ -1,0 +1,11 @@
+# Logs estruturados em JSON (formato ECS) no console, para coleta por um agregador (RNF-06).
+# Ative com SPRING_PROFILES_ACTIVE=log-json (combinável com outros profiles). Fica fora do
+# application.yml para não atrapalhar a leitura do log no dev local. O MDC entra no JSON, então
+# cada linha carrega o "correlationId" da requisição.
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        name: ${spring.application.name}
