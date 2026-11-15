@@ -17,6 +17,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.TransicaoVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -84,6 +85,8 @@ class VotacaoStateServiceImplTest {
 
     private VotacaoStateServiceImpl service;
 
+    private final SimpleMeterRegistry metricas = new SimpleMeterRegistry();
+
     @BeforeEach
     void configura() {
         GuardaPublicacao guardaQueRegistra = guardasChamadas::add;
@@ -98,7 +101,8 @@ class VotacaoStateServiceImplTest {
                         votacaoRepository,
                         transicaoRepository,
                         List.of(guardaQueRegistra, guardaQuePodeFalhar),
-                        Clock.fixed(AGORA, ZoneOffset.UTC));
+                        Clock.fixed(AGORA, ZoneOffset.UTC),
+                        new MetricasVotacao(metricas, votacaoRepository));
     }
 
     /** Votação em memória no estado pedido, devolvida pelo repositório mockado. */
@@ -561,5 +565,54 @@ class VotacaoStateServiceImplTest {
                 .hasMessageContaining("posterior à data de fim atual");
         assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Suspensa);
         verify(transicaoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Transição válida incrementa o contador de transições do estado destino")
+    void transicaoValidaContaNaMetrica() {
+        // Arrange
+        votacaoEm(EstadoVotacao.EmVotacao);
+
+        // Act
+        service.transitar(VOTACAO, EstadoVotacao.Suspensa, ADMIN, "instabilidade");
+
+        // Assert
+        assertThat(
+                        metricas.get(MetricasVotacao.TRANSICOES)
+                                .tags("destino", "Suspensa", "origem", "USUARIO")
+                                .counter()
+                                .count())
+                .isEqualTo(1.0);
+        assertThat(metricas.find(MetricasVotacao.TRANSICOES_FALHAS).counter()).isNull();
+    }
+
+    @Test
+    @DisplayName("Transição recusada conta como falha e não como transição realizada")
+    void transicaoRecusadaContaComoFalha() {
+        // Arrange
+        votacaoEm(EstadoVotacao.RascunhoVotacao);
+
+        // Act
+        assertThatThrownBy(() -> service.transitar(VOTACAO, EstadoVotacao.EmVotacao, ADMIN, null))
+                .isInstanceOf(TransicaoInvalidaException.class);
+
+        // Assert
+        assertThat(
+                        metricas.get(MetricasVotacao.TRANSICOES_FALHAS)
+                                .tags(
+                                        "destino",
+                                        "EmVotacao",
+                                        "origem",
+                                        "USUARIO",
+                                        "erro",
+                                        "TransicaoInvalidaException")
+                                .counter()
+                                .count())
+                .isEqualTo(1.0);
+        assertThat(
+                        metricas.find(MetricasVotacao.TRANSICOES).counters().stream()
+                                .mapToDouble(c -> c.count())
+                                .sum())
+                .isZero();
     }
 }
