@@ -3,6 +3,7 @@ package com.unicamp.engsoft.eleicao.votacao.service;
 import com.unicamp.engsoft.eleicao.shared.exception.ComprovanteInvalidoException;
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
+import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.votacao.domain.Cedula;
 import com.unicamp.engsoft.eleicao.votacao.domain.ComportamentosDeEstado;
 import com.unicamp.engsoft.eleicao.votacao.domain.OperacaoVotacao;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -113,10 +115,10 @@ public class RegistroVotoService {
                             .orElseThrow(
                                     () -> new RecursoNaoEncontradoException("Votação", votacaoId));
             elegibilidadeService.validar(votacaoId, autenticacao);
-            // Elegível implica token JWT com sub em formato UUID (AutorizacaoVotacao nega o resto),
-            // e
-            // no JwtAuthenticationToken o nome é o sub.
-            UUID usuarioId = UUID.fromString(autenticacao.getName());
+            UUID usuarioId = usuarioDe(autenticacao);
+            if (usuarioId == null) {
+                throw new UsuarioNaoElegivelException(votacaoId);
+            }
 
             Instant agora = clock.instant();
             exigirJanelaAberta(votacao, agora);
@@ -200,5 +202,32 @@ public class RegistroVotoService {
             }
         }
         return false;
+    }
+
+    private static UUID usuarioDe(Authentication autenticacao) {
+        if (autenticacao instanceof JwtAuthenticationToken token) {
+            String sub = token.getToken().getSubject();
+            if (sub != null) {
+                try {
+                    return UUID.fromString(sub);
+                } catch (IllegalArgumentException ignored) {
+                    return null;
+                }
+            }
+            return null;
+        }
+        if (autenticacao != null
+                && autenticacao.isAuthenticated()
+                && autenticacao.getPrincipal() instanceof UsuarioAutenticado usuario) {
+            return usuario.getId();
+        }
+        if (autenticacao != null && autenticacao.getName() != null) {
+            try {
+                return UUID.fromString(autenticacao.getName());
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 }
