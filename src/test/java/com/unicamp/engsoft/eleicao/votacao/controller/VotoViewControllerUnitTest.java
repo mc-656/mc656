@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import com.unicamp.engsoft.eleicao.shared.exception.ComprovanteInvalidoException;
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
@@ -223,5 +224,75 @@ class VotoViewControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("votacoes/verificar-comprovante"))
                 .andExpect(model().attribute("erro", "Informe o código do comprovante."));
+    }
+
+    @Test
+    @DisplayName("GET /comprovantes/verificar com parâmetro codigo delega para verificação")
+    void telaVerificarComprovanteComCodigo() throws Exception {
+        UUID votacaoId = UUID.randomUUID();
+        Instant emitidoEm = Instant.now();
+        Votacao votacao = votacaoAberta(votacaoId);
+        VerificacaoComprovanteResponse verificado =
+                new VerificacaoComprovanteResponse(votacaoId, emitidoEm);
+
+        when(registroVotoService.verificar("CODIGO-PARAM")).thenReturn(verificado);
+        when(votacaoService.buscar(votacaoId)).thenReturn(votacao);
+
+        mvc.perform(get("/comprovantes/verificar").param("codigo", "CODIGO-PARAM"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("votacoes/verificar-comprovante"))
+                .andExpect(model().attribute("comprovanteValido", true));
+    }
+
+    @Test
+    @DisplayName("GET /votacoes/{id}/votar quando eleitor já votou exibe aviso")
+    void telaVotacaoEleitorJaVotou() throws Exception {
+        UUID votacaoId = UUID.randomUUID();
+        Votacao votacao = votacaoAberta(votacaoId);
+        when(votacaoService.buscar(votacaoId)).thenReturn(votacao);
+        when(candidatoService.listar(votacaoId)).thenReturn(List.of());
+        when(participacaoRepository.existsByUsuarioIdAndVotacaoId(any(), eq(votacaoId)))
+                .thenReturn(true);
+
+        mvc.perform(get("/votacoes/{id}/votar", votacaoId).principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("jaVotou", true));
+    }
+
+    @Test
+    @DisplayName(
+            "GET /votacoes/{id}/votar quando votação não está EmVotacao marca aberta como false")
+    void telaVotacaoFechada() throws Exception {
+        UUID votacaoId = UUID.randomUUID();
+        Votacao votacao =
+                new Votacao(
+                        TipoVotacao.ELEICAO_PRIVADA,
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        Instant.parse("2026-12-31T23:59:59Z"),
+                        "Nome",
+                        "Desc");
+        votacao.alterarEstado(EstadoVotacao.Publicada);
+        when(votacaoService.buscar(votacaoId)).thenReturn(votacao);
+        when(candidatoService.listar(votacaoId)).thenReturn(List.of());
+        when(participacaoRepository.existsByUsuarioIdAndVotacaoId(any(), eq(votacaoId)))
+                .thenReturn(false);
+
+        mvc.perform(get("/votacoes/{id}/votar", votacaoId).principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("aberta", false));
+    }
+
+    @Test
+    @DisplayName(
+            "POST /comprovantes/verificar quando comprovante é inválido adiciona erro ao model")
+    void verificarComprovanteInvalidoModel() throws Exception {
+        when(registroVotoService.verificar("INVALIDO"))
+                .thenThrow(new ComprovanteInvalidoException());
+
+        mvc.perform(post("/comprovantes/verificar").param("comprovante", "INVALIDO"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("votacoes/verificar-comprovante"))
+                .andExpect(model().attribute("comprovanteValido", false))
+                .andExpect(model().attributeExists("erro"));
     }
 }
