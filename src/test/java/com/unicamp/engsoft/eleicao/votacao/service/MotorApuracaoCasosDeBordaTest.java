@@ -118,6 +118,39 @@ class MotorApuracaoCasosDeBordaTest {
             assertThat(resultado.vencedorId()).isNull();
         }
 
+        /**
+         * Sorteio é o critério escolhido justamente para que o empate não trave a eleição: ao
+         * contrário de idade ou nome, ele sempre distingue as opções. Sem esta verificação, um
+         * sorteio que devolvesse "empate" para todo par passaria nos testes da estratégia e a
+         * votação terminaria em EMPATE mesmo com o desempate configurado (mutante do PIT, #156).
+         */
+        @Test
+        @DisplayName("desempate por sorteio resolve o empate em 1º e define um dos empatados")
+        void deveDefinirVencedorPorSorteio() {
+            // Arrange
+            RegraVotacao regra =
+                    new RegraVotacao(
+                            TipoMaioria.MAIORIA_SIMPLES,
+                            null,
+                            false,
+                            null,
+                            false,
+                            TipoDesempate.SORTEIO);
+            List<VotoApuravel> votos =
+                    juntar(votos(candidatoA, 3), votos(candidatoB, 3), votos(candidatoC, 1));
+            EstrategiaDesempate sorteio =
+                    new DesempateAleatorio(List.of(candidatoA, candidatoB, candidatoC));
+
+            // Act
+            ResultadoApuracao resultado = motor.apurar(regra, votos, null, 10, 7, sorteio);
+
+            // Assert
+            assertThat(resultado.status()).isEqualTo(StatusApuracao.DEFINIDO);
+            assertThat(resultado.vencedorId()).isIn(candidatoA, candidatoB);
+            assertThat(resultado.ranking().get(0).opcaoId()).isEqualTo(resultado.vencedorId());
+            assertThat(resultado.ranking().get(2).opcaoId()).isEqualTo(candidatoC);
+        }
+
         @Test
         @DisplayName("maioria absoluta com 1º e 2º empatados leva ambos ao segundo turno")
         void deveLevarEmpatadosEmPrimeiroAoSegundoTurno() {

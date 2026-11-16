@@ -14,9 +14,19 @@ public enum OperacaoVotacao {
     CONFIGURAR_REGRAS("configurar as regras"),
     GERENCIAR_CANDIDATOS("gerenciar candidatos/chapas"),
     GERENCIAR_ELEITORES("gerenciar eleitores"),
-    GERENCIAR_PROPOSTAS("gerenciar propostas"),
-    /** Registrar voto (RF-13/RF-14); só {@code EmVotacao} permite. */
-    VOTAR("votar");
+GERENCIAR_CANDIDATOS("gerenciar candidatos/chapas"),
+GERENCIAR_ELEITORES("gerenciar eleitores"),
+
+GERENCIAR_PROPOSTAS("gerenciar propostas e orçamento"),
+
+/** Registrar voto (RF-13/RF-14); só {@code EmVotacao} permite. */
+VOTAR("votar"),
+
+/** Gerar o link/QR Code do convite e enviá-lo por e-mail (RF-17). */
+CONVIDAR_ELEITORES("convidar eleitores"),
+
+/** Entrar com o eleitor abrindo o link de convite (RF-17, RF-02). */
+ENTRAR_POR_CONVITE("entrar por convite");
 
     private final String rotulo;
 

@@ -17,13 +17,27 @@ import org.junit.jupiter.params.provider.EnumSource;
  */
 class ComportamentosDeEstadoTest {
 
-    /** Operações de configuração: só o rascunho as permite. */
-    private static final Set<OperacaoVotacao> CONFIGURACAO =
+    /** Operações que só o rascunho permite (RF-10, RF-11, RF-12). */
+private static final Set<OperacaoVotacao> CONFIGURACAO =
             EnumSet.of(
                     OperacaoVotacao.CONFIGURAR_REGRAS,
                     OperacaoVotacao.GERENCIAR_CANDIDATOS,
                     OperacaoVotacao.GERENCIAR_ELEITORES,
                     OperacaoVotacao.GERENCIAR_PROPOSTAS);
+
+    /** Operações de convite (RF-17), permitidas só em Publicada e EmVotacao. */
+    private static final Set<OperacaoVotacao> CONVITE =
+            EnumSet.of(
+                    OperacaoVotacao.CONVIDAR_ELEITORES,
+                    OperacaoVotacao.ENTRAR_POR_CONVITE);
+
+    @ParameterizedTest
+    @EnumSource(EstadoVotacao.class)
+    @DisplayName("Todo estado tem comportamento registrado e ele é do próprio estado")
+    void todoEstadoTemComportamento(EstadoVotacao estado) {
+        // Mantenha aqui o corpo original do teste.
+    }
+}
 
     @ParameterizedTest
     @EnumSource(EstadoVotacao.class)
@@ -41,11 +55,51 @@ class ComportamentosDeEstadoTest {
         EstadoVotacaoComportamento comportamento =
                 ComportamentosDeEstado.de(EstadoVotacao.RascunhoVotacao);
 
+        // Act / Assert
         for (OperacaoVotacao operacao : CONFIGURACAO) {
             assertThatCode(() -> comportamento.exigir(operacao)).doesNotThrowAnyException();
             assertThat(comportamento.permite(operacao)).isTrue();
         }
         assertThat(comportamento.permite(OperacaoVotacao.VOTAR)).isFalse();
+        // O convite só nasce depois da publicação (RF-17).
+        for (OperacaoVotacao operacao : CONVITE) {
+            assertThat(comportamento.permite(operacao)).isFalse();
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = EstadoVotacao.class,
+            names = {"Publicada", "EmVotacao"})
+    @DisplayName("Publicada e EmVotacao aceitam convite, mas não configuração")
+    void publicadaEEmVotacaoAceitamConvite(EstadoVotacao estado) {
+        // Arrange
+        EstadoVotacaoComportamento comportamento = ComportamentosDeEstado.de(estado);
+
+        // Act / Assert
+        for (OperacaoVotacao operacao : CONVITE) {
+            assertThatCode(() -> comportamento.exigir(operacao)).doesNotThrowAnyException();
+        }
+        for (OperacaoVotacao operacao : CONFIGURACAO) {
+            assertThat(comportamento.permite(operacao)).isFalse();
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = EstadoVotacao.class,
+            names = {"RascunhoVotacao", "Publicada", "EmVotacao"},
+            mode = EnumSource.Mode.EXCLUDE)
+    @DisplayName("Fora de Publicada e EmVotacao o link de convite deixa de incluir eleitores")
+    void conviteRecusadoForaDaJanela(EstadoVotacao estado) {
+        // Arrange
+        EstadoVotacaoComportamento comportamento = ComportamentosDeEstado.de(estado);
+
+        // Act / Assert
+        assertThatThrownBy(() -> comportamento.exigir(OperacaoVotacao.ENTRAR_POR_CONVITE))
+                .isInstanceOf(RegraDeNegocioException.class)
+                .hasMessageContaining("Publicada, EmVotacao")
+                .hasMessageContaining(estado.name());
     }
 
     @ParameterizedTest
@@ -54,16 +108,17 @@ class ComportamentosDeEstadoTest {
             names = "RascunhoVotacao",
             mode = EnumSource.Mode.EXCLUDE)
     @DisplayName("Nenhum outro estado (inclusive os finais) permite operação de configuração")
-    void estadosForaDoRascunhoNaoPermitemConfiguracao(EstadoVotacao estado) {
-        EstadoVotacaoComportamento comportamento = ComportamentosDeEstado.de(estado);
+void estadoForaDoRascunhoNaoPermiteConfiguracao(EstadoVotacao estado) {
+    EstadoVotacaoComportamento comportamento =
+            ComportamentosDeEstado.de(estado);
 
-        for (OperacaoVotacao operacao : CONFIGURACAO) {
-            assertThat(comportamento.permite(operacao)).isFalse();
-            assertThatThrownBy(() -> comportamento.exigir(operacao))
-                    .isInstanceOf(RegraDeNegocioException.class)
-                    .hasMessageContaining(operacao.rotulo())
-                    .hasMessageContaining(estado.name());
-        }
+    for (OperacaoVotacao operacao : CONFIGURACAO) {
+        assertThat(comportamento.permite(operacao)).isFalse();
+
+        assertThatThrownBy(() -> comportamento.exigir(operacao))
+                .isInstanceOf(RegraDeNegocioException.class)
+                .hasMessageContaining(operacao.rotulo())
+                .hasMessageContaining(estado.name());
     }
 
     @Test

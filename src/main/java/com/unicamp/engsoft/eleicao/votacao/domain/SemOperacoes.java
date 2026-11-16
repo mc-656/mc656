@@ -3,9 +3,9 @@ package com.unicamp.engsoft.eleicao.votacao.domain;
 import java.util.Set;
 
 /**
- * Estado sem nenhuma operação de escrita permitida — hoje todos exceto o rascunho e {@code
- * EmVotacao}, inclusive os finais ({@code Encerrada}, {@code Homologada}, {@code Anulada}, {@code
- * Cancelada}).
+ * Estado sem nenhuma operação de escrita permitida — hoje todos fora do rascunho, de {@code
+ * Publicada} e de {@code EmVotacao}, inclusive os finais ({@code Encerrada}, {@code Homologada},
+ * {@code Anulada}, {@code Cancelada}).
  *
  * <p>É um record parametrizado pelo estado para não virar oito arquivos idênticos. Quando um estado
  * ganha comportamento próprio (como {@code EmVotacao} com o voto do RF-14), ele vira uma classe
