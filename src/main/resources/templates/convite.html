@@ -17,6 +17,7 @@
         <p class="alerta" th:if="${aceito.jaEraEleitor}">
             Você já era eleitor(a) da votação <strong th:text="${aceito.nomeVotacao}">Votação</strong>.
         </p>
+        <p><a th:href="@{/votacoes/{id}/votar(id=${aceito.votacaoId})}" class="botao">Votar agora</a></p>
     </th:block>
 
     <p th:if="${erro}" class="alerta erro" th:text="${erro}">Convite indisponível.</p>

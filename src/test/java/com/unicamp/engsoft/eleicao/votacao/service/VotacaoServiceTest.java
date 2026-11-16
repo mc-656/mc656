@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
+import com.unicamp.engsoft.eleicao.votacao.domain.PapelVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.RegraVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
@@ -17,6 +19,7 @@ import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,5 +93,42 @@ class VotacaoServiceTest {
                 .hasMessage(
                         "A operação 'configurar as regras' só pode ser feita com a votação em"
                                 + " RascunhoVotacao (estado atual: Publicada)");
+    }
+
+    @Test
+    @DisplayName(
+            "listarOndeEhEleitor busca votações com papel ELEITOR ordenadas por início decrescente")
+    void listarOndeEhEleitor() {
+        UUID usuarioId = UUID.randomUUID();
+        UUID votacao1Id = UUID.randomUUID();
+        UUID votacao2Id = UUID.randomUUID();
+
+        PapelVotacao papel1 = new PapelVotacao(usuarioId, votacao1Id, PapelUsuario.ELEITOR);
+        PapelVotacao papel2 = new PapelVotacao(usuarioId, votacao2Id, PapelUsuario.ELEITOR);
+
+        when(papelVotacaoRepository.findByIdUsuarioIdAndIdPapel(usuarioId, PapelUsuario.ELEITOR))
+                .thenReturn(List.of(papel1, papel2));
+
+        Votacao v1 =
+                new Votacao(
+                        TipoVotacao.ELEICAO_PRIVADA,
+                        Instant.parse("2026-01-01T10:00:00Z"),
+                        Instant.parse("2026-01-02T10:00:00Z"),
+                        "V1",
+                        "D1");
+        Votacao v2 =
+                new Votacao(
+                        TipoVotacao.ELEICAO_PRIVADA,
+                        Instant.parse("2026-02-01T10:00:00Z"),
+                        Instant.parse("2026-02-02T10:00:00Z"),
+                        "V2",
+                        "D2");
+
+        when(votacaoRepository.findAllById(List.of(votacao1Id, votacao2Id)))
+                .thenReturn(List.of(v1, v2));
+
+        List<Votacao> resultado = service.listarOndeEhEleitor(usuarioId);
+
+        assertThat(resultado).containsExactly(v2, v1);
     }
 }

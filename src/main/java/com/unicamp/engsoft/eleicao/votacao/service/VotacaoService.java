@@ -101,4 +101,18 @@ public class VotacaoService {
                 .sorted(Comparator.comparing(Votacao::getInicioEm).reversed())
                 .toList();
     }
+
+    /** Votações em que o usuário é {@code ELEITOR}, as mais recentes por início primeiro. */
+    @Transactional(readOnly = true)
+    public List<Votacao> listarOndeEhEleitor(UUID usuarioId) {
+        List<UUID> ids =
+                papelVotacaoRepository
+                        .findByIdUsuarioIdAndIdPapel(usuarioId, PapelUsuario.ELEITOR)
+                        .stream()
+                        .map(p -> p.getId().getVotacaoId())
+                        .toList();
+        return votacaoRepository.findAllById(ids).stream()
+                .sorted(Comparator.comparing(Votacao::getInicioEm).reversed())
+                .toList();
+    }
 }
