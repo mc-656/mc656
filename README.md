@@ -112,6 +112,9 @@ O Flyway aplica as migrations no start e o JPA valida o schema
 
 Documentação da API (Swagger UI): `http://localhost:8080/swagger-ui.html`
 
+Apuração de eleições privadas (#50): veja o [fluxo, snapshot e configuração do
+segundo turno](docs/apuracao.md).
+
 ### Migrações de banco (Flyway)
 
 As migrações ficam em `src/main/resources/db/migration` e são aplicadas
