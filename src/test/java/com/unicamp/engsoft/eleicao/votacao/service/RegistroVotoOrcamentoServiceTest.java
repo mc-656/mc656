@@ -355,4 +355,124 @@ class RegistroVotoOrcamentoServiceTest {
                 .isInstanceOf(RegraDeNegocioException.class)
                 .hasMessageContaining("exclusiva para votações de Orçamento Participativo");
     }
+
+    @Test
+    @DisplayName("consultarSaldo rejeita votação que não é Orçamento Participativo")
+    void consultarSaldoRejeitaTipoIncompativel() {
+        Votacao votacao =
+                new Votacao(
+                        TipoVotacao.ELEICAO_PRIVADA,
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        Instant.parse("2026-12-31T23:59:59Z"),
+                        "Eleição",
+                        "Desc");
+        when(votacaoRepository.findById(VOTACAO_ID)).thenReturn(Optional.of(votacao));
+
+        assertThatThrownBy(() -> service.consultarSaldo(VOTACAO_ID, autenticacao))
+                .isInstanceOf(RegraDeNegocioException.class);
+    }
+
+    @Test
+    @DisplayName("consultarSaldo com orçamento total nulo assume zero")
+    void consultarSaldoOrcamentoTotalNulo() {
+        Votacao votacao =
+                new Votacao(
+                        TipoVotacao.ORCAMENTO_PARTICIPATIVO,
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        Instant.parse("2026-12-31T23:59:59Z"),
+                        "Orçamento",
+                        "Desc");
+        votacao.alterarEstado(EstadoVotacao.EmVotacao);
+        when(votacaoRepository.findById(VOTACAO_ID)).thenReturn(Optional.of(votacao));
+        mockPapel(BigDecimal.ONE);
+        when(participacaoRepository.existsByUsuarioIdAndVotacaoId(usuario.getId(), VOTACAO_ID))
+                .thenReturn(false);
+
+        SaldoOrcamentoResponse saldo = service.consultarSaldo(VOTACAO_ID, autenticacao);
+        assertThat(saldo.saldoTotal()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(saldo.saldoDisponivel()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("registrar com alocação de zero pontos não cria registro de alocação")
+    void registrarIgnoraAlocacaoComZeroPontos() {
+        Votacao votacao = votacaoAberta();
+        when(votacaoRepository.buscarParaVoto(VOTACAO_ID)).thenReturn(Optional.of(votacao));
+        mockPapel(BigDecimal.ONE);
+        Proposta p1 = new Proposta(VOTACAO_ID, "P1", "Desc", new BigDecimal("50.00"));
+        Proposta p2 = new Proposta(VOTACAO_ID, "P2", "Desc", new BigDecimal("50.00"));
+        when(propostaRepository.findByIdAndVotacaoId(PROPOSTA_1, VOTACAO_ID))
+                .thenReturn(Optional.of(p1));
+        when(propostaRepository.findByIdAndVotacaoId(PROPOSTA_2, VOTACAO_ID))
+                .thenReturn(Optional.of(p2));
+        when(cedulaOrcamentoRepository.save(any(CedulaOrcamento.class)))
+                .thenReturn(new CedulaOrcamento(VOTACAO_ID));
+        when(comprovanteService.gerar(eq(VOTACAO_ID), any(), any())).thenReturn("COMPROVANTE-123");
+
+        VotoOrcamentoRequest request =
+                new VotoOrcamentoRequest(
+                        List.of(
+                                new AlocacaoPontoRequest(PROPOSTA_1, new BigDecimal("10.00")),
+                                new AlocacaoPontoRequest(PROPOSTA_2, BigDecimal.ZERO)));
+
+        service.registrar(VOTACAO_ID, request, autenticacao);
+
+        verify(alocacaoOrcamentoRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("validarEAgruparAlocacoes rejeita campos nulos ou request inválido")
+    void validarAlocacoesRejeitaNulos() {
+        Votacao votacao = votacaoAberta();
+        when(votacaoRepository.buscarParaVoto(VOTACAO_ID)).thenReturn(Optional.of(votacao));
+        mockPapel(BigDecimal.ONE);
+
+        assertThatThrownBy(() -> service.registrar(VOTACAO_ID, null, autenticacao))
+                .isInstanceOf(DadosInvalidosException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.registrar(
+                                        VOTACAO_ID, new VotoOrcamentoRequest(null), autenticacao))
+                .isInstanceOf(DadosInvalidosException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.registrar(
+                                        VOTACAO_ID,
+                                        new VotoOrcamentoRequest(
+                                                List.of(
+                                                        new AlocacaoPontoRequest(
+                                                                null, BigDecimal.TEN))),
+                                        autenticacao))
+                .isInstanceOf(DadosInvalidosException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.registrar(
+                                        VOTACAO_ID,
+                                        new VotoOrcamentoRequest(
+                                                List.of(
+                                                        new AlocacaoPontoRequest(
+                                                                PROPOSTA_1, null))),
+                                        autenticacao))
+                .isInstanceOf(DadosInvalidosException.class);
+    }
+
+    @Test
+    @DisplayName("violouUnicidadeDoEleitor propaga exceções de integridade genéricas")
+    void propagaExcecaoDeIntegridadeGenerica() {
+        Votacao votacao = votacaoAberta();
+        when(votacaoRepository.buscarParaVoto(VOTACAO_ID)).thenReturn(Optional.of(votacao));
+        mockPapel(BigDecimal.ONE);
+        Proposta p1 = new Proposta(VOTACAO_ID, "P1", "Desc", new BigDecimal("50.00"));
+        when(propostaRepository.findByIdAndVotacaoId(PROPOSTA_1, VOTACAO_ID))
+                .thenReturn(Optional.of(p1));
+        when(participacaoRepository.saveAndFlush(any()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("fk_erro"));
+
+        VotoOrcamentoRequest request =
+                new VotoOrcamentoRequest(
+                        List.of(new AlocacaoPontoRequest(PROPOSTA_1, new BigDecimal("10.00"))));
+
+        assertThatThrownBy(() -> service.registrar(VOTACAO_ID, request, autenticacao))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
 }

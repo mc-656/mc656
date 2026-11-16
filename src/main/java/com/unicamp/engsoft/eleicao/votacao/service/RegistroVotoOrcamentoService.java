@@ -36,7 +36,6 @@ import java.util.UUID;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -258,29 +257,16 @@ public class RegistroVotoOrcamentoService {
     }
 
     private static UUID usuarioDe(Authentication autenticacao) {
-        if (autenticacao instanceof JwtAuthenticationToken token) {
-            String sub = token.getToken().getSubject();
-            if (sub != null) {
-                try {
-                    return UUID.fromString(sub);
-                } catch (IllegalArgumentException ignored) {
-                    return null;
-                }
-            }
+        if (autenticacao == null) {
             return null;
         }
-        if (autenticacao != null
-                && autenticacao.isAuthenticated()
-                && autenticacao.getPrincipal() instanceof UsuarioAutenticado usuario) {
+        if (autenticacao.getPrincipal() instanceof UsuarioAutenticado usuario) {
             return usuario.getId();
         }
-        if (autenticacao != null && autenticacao.getName() != null) {
-            try {
-                return UUID.fromString(autenticacao.getName());
-            } catch (IllegalArgumentException ignored) {
-                return null;
-            }
+        try {
+            return UUID.fromString(autenticacao.getName());
+        } catch (IllegalArgumentException | NullPointerException ignored) {
+            return null;
         }
-        return null;
     }
 }

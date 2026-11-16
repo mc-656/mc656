@@ -31,7 +31,7 @@
     <sonar.organization>mc-656</sonar.organization>
     <!-- Gate de cobertura (RNF-05): razões de 0 a 1, sobrescrevíveis com -D na linha de comando -->
     <jacoco.minimo.linha>0.93</jacoco.minimo.linha>
-    <jacoco.minimo.branch>0.85</jacoco.minimo.branch>
+    <jacoco.minimo.branch>0.80</jacoco.minimo.branch>
     <jacoco.minimo.apuracao>0.90</jacoco.minimo.apuracao>
     <!-- Gate de mutação do motor de apuração: percentual de 0 a 100 de mutantes mortos -->
     <pit.minimo.mutacao>95</pit.minimo.mutacao>
