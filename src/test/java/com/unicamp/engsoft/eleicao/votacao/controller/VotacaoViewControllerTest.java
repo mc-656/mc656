@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -23,6 +24,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
+import com.unicamp.engsoft.eleicao.votacao.dto.AdicionarEleitorRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CadastrarCandidatoRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoRequest;
@@ -30,7 +32,10 @@ import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
+import com.unicamp.engsoft.eleicao.votacao.service.EleitorService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
+import com.unicamp.engsoft.eleicao.votacao.service.VotacaoStateService;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -66,6 +71,10 @@ class VotacaoViewControllerTest extends AbstractIntegrationTest {
     @Autowired VotacaoService votacaoService;
 
     @Autowired CandidatoOuChapaService candidatoService;
+
+    @Autowired EleitorService eleitorService;
+
+    @Autowired VotacaoStateService stateService;
 
     private Usuario admin;
 
@@ -528,5 +537,207 @@ class VotacaoViewControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<dd>2</dd>")))
                 .andExpect(content().string(containsString("Maioria simples")));
+    }
+
+    // Lacunas apontadas pelo JaCoCo (#158): comportamentos que nenhum teste exercitava.
+
+    @Test
+    @DisplayName("Formulário de regras de votação sem regras abre vazio e editável")
+    void formularioRegrasVazio() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+
+        // Act & Assert
+        mvc.perform(get("/votacoes/{id}/regras", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("votacoes/regras"))
+                .andExpect(
+                        model().attribute(
+                                        "regras",
+                                        new ConfigurarRegrasRequest(
+                                                null, null, false, null, false)))
+                .andExpect(model().attribute("editavel", true))
+                .andExpect(content().string(containsString("name=\"tipoMaioria\"")));
+    }
+
+    @Test
+    @DisplayName("Formulário de regras volta preenchido com as regras já salvas")
+    void formularioRegrasPreenchido() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+        ConfigurarRegrasRequest salvas =
+                new ConfigurarRegrasRequest(
+                        TipoMaioria.MAIORIA_QUALIFICADA,
+                        new BigDecimal("66.67"),
+                        true,
+                        new BigDecimal("50"),
+                        true);
+        votacaoService.configurarRegras(votacao.getId(), salvas);
+
+        // Act & Assert
+        mvc.perform(get("/votacoes/{id}/regras", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("regras", salvas))
+                .andExpect(content().string(containsString("value=\"66.67\"")));
+    }
+
+    @Test
+    @DisplayName("Formulário de regras de votação publicada não é editável")
+    void formularioRegrasPublicadaBloqueado() throws Exception {
+        // Arrange
+        Votacao votacao = prontaParaPublicar();
+        stateService.transitar(votacao.getId(), EstadoVotacao.Publicada, admin.getId(), null);
+
+        // Act & Assert
+        mvc.perform(get("/votacoes/{id}/regras", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("editavel", false));
+    }
+
+    @Test
+    @DisplayName("Criação com data que não converte mostra o erro e preserva os demais campos")
+    void criacaoComDataMalformada() throws Exception {
+        // Act & Assert: o @NotNull do request não repete o erro do binding, e o que converteu
+        // volta preenchido para o usuário não redigitar
+        mvc.perform(
+                        post("/votacoes")
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("nome", "Conselho")
+                                .param("descricao", "Eleição do conselho")
+                                .param("tipo", "ELEICAO_PRIVADA")
+                                .param("inicioEm", "amanhã de manhã")
+                                .param("fimEm", "2099-10-02T09:00"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("votacoes/nova"))
+                .andExpect(model().attributeHasFieldErrors("votacao", "inicioEm"))
+                .andExpect(model().attributeErrorCount("votacao", 1))
+                .andExpect(content().string(containsString("value=\"Conselho\"")))
+                .andExpect(content().string(containsString("value=\"2099-10-02T09:00\"")));
+        assertThat(votacaoRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("Painel de votação já publicada não oferece o botão de publicar")
+    void painelPublicadaSemBotaoPublicar() throws Exception {
+        // Arrange
+        Votacao votacao = prontaParaPublicar();
+        stateService.transitar(votacao.getId(), EstadoVotacao.Publicada, admin.getId(), null);
+
+        // Act & Assert
+        mvc.perform(get("/votacoes/{id}", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("podePublicar", false))
+                .andExpect(content().string(not(containsString("Publicar votação"))));
+    }
+
+    @Test
+    @DisplayName("Candidato com nome em branco mostra o erro do campo e não é cadastrado")
+    void candidatoSemNomeMostraErroDeCampo() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+
+        // Act & Assert
+        mvc.perform(
+                        post("/votacoes/{id}/candidatos", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("nome", " "))
+                .andExpect(status().isOk())
+                .andExpect(view().name("votacoes/candidatos"))
+                .andExpect(model().attributeHasFieldErrors("candidato", "nome"));
+        assertThat(candidatoRepository.countByVotacaoId(votacao.getId())).isZero();
+    }
+
+    @Test
+    @DisplayName("Eleitor com e-mail inválido mostra o erro do campo e não é adicionado")
+    void eleitorComEmailInvalidoMostraErroDeCampo() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+
+        // Act & Assert
+        mvc.perform(
+                        post("/votacoes/{id}/eleitores", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("email", "não-é-email"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("votacoes/eleitores"))
+                .andExpect(model().attributeHasFieldErrors("eleitor", "email"));
+        assertThat(eleitorService.contar(votacao.getId())).isZero();
+    }
+
+    @Test
+    @DisplayName("Remoção de eleitor redireciona com confirmação e tira o papel")
+    void remocaoDeEleitor() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+        Usuario bia =
+                usuarioRepository.save(
+                        new Usuario("Bia", "52998224725", "bia@example.com", "hash", NASCIMENTO));
+        eleitorService.adicionar(
+                votacao.getId(), new AdicionarEleitorRequest("bia@example.com", null));
+
+        // Act
+        mvc.perform(
+                        post("/votacoes/{id}/eleitores/{u}/remover", votacao.getId(), bia.getId())
+                                .with(logado(admin))
+                                .with(csrf()))
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/eleitores"))
+                .andExpect(flash().attribute("sucesso", "Eleitor removido."));
+
+        // Assert
+        assertThat(eleitorService.contar(votacao.getId())).isZero();
+    }
+
+    @Test
+    @DisplayName("Remoção de quem não é eleitor volta com a mensagem do domínio")
+    void remocaoDeNaoEleitorMostraErro() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+
+        // Act & Assert
+        mvc.perform(
+                        post(
+                                        "/votacoes/{id}/eleitores/{u}/remover",
+                                        votacao.getId(),
+                                        UUID.randomUUID())
+                                .with(logado(admin))
+                                .with(csrf()))
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/eleitores"))
+                .andExpect(flash().attribute("erro", containsString("Eleitor")))
+                .andExpect(flash().attributeCount(1));
+    }
+
+    @Test
+    @DisplayName("Tela de eleitores avisa quando a votação usa voto ponderado")
+    void eleitoresComVotoPonderado() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+        votacaoService.configurarRegras(
+                votacao.getId(),
+                new ConfigurarRegrasRequest(TipoMaioria.MAIORIA_SIMPLES, null, false, null, true));
+
+        // Act & Assert
+        mvc.perform(get("/votacoes/{id}/eleitores", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("votoPonderado", true))
+                .andExpect(content().string(containsString("Em branco vale 1.")));
+    }
+
+    @Test
+    @DisplayName("Tela de eleitores com regras sem ponderação pede peso em branco ou 1")
+    void eleitoresSemVotoPonderado() throws Exception {
+        // Arrange
+        Votacao votacao = rascunho();
+        votacaoService.configurarRegras(
+                votacao.getId(),
+                new ConfigurarRegrasRequest(TipoMaioria.MAIORIA_SIMPLES, null, false, null, false));
+
+        // Act & Assert
+        mvc.perform(get("/votacoes/{id}/eleitores", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("votoPonderado", false))
+                .andExpect(content().string(containsString("não usa voto ponderado")));
     }
 }
