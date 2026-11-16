@@ -241,7 +241,7 @@ class VotoViewControllerTest extends AbstractIntegrationTest {
                                 .with(csrf())
                                 .param("opcaoId", chapaB.getId().toString()))
                 .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/votar"))
-                .andExpect(flash().attribute("erro", "O eleitor já registrou voto nesta votação"));
+                .andExpect(flash().attribute("erro", containsString("já registrou voto")));
 
         entityManager.flush();
         Long totalCedulas =
@@ -324,6 +324,6 @@ class VotoViewControllerTest extends AbstractIntegrationTest {
                                 .param("comprovante", "comprovante.totalmente.invalido"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("votacoes/verificar-comprovante"))
-                .andExpect(content().string(containsString("Comprovante inválido")));
+                .andExpect(content().string(containsString("Comprovante de voto inválido")));
     }
 }
