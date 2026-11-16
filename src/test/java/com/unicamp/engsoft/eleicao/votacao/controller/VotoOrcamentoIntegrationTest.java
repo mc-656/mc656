@@ -202,7 +202,7 @@ class VotoOrcamentoIntegrationTest extends AbstractIntegrationTest {
                                 .header("Authorization", bearer(eleitor))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(payload))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(containsString("excede o saldo disponível")));
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM participacoes", Long.class)).isZero();
