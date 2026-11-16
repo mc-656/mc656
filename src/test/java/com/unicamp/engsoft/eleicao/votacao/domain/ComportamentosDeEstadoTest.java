@@ -17,14 +17,15 @@ import org.junit.jupiter.params.provider.EnumSource;
  */
 class ComportamentosDeEstadoTest {
 
-    /** Operações que só o rascunho permite (RF-10, RF-11, RF-12). */
+    /** Operações que só o rascunho permite (RF-10, RF-11, RF-12, RF-20). */
     private static final Set<OperacaoVotacao> CONFIGURACAO =
             EnumSet.of(
                     OperacaoVotacao.CONFIGURAR_REGRAS,
                     OperacaoVotacao.GERENCIAR_CANDIDATOS,
-                    OperacaoVotacao.GERENCIAR_ELEITORES);
+                    OperacaoVotacao.GERENCIAR_ELEITORES,
+                    OperacaoVotacao.GERENCIAR_PROPOSTAS);
 
-    /** Operações do convite (RF-17), permitidas só em Publicada e EmVotacao. */
+    /** Operações do convite (RF-17), permitidas em Publicada e EmVotacao. */
     private static final Set<OperacaoVotacao> CONVITE =
             EnumSet.of(OperacaoVotacao.CONVIDAR_ELEITORES, OperacaoVotacao.ENTRAR_POR_CONVITE);
 
@@ -39,7 +40,8 @@ class ComportamentosDeEstadoTest {
     }
 
     @Test
-    @DisplayName("RascunhoVotacao permite todas as operações de configuração")
+    @DisplayName(
+            "RascunhoVotacao permite as operações de configuração e não permite votar nem convidar")
     void rascunhoPermiteOperacoesDeConfiguracao() {
         EstadoVotacaoComportamento comportamento =
                 ComportamentosDeEstado.de(EstadoVotacao.RascunhoVotacao);
@@ -49,6 +51,8 @@ class ComportamentosDeEstadoTest {
             assertThatCode(() -> comportamento.exigir(operacao)).doesNotThrowAnyException();
             assertThat(comportamento.permite(operacao)).isTrue();
         }
+        assertThat(comportamento.permite(OperacaoVotacao.VOTAR)).isFalse();
+
         // O convite só nasce depois da publicação (RF-17).
         for (OperacaoVotacao operacao : CONVITE) {
             assertThat(comportamento.permite(operacao)).isFalse();
@@ -109,7 +113,19 @@ class ComportamentosDeEstadoTest {
     }
 
     @Test
-    @DisplayName("Todas as operações respondem com o mesmo texto, mudando só o rótulo")
+    @DisplayName("Votar só é permitido em EmVotacao (RF-14)")
+    void votarSoEmVotacao() {
+        // Act
+        var estadosQueVotam = ComportamentosDeEstado.estadosQuePermitem(OperacaoVotacao.VOTAR);
+        var operacoesEmVotacao = ComportamentosDeEstado.de(EstadoVotacao.EmVotacao).permitidas();
+
+        // Assert
+        assertThat(estadosQueVotam).containsExactly(EstadoVotacao.EmVotacao);
+        assertThat(operacoesEmVotacao).contains(OperacaoVotacao.VOTAR);
+    }
+
+    @Test
+    @DisplayName("As operações de configuração respondem com o mesmo texto, mudando só o rótulo")
     void mensagensSaoConsistentesEntreOperacoes() {
         EstadoVotacaoComportamento publicada = ComportamentosDeEstado.de(EstadoVotacao.Publicada);
 
@@ -130,5 +146,13 @@ class ComportamentosDeEstadoTest {
                             "a mensagem de '%s' divergiu do modelo comum"
                                     .formatted(operacao.rotulo()));
         }
+    }
+
+    @Test
+    @DisplayName("Estado nulo deve lançar exceção")
+    void estadoNuloDeveLancarExcecao() {
+        assertThatThrownBy(() -> ComportamentosDeEstado.de(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Sem comportamento cadastrado para o estado null");
     }
 }

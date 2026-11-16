@@ -15,6 +15,8 @@ public enum OperacaoVotacao {
     GERENCIAR_CANDIDATOS("gerenciar candidatos/chapas"),
     GERENCIAR_ELEITORES("gerenciar eleitores"),
     GERENCIAR_PROPOSTAS("gerenciar propostas e orçamento"),
+    /** Registrar voto (RF-13/RF-14); só {@code EmVotacao} permite. */
+    VOTAR("votar"),
     /** Gerar o link/QR Code do convite e enviá-lo por e-mail (RF-17). */
     CONVIDAR_ELEITORES("convidar eleitores"),
     /** Entrar como eleitor abrindo o link de convite (RF-17, RF-02). */

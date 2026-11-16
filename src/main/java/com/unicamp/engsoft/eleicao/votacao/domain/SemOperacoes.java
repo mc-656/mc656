@@ -8,7 +8,7 @@ import java.util.Set;
  * {@code Anulada}, {@code Cancelada}).
  *
  * <p>É um record parametrizado pelo estado para não virar oito arquivos idênticos. Quando um estado
- * ganhar comportamento próprio (ex.: {@code EmVotacao} com o voto do RF-14), ele vira uma classe
+ * ganha comportamento próprio (como {@code EmVotacao} com o voto do RF-14), ele vira uma classe
  * própria e deixa de usar este fallback no {@link ComportamentosDeEstado}.
  */
 public record SemOperacoes(EstadoVotacao estado) implements EstadoVotacaoComportamento {
