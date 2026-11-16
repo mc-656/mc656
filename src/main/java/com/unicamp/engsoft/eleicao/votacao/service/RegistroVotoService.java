@@ -66,6 +66,7 @@ public class RegistroVotoService {
     private final CedulaRepository cedulaRepository;
     private final ComprovanteService comprovanteService;
     private final Clock clock;
+    private final MetricasVotacao metricasVotacao;
 
     public RegistroVotoService(
             VotacaoRepository votacaoRepository,
@@ -75,7 +76,8 @@ public class RegistroVotoService {
             ParticipacaoRepository participacaoRepository,
             CedulaRepository cedulaRepository,
             ComprovanteService comprovanteService,
-            Clock clock) {
+            Clock clock,
+            MetricasVotacao metricasVotacao) {
         this.votacaoRepository = votacaoRepository;
         this.elegibilidadeService = elegibilidadeService;
         this.papelVotacaoRepository = papelVotacaoRepository;
@@ -84,6 +86,7 @@ public class RegistroVotoService {
         this.cedulaRepository = cedulaRepository;
         this.comprovanteService = comprovanteService;
         this.clock = clock;
+        this.metricasVotacao = metricasVotacao;
     }
 
     /**
@@ -100,43 +103,52 @@ public class RegistroVotoService {
     @Transactional
     public ComprovanteResponse registrar(
             UUID votacaoId, UUID opcaoId, Authentication autenticacao) {
-        // Lock primeiro: a remoção de eleitor também trava a votação (FOR UPDATE), então o papel
-        // checado logo abaixo não muda até o commit deste voto.
-        Votacao votacao =
-                votacaoRepository
-                        .buscarParaVoto(votacaoId)
-                        .orElseThrow(() -> new RecursoNaoEncontradoException("Votação", votacaoId));
-        elegibilidadeService.validar(votacaoId, autenticacao);
-        // Elegível implica token JWT com sub em formato UUID (AutorizacaoVotacao nega o resto), e
-        // no JwtAuthenticationToken o nome é o sub.
-        UUID usuarioId = UUID.fromString(autenticacao.getName());
-
-        Instant agora = clock.instant();
-        exigirJanelaAberta(votacao, agora);
-
-        if (participacaoRepository.existsByUsuarioIdAndVotacaoId(usuarioId, votacaoId)) {
-            throw new VotoDuplicadoException(votacaoId);
-        }
-        if (candidatoOuChapaRepository.findByIdAndVotacaoId(opcaoId, votacaoId).isEmpty()) {
-            throw new DadosInvalidosException(
-                    "A opção %s não pertence à votação %s.".formatted(opcaoId, votacaoId));
-        }
-        BigDecimal peso = pesoDoEleitor(usuarioId, votacaoId);
-
         try {
-            participacaoRepository.saveAndFlush(new Participacao(usuarioId, votacaoId));
-        } catch (DataIntegrityViolationException e) {
-            if (violouUnicidadeDoEleitor(e)) {
-                // Corrida entre duas requisições do mesmo eleitor: a UNIQUE decidiu.
+            // Lock primeiro: a remoção de eleitor também trava a votação (FOR UPDATE), então o
+            // papel
+            // checado logo abaixo não muda até o commit deste voto.
+            Votacao votacao =
+                    votacaoRepository
+                            .buscarParaVoto(votacaoId)
+                            .orElseThrow(
+                                    () -> new RecursoNaoEncontradoException("Votação", votacaoId));
+            elegibilidadeService.validar(votacaoId, autenticacao);
+            // Elegível implica token JWT com sub em formato UUID (AutorizacaoVotacao nega o resto),
+            // e
+            // no JwtAuthenticationToken o nome é o sub.
+            UUID usuarioId = UUID.fromString(autenticacao.getName());
+
+            Instant agora = clock.instant();
+            exigirJanelaAberta(votacao, agora);
+
+            if (participacaoRepository.existsByUsuarioIdAndVotacaoId(usuarioId, votacaoId)) {
                 throw new VotoDuplicadoException(votacaoId);
             }
+            if (candidatoOuChapaRepository.findByIdAndVotacaoId(opcaoId, votacaoId).isEmpty()) {
+                throw new DadosInvalidosException(
+                        "A opção %s não pertence à votação %s.".formatted(opcaoId, votacaoId));
+            }
+            BigDecimal peso = pesoDoEleitor(usuarioId, votacaoId);
+
+            try {
+                participacaoRepository.saveAndFlush(new Participacao(usuarioId, votacaoId));
+            } catch (DataIntegrityViolationException e) {
+                if (violouUnicidadeDoEleitor(e)) {
+                    // Corrida entre duas requisições do mesmo eleitor: a UNIQUE decidiu.
+                    throw new VotoDuplicadoException(votacaoId);
+                }
+                throw e;
+            }
+            // Sem flush: o id já existe após o persist e o commit grava a cédula.
+            Cedula cedula = cedulaRepository.save(new Cedula(votacaoId, opcaoId, peso));
+
+            String comprovante = comprovanteService.gerar(votacaoId, cedula.getId(), agora);
+            metricasVotacao.votoRegistrado();
+            return new ComprovanteResponse(votacaoId, comprovante, agora);
+        } catch (RuntimeException e) {
+            metricasVotacao.falhaRegistroVoto(e);
             throw e;
         }
-        // Sem flush: o id já existe após o persist e o commit grava a cédula.
-        Cedula cedula = cedulaRepository.save(new Cedula(votacaoId, opcaoId, peso));
-
-        String comprovante = comprovanteService.gerar(votacaoId, cedula.getId(), agora);
-        return new ComprovanteResponse(votacaoId, comprovante, agora);
     }
 
     /**

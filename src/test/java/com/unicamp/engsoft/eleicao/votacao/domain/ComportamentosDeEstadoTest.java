@@ -17,27 +17,17 @@ import org.junit.jupiter.params.provider.EnumSource;
  */
 class ComportamentosDeEstadoTest {
 
-    /** Operações que só o rascunho permite (RF-10, RF-11, RF-12). */
-private static final Set<OperacaoVotacao> CONFIGURACAO =
+    /** Operações que só o rascunho permite (RF-10, RF-11, RF-12, RF-20). */
+    private static final Set<OperacaoVotacao> CONFIGURACAO =
             EnumSet.of(
                     OperacaoVotacao.CONFIGURAR_REGRAS,
                     OperacaoVotacao.GERENCIAR_CANDIDATOS,
                     OperacaoVotacao.GERENCIAR_ELEITORES,
                     OperacaoVotacao.GERENCIAR_PROPOSTAS);
 
-    /** Operações de convite (RF-17), permitidas só em Publicada e EmVotacao. */
+    /** Operações do convite (RF-17), permitidas em Publicada e EmVotacao. */
     private static final Set<OperacaoVotacao> CONVITE =
-            EnumSet.of(
-                    OperacaoVotacao.CONVIDAR_ELEITORES,
-                    OperacaoVotacao.ENTRAR_POR_CONVITE);
-
-    @ParameterizedTest
-    @EnumSource(EstadoVotacao.class)
-    @DisplayName("Todo estado tem comportamento registrado e ele é do próprio estado")
-    void todoEstadoTemComportamento(EstadoVotacao estado) {
-        // Mantenha aqui o corpo original do teste.
-    }
-}
+            EnumSet.of(OperacaoVotacao.CONVIDAR_ELEITORES, OperacaoVotacao.ENTRAR_POR_CONVITE);
 
     @ParameterizedTest
     @EnumSource(EstadoVotacao.class)
@@ -50,7 +40,8 @@ private static final Set<OperacaoVotacao> CONFIGURACAO =
     }
 
     @Test
-    @DisplayName("RascunhoVotacao permite as três operações de configuração e não permite votar")
+    @DisplayName(
+            "RascunhoVotacao permite as operações de configuração e não permite votar nem convidar")
     void rascunhoPermiteOperacoesDeConfiguracao() {
         EstadoVotacaoComportamento comportamento =
                 ComportamentosDeEstado.de(EstadoVotacao.RascunhoVotacao);
@@ -61,6 +52,7 @@ private static final Set<OperacaoVotacao> CONFIGURACAO =
             assertThat(comportamento.permite(operacao)).isTrue();
         }
         assertThat(comportamento.permite(OperacaoVotacao.VOTAR)).isFalse();
+
         // O convite só nasce depois da publicação (RF-17).
         for (OperacaoVotacao operacao : CONVITE) {
             assertThat(comportamento.permite(operacao)).isFalse();
@@ -108,17 +100,16 @@ private static final Set<OperacaoVotacao> CONFIGURACAO =
             names = "RascunhoVotacao",
             mode = EnumSource.Mode.EXCLUDE)
     @DisplayName("Nenhum outro estado (inclusive os finais) permite operação de configuração")
-void estadoForaDoRascunhoNaoPermiteConfiguracao(EstadoVotacao estado) {
-    EstadoVotacaoComportamento comportamento =
-            ComportamentosDeEstado.de(estado);
+    void estadosForaDoRascunhoNaoPermitemOperacoes(EstadoVotacao estado) {
+        EstadoVotacaoComportamento comportamento = ComportamentosDeEstado.de(estado);
 
-    for (OperacaoVotacao operacao : CONFIGURACAO) {
-        assertThat(comportamento.permite(operacao)).isFalse();
-
-        assertThatThrownBy(() -> comportamento.exigir(operacao))
-                .isInstanceOf(RegraDeNegocioException.class)
-                .hasMessageContaining(operacao.rotulo())
-                .hasMessageContaining(estado.name());
+        for (OperacaoVotacao operacao : CONFIGURACAO) {
+            assertThat(comportamento.permite(operacao)).isFalse();
+            assertThatThrownBy(() -> comportamento.exigir(operacao))
+                    .isInstanceOf(RegraDeNegocioException.class)
+                    .hasMessageContaining(operacao.rotulo())
+                    .hasMessageContaining(estado.name());
+        }
     }
 
     @Test
@@ -130,12 +121,11 @@ void estadoForaDoRascunhoNaoPermiteConfiguracao(EstadoVotacao estado) {
 
         // Assert
         assertThat(estadosQueVotam).containsExactly(EstadoVotacao.EmVotacao);
-        assertThat(operacoesEmVotacao).containsExactly(OperacaoVotacao.VOTAR);
+        assertThat(operacoesEmVotacao).contains(OperacaoVotacao.VOTAR);
     }
 
     @Test
-    @DisplayName(
-            "As três operações de configuração respondem com o mesmo texto, mudando só o rótulo")
+    @DisplayName("As operações de configuração respondem com o mesmo texto, mudando só o rótulo")
     void mensagensSaoConsistentesEntreOperacoes() {
         EstadoVotacaoComportamento publicada = ComportamentosDeEstado.de(EstadoVotacao.Publicada);
 

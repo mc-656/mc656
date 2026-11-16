@@ -31,6 +31,7 @@ public interface VotacaoRepository extends JpaRepository<Votacao, UUID> {
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("select v from Votacao v where v.id = :id")
     Optional<Votacao> buscarParaVoto(@Param("id") UUID id);
+
     /** Alimenta o gauge de votações em andamento ({@code MetricasVotacao}, RNF-06). */
     long countByEstado(EstadoVotacao estado);
 
