@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeReader;
@@ -37,6 +38,7 @@ import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import org.hamcrest.Matchers;
@@ -214,7 +216,8 @@ class ConviteControllerTest extends AbstractIntegrationTest {
                                         new HybridBinarizer(
                                                 new BufferedImageLuminanceSource(
                                                         ImageIO.read(
-                                                                new ByteArrayInputStream(png))))))
+                                                                new ByteArrayInputStream(png))))),
+                                Map.of(DecodeHintType.PURE_BARCODE, Boolean.TRUE))
                         .getText();
         assertThat(lido).isEqualTo("http://localhost:8080/convites/" + token);
     }

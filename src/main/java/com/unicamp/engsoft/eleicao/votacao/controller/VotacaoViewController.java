@@ -83,6 +83,7 @@ public class VotacaoViewController {
     @GetMapping
     public String listar(@AuthenticationPrincipal UsuarioAutenticado usuario, Model model) {
         model.addAttribute("votacoes", votacaoService.listarAdministradasPor(usuario.getId()));
+        model.addAttribute("votacoesEleitor", votacaoService.listarOndeEhEleitor(usuario.getId()));
         return "votacoes/lista";
     }
 

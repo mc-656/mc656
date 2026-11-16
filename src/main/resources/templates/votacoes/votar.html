@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="'Votar em ' + ${votacao.nome}">Votar</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao largo">
+    <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
+    <h1 th:text="${votacao.nome}">Votação</h1>
+
+    <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;">
+        <span class="etiqueta" th:text="${@rotulosVotacao.tipo(votacao.tipo)}">Eleição privada</span>
+        <span class="etiqueta" th:text="${@rotulosVotacao.estado(votacao.estado)}">Em votação</span>
+    </div>
+
+    <p class="suave">
+        Período:
+        <time th:datetime="${votacao.inicioEm}" th:text="${@rotulosVotacao.dataHora(votacao.inicioEm)}">01/01/2027 10:00</time>
+        a
+        <time th:datetime="${votacao.fimEm}" th:text="${@rotulosVotacao.dataHora(votacao.fimEm)}">02/01/2027 10:00</time>
+    </p>
+
+    <p th:if="${votacao.descricao}" th:text="${votacao.descricao}">Descrição da votação.</p>
+
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
+
+    <!-- Bloqueio: eleitor já votou (RF-14) -->
+    <div th:if="${jaVotou}" class="alerta">
+        <h3>Voto já registrado</h3>
+        <p>Você já registrou seu voto nesta votação. O sistema assegura o princípio do voto único (RF-14) e o sigilo do voto (RNF-02).</p>
+    </div>
+
+    <!-- Bloqueio: fora da janela de votação -->
+    <div th:if="${!jaVotou and !aberta}" class="alerta">
+        <h3>Votação indisponível</h3>
+        <p>Esta votação não está aberta para receber votos no momento. Votações só aceitam votos durante o período estabelecido e quando em andamento.</p>
+    </div>
+
+    <!-- Cédula de votação (RF-13) -->
+    <form th:if="${!jaVotou and aberta}" th:action="@{/votacoes/{id}/votar(id=${votacao.id})}" method="post" style="margin-top: 1rem;">
+        <fieldset style="border: 1px solid var(--borda); border-radius: 6px; padding: 1.25rem;">
+            <legend style="font-weight: 600; padding: 0 0.5rem;">Candidatos / Chapas</legend>
+
+            <div th:if="${#lists.isEmpty(candidatos)}">
+                <p class="suave">Nenhum candidato ou chapa cadastrado nesta votação.</p>
+            </div>
+
+            <div th:unless="${#lists.isEmpty(candidatos)}" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div th:each="candidato : ${candidatos}" style="padding: 0.5rem; border: 1px solid var(--borda); border-radius: 4px; background: var(--superficie);">
+                    <label class="opcao" style="cursor: pointer;">
+                        <input type="radio" name="opcaoId" th:value="${candidato.id}" required>
+                        <div>
+                            <strong th:text="${candidato.nome}">Nome do Candidato</strong>
+                            <p th:if="${candidato.descricao}" th:text="${candidato.descricao}" class="suave" style="margin: 0.25rem 0 0;"></p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </fieldset>
+
+        <button type="submit" th:disabled="${#lists.isEmpty(candidatos)}" style="margin-top: 1.5rem;">Confirmar Voto</button>
+        <p class="ajuda" style="margin-top: 0.5rem;">Atenção: uma vez confirmado, o voto é definitivo e não poderá ser alterado nem cancelado (RF-13, RF-14).</p>
+    </form>
+</main>
+</body>
+</html>
