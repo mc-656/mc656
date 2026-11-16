@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -38,6 +39,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -286,32 +289,48 @@ class VotoViewControllerTest extends AbstractIntegrationTest {
                 .andExpect(content().string(containsString("name=\"comprovante\"")));
     }
 
-    @Test
-    @DisplayName("Verificação de comprovante válido confirma autenticidade e exibe votação")
-    void verificarComprovanteValido() throws Exception {
-        // Registra voto para gerar comprovante real
-        mvc.perform(
-                        post("/votacoes/{id}/votar", votacao.getId())
-                                .with(logado(eleitor))
-                                .with(csrf())
-                                .param("opcaoId", chapaA.getId().toString()))
-                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/comprovante"));
+    @ParameterizedTest
+    @CsvSource({
+        "EmVotacao, A inclusão na apuração ainda não foi confirmada.",
+        "Apuracao, A inclusão na apuração ainda não foi confirmada.",
+        "Encerrada, A inclusão na apuração ainda não foi confirmada.",
+        "Homologada, A inclusão na apuração ainda não foi confirmada.",
+        "Anulada, a votação foi anulada.",
+        "Cancelada, a votação foi cancelada."
+    })
+    @DisplayName("Código recebido no voto confirma registro e informa situação sem revelar escolha")
+    void verificarComprovanteValido(EstadoVotacao estado, String mensagem) throws Exception {
+        // Verifica exatamente o código entregue ao eleitor no registro do voto.
+        var resposta =
+                mvc.perform(
+                                post("/votacoes/{id}/votar", votacao.getId())
+                                        .with(logado(eleitor))
+                                        .with(csrf())
+                                        .param("opcaoId", chapaA.getId().toString()))
+                        .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/comprovante"))
+                        .andReturn();
 
         entityManager.flush();
-        UUID cedulaId =
-                jdbc.queryForObject(
-                        "SELECT id FROM cedulas WHERE votacao_id = ?", UUID.class, votacao.getId());
-        String comprovanteReal = comprovanteService.gerar(votacao.getId(), cedulaId, Instant.now());
+        String comprovanteReal = (String) resposta.getFlashMap().get("comprovante");
+        assertThat(comprovanteReal).isNotBlank();
+        votacao.alterarEstado(estado);
+        entityManager.flush();
 
-        mvc.perform(
-                        post("/comprovantes/verificar")
-                                .with(logado(eleitor))
-                                .with(csrf())
-                                .param("comprovante", comprovanteReal))
-                .andExpect(status().isOk())
-                .andExpect(view().name("votacoes/verificar-comprovante"))
-                .andExpect(content().string(containsString("Comprovante Válido e Autêntico!")))
-                .andExpect(content().string(containsString("Conselho Diretor")));
+        var verificacao =
+                mvc.perform(
+                                post("/comprovantes/verificar")
+                                        .with(logado(eleitor))
+                                        .with(csrf())
+                                        .param("comprovante", comprovanteReal))
+                        .andExpect(status().isOk())
+                        .andExpect(view().name("votacoes/verificar-comprovante"))
+                        .andExpect(
+                                content().string(containsString("Comprovante Válido e Autêntico!")))
+                        .andExpect(content().string(containsString("Conselho Diretor")))
+                        .andExpect(content().string(containsString(mensagem)))
+                        .andReturn();
+        assertThat(verificacao.getResponse().getContentAsString())
+                .doesNotContain(chapaA.getNome(), chapaA.getId().toString(), "HMAC-SHA256");
     }
 
     @Test
@@ -324,6 +343,19 @@ class VotoViewControllerTest extends AbstractIntegrationTest {
                                 .param("comprovante", "comprovante.totalmente.invalido"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("votacoes/verificar-comprovante"))
-                .andExpect(content().string(containsString("Comprovante de voto inválido")));
+                .andExpect(content().string(containsString("Comprovante não encontrado.")));
+    }
+
+    @Test
+    void comprovanteDeCedulaInexistenteExibeMesmaMensagem() throws Exception {
+        String codigo = comprovanteService.gerar(votacao.getId(), UUID.randomUUID(), Instant.now());
+        mvc.perform(
+                        post("/comprovantes/verificar")
+                                .with(logado(eleitor))
+                                .with(csrf())
+                                .param("comprovante", codigo))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("comprovanteValido", false))
+                .andExpect(content().string(containsString("Comprovante não encontrado.")));
     }
 }
