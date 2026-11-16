@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Minhas votações</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao largo">
+    <h1>Minhas votações</h1>
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+        <a th:href="@{/votacoes/nova}" class="botao">Criar votação</a>
+        <a th:href="@{/comprovantes/verificar}" class="botao"
+           style="background: var(--superficie); color: var(--primaria); border: 1px solid var(--borda);">
+            Verificar comprovante
+        </a>
+    </div>
+
+    <h2>Votações como eleitor</h2>
+    <p th:if="${#lists.isEmpty(votacoesEleitor)}">Você ainda não participa como eleitor(a) em nenhuma votação.</p>
+
+    <ul th:unless="${#lists.isEmpty(votacoesEleitor)}" class="lista-votacoes">
+        <li th:each="item : ${votacoesEleitor}">
+            <a th:href="@{/votacoes/{id}/votar(id=${item.id})}" th:text="${item.nome}">Votação</a>
+            <span class="etiqueta" th:text="${@rotulosVotacao.estado(item.estado)}">Em votação</span>
+            <span class="suave">
+                <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
+                <time th:datetime="${item.inicioEm}"
+                      th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
+                a
+                <time th:datetime="${item.fimEm}"
+                      th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+            </span>
+            <span th:if="${item.estado.name() == 'EmVotacao'}">
+                <a th:href="@{/votacoes/{id}/votar(id=${item.id})}" class="botao"
+                   style="padding: 0.25rem 0.6rem; font-size: 0.875rem;">Votar</a>
+            </span>
+        </li>
+    </ul>
+
+    <h2>Votações que administro</h2>
+    <p th:if="${#lists.isEmpty(votacoes)}">Você ainda não administra nenhuma votação.</p>
+
+    <ul th:unless="${#lists.isEmpty(votacoes)}" class="lista-votacoes">
+        <li th:each="item : ${votacoes}">
+            <a th:href="@{/votacoes/{id}(id=${item.id})}" th:text="${item.nome}">Votação</a>
+            <span class="etiqueta" th:text="${@rotulosVotacao.estado(item.estado)}">Rascunho</span>
+            <span class="suave">
+                <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
+                <time th:datetime="${item.inicioEm}"
+                      th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
+                a
+                <time th:datetime="${item.fimEm}"
+                      th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+            </span>
+        </li>
+    </ul>
+</main>
+</body>
+</html>

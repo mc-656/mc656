@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Eleitores</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao largo">
+    <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'eleitores')}"></header>
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
+
+    <section aria-labelledby="titulo-lista">
+        <h2 id="titulo-lista">Eleitores</h2>
+        <p th:if="${#lists.isEmpty(eleitores)}">Nenhum eleitor adicionado.</p>
+        <div th:unless="${#lists.isEmpty(eleitores)}" class="tabela-rolavel">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Nome</th>
+                    <th scope="col">E-mail</th>
+                    <th scope="col">Peso</th>
+                    <th scope="col" th:if="${editavel}"><span class="visualmente-oculto">Ações</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="e : ${eleitores}">
+                    <td th:text="${e.nome}">Nome</td>
+                    <td th:text="${e.email}">email@example.com</td>
+                    <td th:text="${e.peso}">1</td>
+                    <td th:if="${editavel}">
+                        <form class="inline"
+                              th:action="@{/votacoes/{id}/eleitores/{u}/remover(id=${v.id},u=${e.usuarioId})}"
+                              method="post">
+                            <button type="submit" class="link" th:aria-label="|Remover ${e.nome}|">Remover</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section aria-labelledby="titulo-novo">
+        <h2 id="titulo-novo">Adicionar eleitor</h2>
+        <th:block th:unless="${editavel}"><p th:replace="~{votacoes/fragmentos :: bloqueada}"></p></th:block>
+
+        <form th:if="${editavel}" th:action="@{/votacoes/{id}/eleitores(id=${v.id})}"
+              th:object="${eleitor}" method="post" novalidate>
+            <p th:each="e : ${#fields.globalErrors()}" th:text="${e}" class="alerta erro" role="alert"></p>
+
+            <label for="email">E-mail do usuário cadastrado</label>
+            <input type="email" id="email" name="email" th:value="*{email}"
+                   th:classappend="${#fields.hasErrors('email')} ? 'invalido'">
+            <p th:if="${#fields.hasErrors('email')}" th:errors="*{email}" class="erro-campo"></p>
+
+            <label for="peso">Peso</label>
+            <input type="number" id="peso" name="peso" th:value="*{peso}" step="0.01" min="0"
+                   placeholder="1" aria-describedby="ajuda-peso"
+                   th:classappend="${#fields.hasErrors('peso')} ? 'invalido'">
+            <p id="ajuda-peso" class="ajuda"
+               th:text="${votoPonderado} ? 'Em branco vale 1.' : 'Esta votação não usa voto ponderado: deixe em branco ou 1.'">
+                Em branco vale 1.</p>
+            <p th:if="${#fields.hasErrors('peso')}" th:errors="*{peso}" class="erro-campo"></p>
+
+            <button type="submit">Adicionar</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

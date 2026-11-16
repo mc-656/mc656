@@ -1,0 +1,148 @@
+name: CD
+# Entrega contínua (SPECS §8, RNF-08). Em push para main (produção) e develop
+# (homologação):
+#   1. constrói a imagem Docker e publica no GHCR (ghcr.io/<owner>/<repo>), com
+#      tags sha-<commit>, <branch> e latest (só main);
+#   2. se o environment tiver o secret DEPLOY_WEBHOOK_URL, avisa o alvo de deploy
+#      (POST com a imagem imutável sha-<commit>) e faz health check em
+#      DEPLOY_HEALTH_URL; health check falho falha o job.
+# Sem DEPLOY_WEBHOOK_URL o job termina após publicar a imagem (hoje o time roda
+# só local, sem hospedagem paga). Configuração do alvo: ver README, seção "Deploy".
+on:
+    push:
+        branches:
+            - main
+            - develop
+permissions:
+    contents: read
+
+jobs:
+    imagem:
+        name: Publicar imagem
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read
+            packages: write
+        outputs:
+            imagem: ${{ steps.nome.outputs.imagem }}
+            tag-sha: ${{ steps.nome.outputs.tag_sha }}
+        steps:
+            - uses: actions/checkout@v7
+              name: Checkout
+            - name: Nome da imagem
+              id: nome
+              run: |
+                # GHCR exige nome em minúsculas.
+                imagem="ghcr.io/${GITHUB_REPOSITORY,,}"
+                echo "imagem=$imagem" >> "$GITHUB_OUTPUT"
+                echo "tag_sha=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+            - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+              name: Setup Buildx
+            - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+              name: Login no GHCR
+              with:
+                registry: ghcr.io
+                username: ${{ github.actor }}
+                password: ${{ secrets.GITHUB_TOKEN }}
+            - uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+              name: Tags e labels
+              id: meta
+              with:
+                images: ${{ steps.nome.outputs.imagem }}
+                tags: |
+                    type=sha,prefix=sha-,format=short
+                    type=ref,event=branch
+                    type=raw,value=latest,enable={{is_default_branch}}
+            - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+              name: Build e push
+              with:
+                context: .
+                push: true
+                tags: ${{ steps.meta.outputs.tags }}
+                labels: ${{ steps.meta.outputs.labels }}
+                cache-from: type=gha
+                cache-to: type=gha,mode=max
+            - name: Resumo
+              run: |
+                {
+                  echo "### Imagem publicada"
+                  echo '```'
+                  echo "${{ steps.meta.outputs.tags }}"
+                  echo '```'
+                } >> "$GITHUB_STEP_SUMMARY"
+
+    deploy:
+        name: Deploy (${{ github.ref_name == 'main' && 'producao' || 'homologacao' }})
+        needs: imagem
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment: ${{ github.ref_name == 'main' && 'producao' || 'homologacao' }}
+        concurrency:
+            group: deploy-${{ github.ref_name }}
+            cancel-in-progress: false
+        env:
+            DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+            DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+            DEPLOY_HEALTH_URL: ${{ secrets.DEPLOY_HEALTH_URL || vars.DEPLOY_HEALTH_URL }}
+            DEPLOY_VERSAO_URL: ${{ vars.DEPLOY_VERSAO_URL }}
+            DEPLOY_ESPERA_SEGUNDOS: ${{ vars.DEPLOY_ESPERA_SEGUNDOS }}
+            IMAGEM: ${{ needs.imagem.outputs.imagem }}:${{ needs.imagem.outputs.tag-sha }}
+            AMBIENTE: ${{ github.ref_name == 'main' && 'producao' || 'homologacao' }}
+        steps:
+            - name: Sem alvo de deploy configurado
+              if: env.DEPLOY_WEBHOOK_URL == ''
+              run: |
+                echo "DEPLOY_WEBHOOK_URL não configurado no environment $AMBIENTE; imagem publicada, deploy ignorado."
+                echo "Imagem: $IMAGEM" >> "$GITHUB_STEP_SUMMARY"
+            - name: Disparar deploy
+              if: env.DEPLOY_WEBHOOK_URL != ''
+              run: |
+                if [ -z "$DEPLOY_HEALTH_URL" ]; then
+                  echo "::error::DEPLOY_WEBHOOK_URL definido sem DEPLOY_HEALTH_URL: não há como validar o deploy."
+                  exit 1
+                fi
+                payload=$(jq -nc --arg imagem "$IMAGEM" --arg ambiente "$AMBIENTE" --arg sha "$GITHUB_SHA" \
+                  '{imagem: $imagem, ambiente: $ambiente, sha: $sha}')
+                auth=()
+                if [ -n "$DEPLOY_WEBHOOK_TOKEN" ]; then
+                  auth=(-H "Authorization: Bearer $DEPLOY_WEBHOOK_TOKEN")
+                fi
+                curl -fsS --retry 3 -X POST "${auth[@]}" -H "Content-Type: application/json" \
+                  -d "$payload" "$DEPLOY_WEBHOOK_URL"
+            - name: Health check pós-deploy
+              if: env.DEPLOY_WEBHOOK_URL != ''
+              run: |
+                # Webhooks costumam ser assíncronos: logo após o POST o health ainda
+                # pode estar respondendo pela versão antiga. Por isso:
+                #  - com DEPLOY_VERSAO_URL, espera a resposta dela conter o SHA do commit
+                #    (prova de que a versão nova é a que está no ar);
+                #  - sem ela, espera DEPLOY_ESPERA_SEGUNDOS antes e exige 3 UPs seguidos.
+                # Orçamento total: ~5 minutos para o alvo trocar a versão e o Flyway migrar.
+                prazo=$(( $(date +%s) + 300 ))
+                if [ -n "$DEPLOY_VERSAO_URL" ]; then
+                  until curl -fsS --max-time 10 "$DEPLOY_VERSAO_URL" | grep -q "${GITHUB_SHA::7}"; do
+                    if [ "$(date +%s)" -ge "$prazo" ]; then
+                      echo "::error::$DEPLOY_VERSAO_URL não passou a reportar ${GITHUB_SHA::7}. Versão nova não entrou no ar."
+                      exit 1
+                    fi
+                    sleep 10
+                  done
+                else
+                  sleep "${DEPLOY_ESPERA_SEGUNDOS:-30}"
+                fi
+                seguidos=0
+                while [ "$(date +%s)" -lt "$prazo" ]; do
+                  if curl -fsS --max-time 10 "$DEPLOY_HEALTH_URL" | grep -q '"status":"UP"'; then
+                    seguidos=$((seguidos + 1))
+                    if [ "$seguidos" -ge 3 ]; then
+                      echo "Deploy saudável: $IMAGEM em $AMBIENTE." | tee -a "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                    fi
+                  else
+                    seguidos=0
+                  fi
+                  sleep 10
+                done
+                echo "::error::Health check falhou em $DEPLOY_HEALTH_URL. Faça rollback re-implantando a tag anterior (ver README)."
+                exit 1

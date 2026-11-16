@@ -85,6 +85,32 @@ public class EleitorService {
         return EleitorResponse.of(usuario, papel);
     }
 
+    /**
+     * Inclui o usuário como eleitor pelo link de convite (RF-17). Fica aqui, e não no convite, para
+     * que a linha {@code ELEITOR} tenha um dono só.
+     *
+     * <p>Diferente de {@link #adicionar}, a operação exigida é {@link
+     * OperacaoVotacao#ENTRAR_POR_CONVITE} (permitida em {@code Publicada} e {@code EmVotacao}), e o
+     * peso é sempre 1: quem entra pelo link não escolhe o próprio peso, e o administrador não tem
+     * como ajustá-lo depois da publicação. Quem já é eleitor recebe sucesso sem nova linha: abrir o
+     * link duas vezes (ou o QR Code depois do e-mail) não é erro do usuário.
+     *
+     * @return {@code true} se a inclusão aconteceu agora, {@code false} se já era eleitor.
+     * @throws com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException (409) se a
+     *     votação estiver fora dos estados que aceitam convite.
+     */
+    @Transactional
+    public boolean incluirPorConvite(UUID votacaoId, UUID usuarioId) {
+        exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.ENTRAR_POR_CONVITE);
+        PapelVotacaoId id = new PapelVotacaoId(usuarioId, votacaoId, PapelUsuario.ELEITOR);
+        if (papelVotacaoRepository.existsById(id)) {
+            return false;
+        }
+        papelVotacaoRepository.save(
+                new PapelVotacao(usuarioId, votacaoId, PapelUsuario.ELEITOR, BigDecimal.ONE));
+        return true;
+    }
+
     /** Eleitores em ordem alfabética de nome, que é como o administrador procura alguém. */
     @Transactional(readOnly = true)
     public List<EleitorResponse> listar(UUID votacaoId) {
@@ -113,6 +139,12 @@ public class EleitorService {
                         .findById(id)
                         .orElseThrow(() -> new RecursoNaoEncontradoException("Eleitor", usuarioId));
         papelVotacaoRepository.delete(papel);
+    }
+
+    /** Quantidade de eleitores, para resumos que não precisam carregar os usuários. */
+    @Transactional(readOnly = true)
+    public long contar(UUID votacaoId) {
+        return papelVotacaoRepository.countByIdVotacaoIdAndIdPapel(votacaoId, PapelUsuario.ELEITOR);
     }
 
     /**

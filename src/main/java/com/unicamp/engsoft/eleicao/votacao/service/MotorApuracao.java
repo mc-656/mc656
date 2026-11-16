@@ -63,7 +63,7 @@ public class MotorApuracao {
 
         List<VotoApuravel> votosValidos = votos == null ? List.of() : votos;
         BigDecimal comparecimento = calcularComparecimento(totalEleitoresAptos, totalParticipantes);
-        boolean quorumAtingido = verificarQuorum(regra, comparecimento);
+        boolean quorumAtingido = verificarQuorum(regra, totalEleitoresAptos, totalParticipantes);
 
         List<OpcaoApurada> ranking =
                 totalizarVotos(regra, votosValidos, todasOpcoes, estrategiaDesempate);
@@ -113,11 +113,25 @@ public class MotorApuracao {
                 .divide(BigDecimal.valueOf(aptos), 2, RoundingMode.HALF_UP);
     }
 
-    private boolean verificarQuorum(RegraVotacao regra, BigDecimal comparecimento) {
-        if (regra.quorumMinimoPercentual() == null) {
+    /**
+     * Verifica o quórum com aritmética exata ({@code participantes * 100 >= quorum * aptos}).
+     *
+     * <p>Não compara o comparecimento já arredondado para duas casas: com {@code HALF_UP}, 2 de 3
+     * aptos viram 66,67% e passariam num quórum de 66,67% mesmo estando abaixo dele (66,666...%).
+     * Sem eleitores aptos, o comparecimento é tratado como 0%.
+     */
+    private boolean verificarQuorum(RegraVotacao regra, long aptos, long participantes) {
+        BigDecimal quorum = regra.quorumMinimoPercentual();
+        if (quorum == null) {
             return true;
         }
-        return comparecimento.compareTo(regra.quorumMinimoPercentual()) >= 0;
+        if (aptos <= 0) {
+            return BigDecimal.ZERO.compareTo(quorum) >= 0;
+        }
+        return BigDecimal.valueOf(participantes)
+                        .multiply(CEM)
+                        .compareTo(quorum.multiply(BigDecimal.valueOf(aptos)))
+                >= 0;
     }
 
     private List<OpcaoApurada> totalizarVotos(
@@ -178,10 +192,7 @@ public class MotorApuracao {
         OpcaoApurada segundo = ranking.size() > 1 ? ranking.get(1) : null;
 
         if (regra.tipoMaioria() == TipoMaioria.MAIORIA_SIMPLES) {
-            if (segundo != null
-                    && primeiro.totalVotos().compareTo(segundo.totalVotos()) == 0
-                    && (estrategiaDesempate == null
-                            || estrategiaDesempate.compare(primeiro, segundo) == 0)) {
+            if (segundo != null && empatados(primeiro, segundo, estrategiaDesempate)) {
                 return ResultadoApuracao.empate(totalizacao);
             }
             return ResultadoApuracao.definido(primeiro.opcaoId(), totalizacao);
@@ -201,10 +212,17 @@ public class MotorApuracao {
         }
 
         if (regra.segundoTurno()) {
-            return definirSegundoTurno(totalizacao);
+            return definirSegundoTurno(totalizacao, estrategiaDesempate);
         }
 
         return ResultadoApuracao.semVencedor(totalizacao);
+    }
+
+    /** Mesmo total de votos e nenhuma estratégia (ou uma que não distingue as duas opções). */
+    private boolean empatados(
+            OpcaoApurada a, OpcaoApurada b, EstrategiaDesempate estrategiaDesempate) {
+        return a.totalVotos().compareTo(b.totalVotos()) == 0
+                && (estrategiaDesempate == null || estrategiaDesempate.compare(a, b) == 0);
     }
 
     private boolean atingiuMaioriaAbsoluta(BigDecimal votos, BigDecimal totalValidos) {
@@ -216,7 +234,14 @@ public class MotorApuracao {
         return votos.multiply(CEM).compareTo(totalValidos.multiply(percentualQualificado)) >= 0;
     }
 
-    private ResultadoApuracao definirSegundoTurno(Totalizacao totalizacao) {
+    /**
+     * Define os dois finalistas. Um empate entre o 2º e o 3º colocados só impede o segundo turno se
+     * a estratégia de desempate configurada não o resolver — o ranking já foi ordenado por ela,
+     * então a mesma comparação decide quem fica com a vaga, como no empate em 1º lugar da maioria
+     * simples.
+     */
+    private ResultadoApuracao definirSegundoTurno(
+            Totalizacao totalizacao, EstrategiaDesempate estrategiaDesempate) {
         List<OpcaoApurada> ranking = totalizacao.ranking();
         if (ranking.size() < 2) {
             return ResultadoApuracao.semVencedor(totalizacao);
@@ -227,7 +252,7 @@ public class MotorApuracao {
 
         if (ranking.size() > 2) {
             OpcaoApurada terceiro = ranking.get(2);
-            if (segundo.totalVotos().compareTo(terceiro.totalVotos()) == 0) {
+            if (empatados(segundo, terceiro, estrategiaDesempate)) {
                 return ResultadoApuracao.empate(totalizacao);
             }
         }

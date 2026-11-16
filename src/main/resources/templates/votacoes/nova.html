@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Criar votação</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao">
+    <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
+    <h1>Criar votação</h1>
+
+    <!-- novalidate: as mensagens vêm do Bean Validation e do domínio, iguais às da API. -->
+    <form th:action="@{/votacoes}" th:object="${votacao}" method="post" novalidate>
+        <p th:each="e : ${#fields.globalErrors()}" th:text="${e}" class="alerta erro" role="alert"></p>
+
+        <label for="nome">Nome</label>
+        <input type="text" id="nome" name="nome" th:value="*{nome}" maxlength="50"
+               th:classappend="${#fields.hasErrors('nome')} ? 'invalido'">
+        <p th:if="${#fields.hasErrors('nome')}" th:errors="*{nome}" class="erro-campo"></p>
+
+        <label for="descricao">Descrição</label>
+        <textarea id="descricao" name="descricao" maxlength="100" rows="3"
+                  th:text="*{descricao}"
+                  th:classappend="${#fields.hasErrors('descricao')} ? 'invalido'"></textarea>
+        <p th:if="${#fields.hasErrors('descricao')}" th:errors="*{descricao}" class="erro-campo"></p>
+
+        <label for="tipo">Tipo</label>
+        <select id="tipo" name="tipo" th:classappend="${#fields.hasErrors('tipo')} ? 'invalido'">
+            <option th:each="t : ${tipos}" th:value="${t}" th:text="${@rotulosVotacao.tipo(t)}"
+                    th:selected="${t == votacao.tipo}">Eleição privada</option>
+        </select>
+        <p th:if="${#fields.hasErrors('tipo')}" th:errors="*{tipo}" class="erro-campo"></p>
+
+        <!-- datetime-local não carrega fuso: o servidor interpreta no horário de Brasília. -->
+        <label for="inicioEm">Início (horário de Brasília)</label>
+        <input type="datetime-local" id="inicioEm" name="inicioEm" th:value="*{inicioEm}"
+               th:classappend="${#fields.hasErrors('inicioEm')} ? 'invalido'">
+        <p th:if="${#fields.hasErrors('inicioEm')}" th:errors="*{inicioEm}" class="erro-campo"></p>
+
+        <label for="fimEm">Fim (horário de Brasília)</label>
+        <input type="datetime-local" id="fimEm" name="fimEm" th:value="*{fimEm}"
+               th:classappend="${#fields.hasErrors('fimEm')} ? 'invalido'">
+        <p th:if="${#fields.hasErrors('fimEm')}" th:errors="*{fimEm}" class="erro-campo"></p>
+
+        <button type="submit">Criar votação</button>
+    </form>
+</main>
+</body>
+</html>

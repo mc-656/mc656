@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="${perfil.nomeUrna}">Perfil do candidato</title>
+</head>
+<body>
+<main layout:fragment="conteudo" class="pagina">
+    <p>
+        <a th:href="@{/eleicoes-publicas/{id}(id=${perfil.cargoDisputado.eleicaoId})}"
+           th:text="|← ${perfil.cargoDisputado.eleicaoNome}|">← Eleição</a>
+    </p>
+
+    <h1 th:text="${perfil.nomeUrna}">Nome de urna</h1>
+    <dl class="dados">
+        <dt>Nome completo</dt>
+        <dd th:text="${perfil.nomeCompleto}">Nome completo</dd>
+        <dt>Partido</dt>
+        <dd th:text="|${perfil.partidoSigla} — ${perfil.partidoNome}|">PEX — Partido Exemplo</dd>
+        <dt>Cargo disputado</dt>
+        <dd>
+            <span th:text="${perfil.cargoDisputado.nome}">Prefeito</span>
+            (<a th:href="@{/eleicoes-publicas/cargos} + '#' + ${perfil.cargoDisputado.idDidatico}">o que faz este cargo?</a>)
+        </dd>
+        <dt>Número</dt>
+        <dd th:text="${perfil.numero}">91</dd>
+    </dl>
+    <p th:replace="~{eleicoes-publicas/fonte :: fonte(${perfil.fonte})}"></p>
+
+    <section>
+        <h2>Cargos anteriores</h2>
+        <p th:if="${#lists.isEmpty(perfil.cargosAnteriores)}">Nenhum cargo anterior registrado.</p>
+        <ul class="lista-blocos">
+            <li th:each="c : ${perfil.cargosAnteriores}" class="bloco">
+                <strong th:text="${c.cargo}">Cargo</strong>
+                <span th:text="${c.anoFim != null} ? |${c.anoInicio}–${c.anoFim}| : |desde ${c.anoInicio}|">2021–2024</span>
+                <p th:replace="~{eleicoes-publicas/fonte :: fonte(${c.fonte})}"></p>
+            </li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Propostas</h2>
+        <p th:if="${#lists.isEmpty(perfil.propostasPorTema)}">Nenhuma proposta registrada.</p>
+        <div th:each="t : ${perfil.propostasPorTema}">
+            <h3 th:text="${t.tema}">Tema</h3>
+            <ul class="lista-blocos">
+                <li th:each="p : ${t.propostas}" class="bloco">
+                    <strong th:text="${p.titulo}">Título</strong>
+                    <p th:text="${p.descricao}">Descrição</p>
+                    <p th:replace="~{eleicoes-publicas/fonte :: fonte(${p.fonte})}"></p>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section>
+        <h2>Notícias e debates</h2>
+        <p th:if="${#lists.isEmpty(perfil.noticias)}">Nenhuma notícia relacionada.</p>
+        <ul class="lista-blocos">
+            <li th:each="n : ${perfil.noticias}" class="bloco">
+                <strong th:text="${n.titulo}">Título</strong>
+                <p>
+                    Publicada em
+                    <time th:datetime="${n.publicadaEm}"
+                          th:text="${#temporals.format(n.publicadaEm, 'dd/MM/yyyy')}">15/10/2026</time>
+                </p>
+                <p th:text="${n.resumo}">Resumo</p>
+                <p th:replace="~{eleicoes-publicas/fonte :: fonte(${n.fonte})}"></p>
+            </li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

@@ -16,4 +16,8 @@ public interface PapelVotacaoRepository extends JpaRepository<PapelVotacao, Pape
     List<PapelVotacao> findByIdUsuarioId(UUID usuarioId);
 
     List<PapelVotacao> findByIdVotacaoIdAndIdPapel(UUID votacaoId, PapelUsuario papel);
+
+    List<PapelVotacao> findByIdUsuarioIdAndIdPapel(UUID usuarioId, PapelUsuario papel);
+
+    long countByIdVotacaoIdAndIdPapel(UUID votacaoId, PapelUsuario papel);
 }

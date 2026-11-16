@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** Explicação do quociente eleitoral (RF-32) servida ponta a ponta, sem autenticação. */
+/** Conteúdo didático (RF-32) servido ponta a ponta pela API JSON, sem autenticação. */
 @AutoConfigureMockMvc
 class ConteudoDidaticoControllerTest extends AbstractIntegrationTest {
 
@@ -70,5 +70,47 @@ class ConteudoDidaticoControllerTest extends AbstractIntegrationTest {
     void apenasGetEhPublico() throws Exception {
         // Arrange / Act / Assert
         mvc.perform(post(URL)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Tipos de voto: nulo e branco inválidos, legenda válida, com links")
+    void tiposVotoSemToken() throws Exception {
+        // Arrange / Act / Assert
+        mvc.perform(get("/api/eleicoes-publicas/didatico/tipos-voto"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tipos.length()").value(3))
+                .andExpect(jsonPath("$.tipos[0].id").value("nulo"))
+                .andExpect(jsonPath("$.tipos[0].contaComoValido").value(false))
+                .andExpect(jsonPath("$.tipos[1].id").value("branco"))
+                .andExpect(jsonPath("$.tipos[1].contaComoValido").value(false))
+                .andExpect(jsonPath("$.tipos[2].id").value("legenda"))
+                .andExpect(jsonPath("$.tipos[2].contaComoValido").value(true))
+                .andExpect(jsonPath("$.tipos[0].comoRegistrarNaUrna").isNotEmpty())
+                .andExpect(
+                        jsonPath("$.legendaNoQuociente.titulo")
+                                .value(containsString("quociente partidário")))
+                .andExpect(
+                        jsonPath("$.urlExplicacaoQuociente")
+                                .value("/eleicoes-publicas/quociente-eleitoral"))
+                .andExpect(jsonPath("$.fontes[*].url").value(hasItem("https://www.tse.jus.br/")));
+    }
+
+    @Test
+    @DisplayName("Cargos: sete cargos com sistema, atribuições e link estável para a descrição")
+    void cargosSemToken() throws Exception {
+        // Arrange / Act / Assert
+        mvc.perform(get("/api/eleicoes-publicas/didatico/cargos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cargos.length()").value(7))
+                .andExpect(jsonPath("$.cargos[6].id").value("vereador"))
+                .andExpect(jsonPath("$.cargos[6].sistema").value("PROPORCIONAL"))
+                .andExpect(
+                        jsonPath("$.cargos[6].urlDescricao")
+                                .value("/eleicoes-publicas/cargos#vereador"))
+                .andExpect(jsonPath("$.cargos[0].sistema").value("MAJORITARIO"))
+                .andExpect(jsonPath("$.cargos[0].atribuicoes.length()").value(3))
+                .andExpect(jsonPath("$.secoes[0].id").value("chapas"))
+                .andExpect(jsonPath("$.secoes[1].id").value("majoritario-proporcional"))
+                .andExpect(jsonPath("$.fontes[*].url").value(hasItem("https://www.tse.jus.br/")));
     }
 }

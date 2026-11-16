@@ -3,7 +3,7 @@ package com.unicamp.engsoft.eleicao;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Base dos testes que sobem o contexto. O profile {@code test} traz o segredo do JWT de
@@ -14,7 +14,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public abstract class AbstractIntegrationTest {
 
     @ServiceConnection
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine");
 
     static {
         postgres.start();

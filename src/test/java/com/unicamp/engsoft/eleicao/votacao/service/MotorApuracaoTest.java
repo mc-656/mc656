@@ -329,6 +329,7 @@ class MotorApuracaoTest {
     }
 
     @Test
+    @DisplayName("Desempate por idade: empate em 1º lugar deve ser resolvido pelo mais velho")
     void apurar_comEmpateDeVotos_deveDeclararVencedorPelaEstrategiaDeIdade() {
         // 1. Preparação: Regra de Maioria Simples com desempate por idade
         RegraVotacao regra =

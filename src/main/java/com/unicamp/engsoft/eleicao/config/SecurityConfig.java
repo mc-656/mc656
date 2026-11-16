@@ -1,5 +1,6 @@
 package com.unicamp.engsoft.eleicao.config;
 
+import com.unicamp.engsoft.eleicao.shared.observabilidade.AutorizacaoMetricas;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -15,6 +16,7 @@ import org.springframework.security.oauth2.server.resource.web.BearerTokenResolv
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
@@ -25,10 +27,11 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * credencial que o navegador anexe sozinho. Se um dia o token for para um cookie, o CSRF precisa
  * voltar junto.
  *
- * <p>O conteúdo didático ({@code GET /api/eleicoes-publicas/didatico/**}, RF-32) é público
- * <em>porque</em> é informativo, igual para todos e não toca dados de usuário nem de votação; o
- * público-alvo inclui eleitores leigos (RNF-07), e exigir cadastro só para ler uma explicação
- * afastaria justamente quem mais precisa dela. Só o {@code GET} é liberado.
+ * <p>O módulo de eleições públicas ({@code GET /api/eleicoes-publicas/**}: conteúdo didático,
+ * RF-32; eleições, candidatos e perfis, RF-30/31/33) é público <em>porque</em> é informativo, igual
+ * para todos e não toca dados de usuário nem de votação; o público-alvo inclui eleitores leigos
+ * (RNF-07), e exigir cadastro só para ler uma explicação ou o perfil de um candidato afastaria
+ * justamente quem mais precisa dele. Só o {@code GET} é liberado.
  *
  * <p><b>Views</b> (todo o resto): Thymeleaf com sessão e form login. Aqui a credencial é o cookie
  * de sessão, que o navegador anexa sozinho, então o CSRF fica <em>ligado</em>. As duas cadeias usam
@@ -41,18 +44,66 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final RequestMatcher CONTEUDO_DIDATICO =
+    private static final RequestMatcher ELEICOES_PUBLICAS =
             PathPatternRequestMatcher.withDefaults()
-                    .matcher(HttpMethod.GET, "/api/eleicoes-publicas/didatico/**");
+                    .matcher(HttpMethod.GET, "/api/eleicoes-publicas/**");
 
     /**
-     * No conteúdo didático o token é ignorado. Sem isso, um cliente que mande um token vencido em
+     * Nas eleições públicas o token é ignorado. Sem isso, um cliente que mande um token vencido em
      * toda requisição levaria 401 numa rota pública: o filtro do resource server rejeita o token
      * inválido antes de a regra {@code permitAll} ser avaliada.
      */
-    private static BearerTokenResolver ignorandoTokenNoConteudoDidatico() {
+    private static BearerTokenResolver ignorandoTokenNasEleicoesPublicas() {
         BearerTokenResolver padrao = new DefaultBearerTokenResolver();
-        return request -> CONTEUDO_DIDATICO.matches(request) ? null : padrao.resolve(request);
+        return request -> ELEICOES_PUBLICAS.matches(request) ? null : padrao.resolve(request);
+    }
+
+    /**
+     * Health e probes que o orquestrador consulta sem credencial (RNF-06). HEAD junto com GET
+     * porque balanceadores costumam checar com HEAD.
+     */
+    private static final RequestMatcher HEALTH =
+            new OrRequestMatcher(
+                    PathPatternRequestMatcher.withDefaults()
+                            .matcher(HttpMethod.GET, "/actuator/health/{*probe}"),
+                    PathPatternRequestMatcher.withDefaults()
+                            .matcher(HttpMethod.HEAD, "/actuator/health/{*probe}"));
+
+    /**
+     * Actuator (RNF-06) em cadeia própria, antes das demais: na cadeia das views, um Prometheus sem
+     * token receberia 302 para a tela de login, e um coletor precisa de 401. Health e probes ficam
+     * públicos (o orquestrador não tem conta) e não mostram detalhes. {@code /actuator/prometheus}
+     * exige JWT de uma conta autorizada ({@link AutorizacaoMetricas}): as métricas revelam volume
+     * de uso e falhas, e o cadastro é público. O token é ignorado no health pelo mesmo motivo do
+     * conteúdo didático: um token vencido não pode derrubar a probe.
+     */
+    @Bean
+    @Order(0)
+    SecurityFilterChain actuatorFilterChain(
+            HttpSecurity http, AutorizacaoMetricas autorizacaoMetricas) throws Exception {
+        BearerTokenResolver padrao = new DefaultBearerTokenResolver();
+        return http.securityMatcher("/actuator/**")
+                .csrf(csrf -> csrf.disable()) // NOSONAR: JWT no header, sem cookie
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(
+                        auth ->
+                                auth.requestMatchers(HEALTH)
+                                        .permitAll()
+                                        .requestMatchers("/actuator/prometheus")
+                                        .access(autorizacaoMetricas)
+                                        .anyRequest()
+                                        .authenticated())
+                .oauth2ResourceServer(
+                        oauth ->
+                                oauth.bearerTokenResolver(
+                                                request ->
+                                                        HEALTH.matches(request)
+                                                                ? null
+                                                                : padrao.resolve(request))
+                                        .jwt(Customizer.withDefaults()))
+                .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
+                .build();
     }
 
     /**
@@ -63,20 +114,20 @@ public class SecurityConfig {
     @Order(1)
     SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
         return http.securityMatcher("/api/**")
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // NOSONAR: JWT no header, sem cookie
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->
                                 auth.requestMatchers(
                                                 HttpMethod.POST, "/api/usuarios", "/api/auth/login")
                                         .permitAll()
-                                        .requestMatchers(CONTEUDO_DIDATICO)
+                                        .requestMatchers(ELEICOES_PUBLICAS)
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
                 .oauth2ResourceServer(
                         oauth ->
-                                oauth.bearerTokenResolver(ignorandoTokenNoConteudoDidatico())
+                                oauth.bearerTokenResolver(ignorandoTokenNasEleicoesPublicas())
                                         .jwt(Customizer.withDefaults()))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
@@ -95,10 +146,14 @@ public class SecurityConfig {
                                 auth.requestMatchers("/login", "/cadastro", "/error", "/css/**")
                                         .permitAll()
                                         .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/eleicoes-publicas/tipos-voto",
+                                                "/eleicoes-publicas/cargos")
+                                        .permitAll()
+                                        .requestMatchers(
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
-                                                "/swagger-ui.html",
-                                                "/actuator/health")
+                                                "/swagger-ui.html")
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
@@ -107,7 +162,9 @@ public class SecurityConfig {
                                 form.loginPage("/login")
                                         .usernameParameter("email")
                                         .passwordParameter("senha")
-                                        .defaultSuccessUrl("/", true)
+                                        // Sem "sempre usar": quem chegou por um link protegido
+                                        // (o convite, RF-17) volta a ele depois do login.
+                                        .defaultSuccessUrl("/")
                                         .failureUrl("/login?erro"))
                 .logout(logout -> logout.logoutUrl("/logout").logoutSuccessUrl("/login?saiu"))
                 .httpBasic(basic -> basic.disable())

@@ -69,4 +69,10 @@ public class CandidatoOuChapaService {
                                                 "Candidato/chapa", candidatoId));
         candidatoRepository.delete(candidato);
     }
+
+    /** Quantidade de candidatos/chapas, para resumos que não precisam da lista. */
+    @Transactional(readOnly = true)
+    public long contar(UUID votacaoId) {
+        return candidatoRepository.countByVotacaoId(votacaoId);
+    }
 }

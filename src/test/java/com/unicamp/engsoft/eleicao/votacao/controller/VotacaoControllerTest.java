@@ -16,6 +16,8 @@ import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -120,16 +122,20 @@ class VotacaoControllerTest extends AbstractIntegrationTest {
     void rejeitaCriacaoSeFimForAntesDeInicio() throws Exception {
         String token = tokenService.gerar(UsuarioAutenticado.de(usuario));
 
+        Instant inicio = Instant.now().plus(30, ChronoUnit.DAYS);
+        Instant fim = inicio.minus(1, ChronoUnit.DAYS);
+
         String corpoInvalido =
                 """
                 {
-                  "tipo": "ELEICAO_PRIVADA",
-                  "inicioEm": "2026-11-01T12:00:00Z",
-                  "fimEm": "2026-10-01T12:00:00Z",
-                  "nome": "Eleição Impossível",
-                  "descricao": "Fim antes do início"
+                "tipo": "ELEICAO_PRIVADA",
+                "inicioEm": "%s",
+                "fimEm": "%s",
+                "nome": "Eleição Impossível",
+                "descricao": "Fim antes do início"
                 }
-                """;
+                """
+                        .formatted(inicio, fim);
 
         mvc.perform(
                         post("/api/votacoes")

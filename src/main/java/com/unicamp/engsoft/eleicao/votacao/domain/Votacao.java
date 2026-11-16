@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -46,6 +47,14 @@ public class Votacao {
      * em {@code votacoes} ficam todas nulas nesse caso.
      */
     @Embedded private RegraVotacao regras;
+
+    /**
+     * Orçamento total do orçamento participativo (RF-20), nulo até o organizador defini-lo e sempre
+     * nulo em eleição privada. Fica fora de {@link RegraVotacao} por decisão do SPECS §4.1: é
+     * definido junto com as propostas, não com as regras de apuração.
+     */
+    @Column(name = "orcamento_total", precision = 15, scale = 2)
+    private BigDecimal orcamentoTotal;
 
     protected Votacao() {}
 
@@ -99,6 +108,23 @@ public class Votacao {
      */
     public void configurarRegras(RegraVotacao regras) {
         this.regras = regras;
+    }
+
+    /** Orçamento total do orçamento participativo, ou {@code null} se ainda não definido. */
+    public BigDecimal getOrcamentoTotal() {
+        return orcamentoTotal;
+    }
+
+    /**
+     * Define o orçamento total (RF-20). Só o {@code PropostaService} chama, depois de checar o
+     * estado da votação e que nenhuma proposta custa mais que o novo valor; aqui fica só a
+     * invariante que não depende de mais nada: o valor é positivo.
+     */
+    public void definirOrcamentoTotal(BigDecimal orcamentoTotal) {
+        if (orcamentoTotal == null || orcamentoTotal.signum() <= 0) {
+            throw new DadosInvalidosException("O orçamento total deve ser maior que zero");
+        }
+        this.orcamentoTotal = orcamentoTotal;
     }
 
     /**

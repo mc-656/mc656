@@ -29,11 +29,22 @@
   <properties>
     <java.version>21</java.version>
     <sonar.organization>mc-656</sonar.organization>
+    <!-- Gate de cobertura (RNF-05): razões de 0 a 1, sobrescrevíveis com -D na linha de comando -->
+    <jacoco.minimo.linha>0.93</jacoco.minimo.linha>
+    <jacoco.minimo.branch>0.80</jacoco.minimo.branch>
+    <jacoco.minimo.apuracao>0.90</jacoco.minimo.apuracao>
+    <!-- Gate de mutação do motor de apuração: percentual de 0 a 100 de mutantes mortos -->
+    <pit.minimo.mutacao>95</pit.minimo.mutacao>
   </properties>
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -46,6 +57,10 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -131,6 +146,12 @@
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-oauth2-jose</artifactId>
+    </dependency>
+    <!-- QR Code do convite (RF-17): ZXing, Apache 2.0 -->
+    <dependency>
+      <groupId>com.google.zxing</groupId>
+      <artifactId>javase</artifactId>
+      <version>3.5.3</version>
     </dependency>
     <dependency>
       <groupId>org.springdoc</groupId>
@@ -224,6 +245,28 @@
           </pom>
         </configuration>
       </plugin>
+      <!-- SpotBugs (RNF-04): análise estática de bugs; o goal check na fase verify
+           falha o build se encontrar bugs. Falsos positivos ficam em spotbugs-exclude.xml. -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.10.5.0</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Medium</threshold>
+          <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+          <includeTests>false</includeTests>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotbugs-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
       <!-- JaCoCo Plugin para cobertura de testes-->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -245,7 +288,107 @@
             </goals>
             <phase>test</phase>
           </execution>
+          <!--
+            Gate de cobertura (RNF-05, issue #137): reprova o build na fase verify.
+            - Global: piso ligeiramente abaixo da cobertura medida, para travar regressões.
+            - Apuração: >= jacoco.minimo.apuracao de linha e branch em cada classe, pois apuração
+              incorreta é o principal risco do projeto (SPECS §10).
+            O padrão *.apuracao.* já cobre pacotes de apuração futuros, como o motor de cotas do
+            orçamento participativo (#130): basta criá-lo num pacote "apuracao" ou incluí-lo aqui.
+          -->
+          <execution>
+            <id>check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.linha}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.branch}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
+                  <element>CLASS</element>
+                  <includes>
+                    <include>com.unicamp.engsoft.eleicao.votacao.service.MotorApuracao*</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.service.Desempate*</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.Totalizacao</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.OpcaoApurada</include>
+                    <include>com.unicamp.engsoft.eleicao.votacao.domain.VotoApuravel</include>
+                    <include>com.unicamp.engsoft.eleicao.*.apuracao.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.apuracao}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.minimo.apuracao}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
         </executions>
+      </plugin>
+      <!--
+        Teste de mutação (PIT) sobre o motor de apuração. Não fica preso a nenhuma fase: roda com
+        ./mvnw test-compile org.pitest:pitest-maven:mutationCoverage (make mutacao) e, no CI, em
+        job próprio. O escopo é o mesmo do gate de cobertura da apuração, porque cobertura alta não
+        prova que os testes conferem o resultado: um teste que executa a linha sem checar a saída
+        mantém o JaCoCo verde e deixa o mutante vivo.
+        Os testes alvo são só os de unidade da apuração. Os que sobem Spring/Testcontainers rodariam
+        uma vez por mutante e não exercitam o motor.
+      -->
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>1.30.1</version>
+        <configuration>
+          <targetClasses>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.MotorApuracao*</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.Desempate*</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao*</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.domain.Totalizacao</param>
+          </targetClasses>
+          <targetTests>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.MotorApuracao*Test</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.service.EstrategiasDesempateTest</param>
+            <param>com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracaoTest</param>
+          </targetTests>
+          <outputFormats>
+            <param>HTML</param>
+            <param>XML</param>
+          </outputFormats>
+          <timestampedReports>false</timestampedReports>
+          <threads>2</threads>
+          <!-- Piso abaixo do score medido, como o gate do JaCoCo: trava regressões sem exigir 100%. -->
+          <mutationThreshold>${pit.minimo.mutacao}</mutationThreshold>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.3</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>
