@@ -1,5 +1,6 @@
 package com.unicamp.engsoft.eleicao.votacao.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import com.unicamp.engsoft.eleicao.shared.exception.ComprovanteInvalidoException;
+import com.unicamp.engsoft.eleicao.shared.exception.DomainException;
 import com.unicamp.engsoft.eleicao.shared.exception.RegraDeNegocioException;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
@@ -38,12 +40,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.ui.ConcurrentModel;
+import org.springframework.ui.Model;
 
 /** Testes unitários do {@link VotoViewController} isolando os serviços de domínio. */
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +62,7 @@ class VotoViewControllerUnitTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-06-01T12:00:00Z"), ZoneOffset.UTC);
 
+    private VotoViewController controller;
     private MockMvc mvc;
     private Usuario usuario;
     private UsuarioAutenticado usuarioAutenticado;
@@ -63,7 +70,7 @@ class VotoViewControllerUnitTest {
 
     @BeforeEach
     void setup() {
-        VotoViewController controller =
+        controller =
                 new VotoViewController(
                         votacaoService,
                         candidatoService,
@@ -294,5 +301,20 @@ class VotoViewControllerUnitTest {
                 .andExpect(view().name("votacoes/verificar-comprovante"))
                 .andExpect(model().attribute("comprovanteValido", false))
                 .andExpect(model().attributeExists("erro"));
+    }
+
+    @Test
+    @DisplayName("erroDeDominio trata exceção de domínio e renderiza página de erro com status")
+    void erroDeDominioHandler() {
+        DomainException ex =
+                new DomainException("Erro de domínio de teste", HttpStatus.BAD_REQUEST) {};
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        Model model = new ConcurrentModel();
+
+        String viewName = controller.erroDeDominio(ex, response, model);
+
+        assertThat(viewName).isEqualTo("error");
+        assertThat(response.getStatus()).isEqualTo(400);
+        assertThat(model.getAttribute("status")).isEqualTo(400);
     }
 }
