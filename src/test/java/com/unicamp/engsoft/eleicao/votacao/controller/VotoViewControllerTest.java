@@ -116,7 +116,7 @@ class VotoViewControllerTest extends AbstractIntegrationTest {
                 new PapelVotacao(eleitor.getId(), votacao.getId(), PapelUsuario.ELEITOR));
 
         stateService.transitar(votacao.getId(), EstadoVotacao.Publicada, admin.getId(), null);
-        stateService.transitar(votacao.getId(), EstadoVotacao.EmVotacao, admin.getId(), null);
+        stateService.transitar(votacao.getId(), EstadoVotacao.EmVotacao, null, null);
     }
 
     private static RequestPostProcessor logado(Usuario usuario) {

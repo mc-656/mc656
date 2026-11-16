@@ -385,9 +385,8 @@ class VotoControllerTest extends AbstractIntegrationTest {
         // Arrange
         abreVotacao();
         String comprovante = comprovanteDe(vota(bia, votacao.getId(), opcaoA.getId()));
-        char ultimo = comprovante.charAt(comprovante.length() - 1);
-        String adulterado =
-                comprovante.substring(0, comprovante.length() - 1) + (ultimo == 'A' ? 'B' : 'A');
+        char primeiro = comprovante.charAt(0);
+        String adulterado = (primeiro == 'A' ? 'B' : 'A') + comprovante.substring(1);
 
         // Act + Assert
         verifica(bia, adulterado).andExpect(status().isBadRequest());
