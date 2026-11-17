@@ -263,10 +263,14 @@ public class RegistroVotoOrcamentoService {
         if (autenticacao.getPrincipal() instanceof UsuarioAutenticado usuario) {
             return usuario.getId();
         }
-        try {
-            return UUID.fromString(autenticacao.getName());
-        } catch (IllegalArgumentException | NullPointerException ignored) {
-            return null;
+        String name = autenticacao.getName();
+        if (name != null) {
+            try {
+                return UUID.fromString(name);
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
         }
+        return null;
     }
 }
