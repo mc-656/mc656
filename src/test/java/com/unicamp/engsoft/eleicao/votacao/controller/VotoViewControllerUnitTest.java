@@ -23,6 +23,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.dto.ComprovanteResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.SituacaoApuracaoComprovante;
 import com.unicamp.engsoft.eleicao.votacao.dto.VerificacaoComprovanteResponse;
 import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
@@ -211,7 +212,8 @@ class VotoViewControllerUnitTest {
         Instant emitidoEm = Instant.now();
         Votacao votacao = votacaoAberta(votacaoId);
         VerificacaoComprovanteResponse verificado =
-                new VerificacaoComprovanteResponse(votacaoId, emitidoEm);
+                new VerificacaoComprovanteResponse(
+                        votacaoId, emitidoEm, SituacaoApuracaoComprovante.NAO_CONFIRMADA);
 
         when(registroVotoService.verificar("COMPROVANTE-OK")).thenReturn(verificado);
         when(votacaoService.buscar(votacaoId)).thenReturn(votacao);
@@ -240,7 +242,8 @@ class VotoViewControllerUnitTest {
         Instant emitidoEm = Instant.now();
         Votacao votacao = votacaoAberta(votacaoId);
         VerificacaoComprovanteResponse verificado =
-                new VerificacaoComprovanteResponse(votacaoId, emitidoEm);
+                new VerificacaoComprovanteResponse(
+                        votacaoId, emitidoEm, SituacaoApuracaoComprovante.NAO_CONFIRMADA);
 
         when(registroVotoService.verificar("CODIGO-PARAM")).thenReturn(verificado);
         when(votacaoService.buscar(votacaoId)).thenReturn(votacao);
