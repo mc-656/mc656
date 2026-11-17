@@ -112,9 +112,6 @@ O Flyway aplica as migrations no start e o JPA valida o schema
 
 Documentação da API (Swagger UI): `http://localhost:8080/swagger-ui.html`
 
-Comprovante anônimo de voto (#83): veja o [contrato de verificação e a dependência
-da integração da apuração](docs/comprovante-anonimo.md).
-
 ### Migrações de banco (Flyway)
 
 As migrações ficam em `src/main/resources/db/migration` e são aplicadas
