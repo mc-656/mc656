@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatus;
  */
 public class ComprovanteInvalidoException extends DomainException {
 
-    private static final String MENSAGEM = "Comprovante não encontrado.";
+    private static final String MENSAGEM = "Comprovante de voto inválido ou adulterado.";
 
     public ComprovanteInvalidoException() {
         super(MENSAGEM, HttpStatus.BAD_REQUEST);

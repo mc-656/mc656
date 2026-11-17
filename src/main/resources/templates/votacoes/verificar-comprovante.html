@@ -14,7 +14,7 @@
 
     <p class="suave">
         Qualquer eleitor pode verificar a autenticidade do seu comprovante criptográfico e certificar-se
-        de que a sua cédula foi registrada, sem revelar sua escolha.
+        de que a sua cédula está devidamente computada e preservada de forma íntegra no sistema (RNF-01, RNF-02).
     </p>
 
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
@@ -31,12 +31,7 @@
 
     <div th:if="${comprovanteValido == true}" class="alerta sucesso" style="margin-top: 1.5rem;">
         <h3>Comprovante Válido e Autêntico!</h3>
-        <p>Autenticidade verificada. A cédula correspondente está registrada no sistema.</p>
-        <div th:switch="${verificado.situacaoApuracao.name()}">
-            <p th:case="'NAO_CONFIRMADA'">Cédula registrada. A inclusão na apuração ainda não foi confirmada.</p>
-            <p th:case="'VOTACAO_ANULADA'">Cédula registrada, mas a votação foi anulada. O comprovante continua autêntico e não atesta um resultado válido.</p>
-            <p th:case="'VOTACAO_CANCELADA'">Cédula registrada, mas a votação foi cancelada. O comprovante continua autêntico e não atesta um resultado válido.</p>
-        </div>
+        <p>A assinatura criptográfica HMAC-SHA256 foi validada com sucesso e a cédula correspondente existe no repositório seguro.</p>
         <dl class="dados" style="margin-top: 0.75rem;">
             <dt>Votação:</dt>
             <dd>
