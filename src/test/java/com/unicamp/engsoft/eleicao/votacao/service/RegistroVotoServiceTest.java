@@ -13,6 +13,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.UsuarioNaoElegivelException;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
+import com.unicamp.engsoft.eleicao.votacao.repository.CedulaOrcamentoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CedulaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
@@ -36,6 +37,8 @@ class RegistroVotoServiceTest {
     private final ParticipacaoRepository participacaoRepository =
             mock(ParticipacaoRepository.class);
     private final CedulaRepository cedulaRepository = mock(CedulaRepository.class);
+    private final CedulaOrcamentoRepository cedulaOrcamentoRepository =
+            mock(CedulaOrcamentoRepository.class);
     private final ComprovanteService comprovanteService = mock(ComprovanteService.class);
     private final Clock clock = Clock.systemUTC();
     private final MetricasVotacao metricasVotacao = mock(MetricasVotacao.class);
@@ -48,6 +51,7 @@ class RegistroVotoServiceTest {
                     candidatoRepository,
                     participacaoRepository,
                     cedulaRepository,
+                    cedulaOrcamentoRepository,
                     comprovanteService,
                     clock,
                     metricasVotacao);

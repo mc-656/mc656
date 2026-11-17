@@ -435,6 +435,23 @@ class VotoControllerTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.cedulaId").doesNotExist());
     }
 
+    @Test
+    @DisplayName("Comprovante válido de cédula de orçamento participativo é aceito")
+    void comprovanteDeCedulaOrcamento() throws Exception {
+        UUID cedulaOrcamentoId = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO cedulas_orcamento (id, votacao_id) VALUES (?, ?)",
+                cedulaOrcamentoId,
+                votacao.getId());
+        Instant emitidoEm = Instant.now();
+        String comprovante =
+                comprovanteService.gerar(votacao.getId(), cedulaOrcamentoId, emitidoEm);
+
+        verifica(bia, comprovante)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votacaoId").value(votacao.getId().toString()));
+    }
+
     // ---------- Sigilo (RNF-02) e append-only ----------
 
     @Test

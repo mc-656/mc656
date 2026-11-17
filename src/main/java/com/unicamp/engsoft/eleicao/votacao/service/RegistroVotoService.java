@@ -19,6 +19,7 @@ import com.unicamp.engsoft.eleicao.votacao.dto.ComprovanteResponse;
 import com.unicamp.engsoft.eleicao.votacao.dto.SituacaoApuracaoComprovante;
 import com.unicamp.engsoft.eleicao.votacao.dto.VerificacaoComprovanteResponse;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
+import com.unicamp.engsoft.eleicao.votacao.repository.CedulaOrcamentoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CedulaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
@@ -66,6 +67,7 @@ public class RegistroVotoService {
     private final CandidatoOuChapaRepository candidatoOuChapaRepository;
     private final ParticipacaoRepository participacaoRepository;
     private final CedulaRepository cedulaRepository;
+    private final CedulaOrcamentoRepository cedulaOrcamentoRepository;
     private final ComprovanteService comprovanteService;
     private final Clock clock;
     private final MetricasVotacao metricasVotacao;
@@ -77,6 +79,7 @@ public class RegistroVotoService {
             CandidatoOuChapaRepository candidatoOuChapaRepository,
             ParticipacaoRepository participacaoRepository,
             CedulaRepository cedulaRepository,
+            CedulaOrcamentoRepository cedulaOrcamentoRepository,
             ComprovanteService comprovanteService,
             Clock clock,
             MetricasVotacao metricasVotacao) {
@@ -86,6 +89,7 @@ public class RegistroVotoService {
         this.candidatoOuChapaRepository = candidatoOuChapaRepository;
         this.participacaoRepository = participacaoRepository;
         this.cedulaRepository = cedulaRepository;
+        this.cedulaOrcamentoRepository = cedulaOrcamentoRepository;
         this.comprovanteService = comprovanteService;
         this.clock = clock;
         this.metricasVotacao = metricasVotacao;
@@ -163,7 +167,12 @@ public class RegistroVotoService {
     @Transactional(readOnly = true)
     public VerificacaoComprovanteResponse verificar(String comprovante) {
         ComprovanteService.DadosComprovante dados = comprovanteService.verificar(comprovante);
-        if (!cedulaRepository.existsByIdAndVotacaoId(dados.cedulaId(), dados.votacaoId())) {
+        boolean existeCedulaEleicao =
+                cedulaRepository.existsByIdAndVotacaoId(dados.cedulaId(), dados.votacaoId());
+        boolean existeCedulaOrcamento =
+                cedulaOrcamentoRepository.existsByIdAndVotacaoId(
+                        dados.cedulaId(), dados.votacaoId());
+        if (!existeCedulaEleicao && !existeCedulaOrcamento) {
             throw new ComprovanteInvalidoException();
         }
         Votacao votacao =
