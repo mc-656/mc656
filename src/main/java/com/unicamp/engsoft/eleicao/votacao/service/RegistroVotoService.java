@@ -16,6 +16,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.VotoDuplicadoException;
 import com.unicamp.engsoft.eleicao.votacao.domain.VotoForaDaJanelaException;
 import com.unicamp.engsoft.eleicao.votacao.dto.ComprovanteResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.SituacaoApuracaoComprovante;
 import com.unicamp.engsoft.eleicao.votacao.dto.VerificacaoComprovanteResponse;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CedulaRepository;
@@ -165,7 +166,19 @@ public class RegistroVotoService {
         if (!cedulaRepository.existsByIdAndVotacaoId(dados.cedulaId(), dados.votacaoId())) {
             throw new ComprovanteInvalidoException();
         }
-        return new VerificacaoComprovanteResponse(dados.votacaoId(), dados.emitidoEm());
+        Votacao votacao =
+                votacaoRepository
+                        .findById(dados.votacaoId())
+                        .orElseThrow(ComprovanteInvalidoException::new);
+        // Apuracao/Encerrada/Homologada não provam que esta cédula entrou na contagem.
+        // A confirmação depende da integração com a evidência persistida da apuração (#83).
+        SituacaoApuracaoComprovante situacao =
+                switch (votacao.getEstado()) {
+                    case Anulada -> SituacaoApuracaoComprovante.VOTACAO_ANULADA;
+                    case Cancelada -> SituacaoApuracaoComprovante.VOTACAO_CANCELADA;
+                    default -> SituacaoApuracaoComprovante.NAO_CONFIRMADA;
+                };
+        return new VerificacaoComprovanteResponse(dados.votacaoId(), dados.emitidoEm(), situacao);
     }
 
     /**

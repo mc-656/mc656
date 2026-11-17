@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.unicamp.engsoft.eleicao.shared.exception.ComprovanteInvalidoException;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
@@ -50,6 +51,22 @@ class RegistroVotoServiceTest {
                     comprovanteService,
                     clock,
                     metricasVotacao);
+
+    @Test
+    void verificacaoSemVotacaoNaoConfirmaRegistro() {
+        UUID votacaoId = UUID.randomUUID();
+        UUID cedulaId = UUID.randomUUID();
+        when(comprovanteService.verificar("codigo"))
+                .thenReturn(
+                        new ComprovanteService.DadosComprovante(
+                                votacaoId, cedulaId, Instant.now()));
+        when(cedulaRepository.existsByIdAndVotacaoId(cedulaId, votacaoId)).thenReturn(true);
+        when(votacaoRepository.findById(votacaoId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.verificar("codigo"))
+                .isInstanceOf(ComprovanteInvalidoException.class)
+                .hasMessage("Comprovante não encontrado.");
+    }
 
     @Test
     @DisplayName("usuarioDe extrai UUID de UsuarioAutenticado")
