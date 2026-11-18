@@ -12,6 +12,8 @@
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'eleitores')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
+    <div th:each="aviso : ${avisosPesoUnico}" class="alerta" role="status" th:text="${aviso}"></div>
+
     <section aria-labelledby="titulo-lista">
         <h2 id="titulo-lista">Eleitores</h2>
         <p th:if="${#lists.isEmpty(eleitores)}">Nenhum eleitor adicionado.</p>

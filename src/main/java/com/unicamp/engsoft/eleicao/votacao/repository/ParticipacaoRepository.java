@@ -15,4 +15,6 @@ public interface ParticipacaoRepository extends Repository<Participacao, UUID> {
     Participacao saveAndFlush(Participacao participacao);
 
     boolean existsByUsuarioIdAndVotacaoId(UUID usuarioId, UUID votacaoId);
+
+    long countByVotacaoId(UUID votacaoId);
 }

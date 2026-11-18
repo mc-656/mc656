@@ -11,10 +11,12 @@ import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.dto.AdicionarEleitorRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CadastrarCandidatoRequest;
+import com.unicamp.engsoft.eleicao.votacao.dto.ComparecimentoResponse;
 import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoForm;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoRequest;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
+import com.unicamp.engsoft.eleicao.votacao.service.ComparecimentoService;
 import com.unicamp.engsoft.eleicao.votacao.service.EleitorService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoStateService;
@@ -23,6 +25,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
@@ -65,6 +69,7 @@ public class VotacaoViewController {
     private final CandidatoOuChapaService candidatoService;
     private final EleitorService eleitorService;
     private final VotacaoStateService stateService;
+    private final ComparecimentoService comparecimentoService;
     private final Validator validator;
 
     public VotacaoViewController(
@@ -72,11 +77,13 @@ public class VotacaoViewController {
             CandidatoOuChapaService candidatoService,
             EleitorService eleitorService,
             VotacaoStateService stateService,
+            ComparecimentoService comparecimentoService,
             Validator validator) {
         this.votacaoService = votacaoService;
         this.candidatoService = candidatoService;
         this.eleitorService = eleitorService;
         this.stateService = stateService;
+        this.comparecimentoService = comparecimentoService;
         this.validator = validator;
     }
 
@@ -136,7 +143,19 @@ public class VotacaoViewController {
         model.addAttribute("totalCandidatos", candidatoService.contar(votacaoId));
         model.addAttribute("totalEleitores", eleitorService.contar(votacaoId));
         model.addAttribute("podePublicar", votacao.getEstado() == EstadoVotacao.RascunhoVotacao);
+        model.addAttribute("avisosPesoUnico", eleitorService.avisosPesoUnico(votacaoId));
+        if (votacao.getEstado() == EstadoVotacao.EmVotacao
+                || votacao.getEstado() == EstadoVotacao.Suspensa) {
+            model.addAttribute("comparecimento", comparecimentoService.consultar(votacaoId));
+        }
         return "votacoes/painel";
+    }
+
+    @GetMapping(value = "/{votacaoId}/comparecimento", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("@autorizacaoVotacao.ehParticipante(#votacaoId, authentication)")
+    public ComparecimentoResponse comparecimentoJson(@PathVariable UUID votacaoId) {
+        return comparecimentoService.consultar(votacaoId);
     }
 
     /**
@@ -323,6 +342,7 @@ public class VotacaoViewController {
 
     private String prepararEleitores(Votacao votacao, Model model) {
         model.addAttribute("eleitores", eleitorService.listar(votacao.getId()));
+        model.addAttribute("avisosPesoUnico", eleitorService.avisosPesoUnico(votacao.getId()));
         model.addAttribute(
                 "votoPonderado",
                 votacao.getRegras() != null && votacao.getRegras().votoPonderado());
