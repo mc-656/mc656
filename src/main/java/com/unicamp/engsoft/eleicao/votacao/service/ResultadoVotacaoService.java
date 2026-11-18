@@ -7,19 +7,24 @@ import com.unicamp.engsoft.eleicao.votacao.domain.CandidatoOuChapa;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.OrigemTransicao;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
+import com.unicamp.engsoft.eleicao.votacao.domain.Proposta;
 import com.unicamp.engsoft.eleicao.votacao.domain.RegraVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao;
+import com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracaoOrcamento;
 import com.unicamp.engsoft.eleicao.votacao.domain.StatusApuracao;
+import com.unicamp.engsoft.eleicao.votacao.domain.StatusPropostaApurada;
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.dto.ResultadoVotacaoResponse;
 import com.unicamp.engsoft.eleicao.votacao.dto.ResultadoVotacaoResponse.AnulacaoInfo;
 import com.unicamp.engsoft.eleicao.votacao.dto.ResultadoVotacaoResponse.HomologacaoInfo;
 import com.unicamp.engsoft.eleicao.votacao.dto.ResultadoVotacaoResponse.OpcaoResultadoResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.ResultadoVotacaoResponse.OrcamentoResultadoInfo;
 import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
+import com.unicamp.engsoft.eleicao.votacao.repository.PropostaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.TransicaoVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import java.math.BigDecimal;
@@ -36,11 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Consulta ao resultado oficial e detalhes de homologação ou anulação de uma votação (RF-41, RF-42,
- * #52, #84, #85).
- *
- * <p>Em {@code Apuracao}, somente administradores visualizam a prévia; eleitores só veem após
- * publicação ({@code Encerrada} ou {@code Homologada}). Em {@code Anulada}, as contagens por opção
- * nunca são expostas (#85).
+ * RF-23, #52, #84, #85, #130).
  */
 @Service
 public class ResultadoVotacaoService {
@@ -50,6 +51,7 @@ public class ResultadoVotacaoService {
     private final VotacaoRepository votacaoRepository;
     private final ApuracaoRepository apuracaoRepository;
     private final CandidatoOuChapaRepository candidatoRepository;
+    private final PropostaRepository propostaRepository;
     private final PapelVotacaoRepository papelVotacaoRepository;
     private final ParticipacaoRepository participacaoRepository;
     private final TransicaoVotacaoRepository transicaoVotacaoRepository;
@@ -58,12 +60,14 @@ public class ResultadoVotacaoService {
             VotacaoRepository votacaoRepository,
             ApuracaoRepository apuracaoRepository,
             CandidatoOuChapaRepository candidatoRepository,
+            PropostaRepository propostaRepository,
             PapelVotacaoRepository papelVotacaoRepository,
             ParticipacaoRepository participacaoRepository,
             TransicaoVotacaoRepository transicaoVotacaoRepository) {
         this.votacaoRepository = votacaoRepository;
         this.apuracaoRepository = apuracaoRepository;
         this.candidatoRepository = candidatoRepository;
+        this.propostaRepository = propostaRepository;
         this.papelVotacaoRepository = papelVotacaoRepository;
         this.participacaoRepository = participacaoRepository;
         this.transicaoVotacaoRepository = transicaoVotacaoRepository;
@@ -105,6 +109,14 @@ public class ResultadoVotacaoService {
                                 () ->
                                         new RegraDeNegocioException(
                                                 "A apuração da votação ainda não foi concluída"));
+        HomologacaoInfo homologacao =
+                votacao.getEstado() == EstadoVotacao.Homologada
+                        ? buscarHomologacao(votacaoId)
+                        : null;
+        if (apuracao.getResultadoOrcamento() != null) {
+            return montarResultadoOrcamento(
+                    votacao, apuracao, apuracao.getResultadoOrcamento(), homologacao);
+        }
         ResultadoApuracao resultado = apuracao.getResultado();
         if (resultado == null) {
             throw new RegraDeNegocioException("Resultado da apuração não encontrado");
@@ -130,16 +142,14 @@ public class ResultadoVotacaoService {
                                                 opcao.totalVotos(),
                                                 opcao.percentualVotosValidos(),
                                                 opcao.opcaoId().equals(resultado.vencedorId()),
-                                                finalistas.contains(opcao.opcaoId())))
+                                                finalistas.contains(opcao.opcaoId()),
+                                                null,
+                                                null))
                         .toList();
         String vencedorNome =
                 resultado.vencedorId() == null ? null : nomesPorOpcao.get(resultado.vencedorId());
         BigDecimal quorumMinimo =
                 apuracao.getRegra() != null ? apuracao.getRegra().quorumMinimoPercentual() : null;
-        HomologacaoInfo homologacao =
-                votacao.getEstado() == EstadoVotacao.Homologada
-                        ? buscarHomologacao(votacaoId)
-                        : null;
         return new ResultadoVotacaoResponse(
                 votacaoId,
                 votacao.getNome(),
@@ -160,7 +170,74 @@ public class ResultadoVotacaoService {
                 apuracao.getTotalCedulas(),
                 opcoes,
                 homologacao,
+                null,
                 null);
+    }
+
+    private ResultadoVotacaoResponse montarResultadoOrcamento(
+            Votacao votacao,
+            Apuracao apuracao,
+            ResultadoApuracaoOrcamento resultado,
+            HomologacaoInfo homologacao) {
+        UUID votacaoId = votacao.getId();
+        Map<UUID, String> titulosPorProposta =
+                propostaRepository.findByVotacaoIdOrderByCriadoEm(votacaoId).stream()
+                        .collect(Collectors.toMap(Proposta::getId, Proposta::getTitulo));
+        BigDecimal totalPontos = resultado.totalPontosComputados();
+        List<OpcaoResultadoResponse> opcoes =
+                resultado.propostas().stream()
+                        .map(
+                                p -> {
+                                    BigDecimal percentual =
+                                            totalPontos.signum() == 0
+                                                    ? BigDecimal.ZERO.setScale(
+                                                            2, RoundingMode.HALF_UP)
+                                                    : p.totalPontos()
+                                                            .multiply(CEM)
+                                                            .divide(
+                                                                    totalPontos,
+                                                                    2,
+                                                                    RoundingMode.HALF_UP);
+                                    return new OpcaoResultadoResponse(
+                                            p.propostaId(),
+                                            titulosPorProposta.getOrDefault(
+                                                    p.propostaId(), "Proposta"),
+                                            p.totalPontos(),
+                                            percentual,
+                                            p.status() == StatusPropostaApurada.SELECIONADA,
+                                            false,
+                                            p.custo(),
+                                            p.status());
+                                })
+                        .toList();
+        BigDecimal quorumMinimo =
+                apuracao.getRegra() != null ? apuracao.getRegra().quorumMinimoPercentual() : null;
+        return new ResultadoVotacaoResponse(
+                votacaoId,
+                votacao.getNome(),
+                votacao.getTipo(),
+                votacao.getEstado(),
+                resultado.status(),
+                apuracao.getConcluidaEm(),
+                null,
+                null,
+                List.of(),
+                null,
+                resultado.totalParticipantes(),
+                resultado.totalEleitoresAptos(),
+                resultado.percentualComparecimento(),
+                quorumMinimo,
+                resultado.quorumAtingido(),
+                totalPontos,
+                apuracao.getTotalCedulas(),
+                opcoes,
+                homologacao,
+                null,
+                new OrcamentoResultadoInfo(
+                        resultado.orcamentoTotal(),
+                        resultado.orcamentoUtilizado(),
+                        resultado.saldoRestante(),
+                        totalPontos));
     }
 
     private ResultadoVotacaoResponse montarResultadoAnulada(Votacao votacao) {
@@ -184,10 +261,18 @@ public class ResultadoVotacaoService {
             totalParticipantes = resultado.totalParticipantes();
             totalEleitoresAptos = resultado.totalEleitoresAptos();
             percentualComparecimento = resultado.percentualComparecimento();
-            quorumMinimo =
-                    apuracao.getRegra() != null
-                            ? apuracao.getRegra().quorumMinimoPercentual()
-                            : quorumDe(votacao.getRegras());
+            quorumMinimo = quorumDeSnapshot(apuracao, votacao);
+            quorumAtingido = resultado.quorumAtingido();
+            totalCedulas = apuracao.getTotalCedulas();
+        } else if (apuracaoOpt.isPresent() && apuracaoOpt.get().getResultadoOrcamento() != null) {
+            Apuracao apuracao = apuracaoOpt.get();
+            ResultadoApuracaoOrcamento resultado = apuracao.getResultadoOrcamento();
+            statusApuracao = resultado.status();
+            apuradaEm = apuracao.getConcluidaEm();
+            totalParticipantes = resultado.totalParticipantes();
+            totalEleitoresAptos = resultado.totalEleitoresAptos();
+            percentualComparecimento = resultado.percentualComparecimento();
+            quorumMinimo = quorumDeSnapshot(apuracao, votacao);
             quorumAtingido = resultado.quorumAtingido();
             totalCedulas = apuracao.getTotalCedulas();
         } else {
@@ -239,7 +324,14 @@ public class ResultadoVotacaoService {
                 totalCedulas,
                 List.of(),
                 null,
-                anulacao);
+                anulacao,
+                null);
+    }
+
+    private static BigDecimal quorumDeSnapshot(Apuracao apuracao, Votacao votacao) {
+        return apuracao.getRegra() != null
+                ? apuracao.getRegra().quorumMinimoPercentual()
+                : quorumDe(votacao.getRegras());
     }
 
     private static BigDecimal quorumDe(RegraVotacao regras) {

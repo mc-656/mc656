@@ -1,6 +1,7 @@
 package com.unicamp.engsoft.eleicao.votacao.repository;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.CedulaOrcamento;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.repository.Repository;
 
@@ -10,4 +11,6 @@ public interface CedulaOrcamentoRepository extends Repository<CedulaOrcamento, U
     CedulaOrcamento save(CedulaOrcamento cedula);
 
     boolean existsByIdAndVotacaoId(UUID id, UUID votacaoId);
+
+    List<CedulaOrcamento> findByVotacaoId(UUID votacaoId);
 }

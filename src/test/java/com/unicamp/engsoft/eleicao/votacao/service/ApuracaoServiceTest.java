@@ -22,10 +22,14 @@ class ApuracaoServiceTest {
     @Mock VotacaoRepository votacoes;
     @Mock ApuracaoRepository apuracoes;
     @Mock CedulaRepository cedulas;
+    @Mock CedulaOrcamentoRepository cedulasOrcamento;
+    @Mock AlocacaoOrcamentoRepository alocacoesOrcamento;
     @Mock ParticipacaoRepository participacoes;
     @Mock CandidatoOuChapaRepository candidatos;
+    @Mock PropostaRepository propostas;
     @Mock PapelVotacaoRepository papeis;
     @Mock MotorApuracao motor;
+    @Mock MotorApuracaoOrcamento motorOrcamento;
     @Mock EstrategiaDesempateDaVotacao desempates;
     @Mock AnulacaoVotacaoService anulacao;
     @Mock Clock clock;
@@ -61,9 +65,22 @@ class ApuracaoServiceTest {
     }
 
     @Test
-    void chamadaDiretaRecusaOrcamento() {
+    void orcamentoSemOrcamentoTotalRecusado() {
         preparar(TipoVotacao.ORCAMENTO_PARTICIPATIVO, EstadoVotacao.Apuracao);
-        assertThatThrownBy(() -> service.apurar(id)).isInstanceOf(RegraDeNegocioException.class);
+        assertThatThrownBy(() -> service.apurar(id))
+                .isInstanceOf(RegraDeNegocioException.class)
+                .hasMessageContaining("orçamento total");
+    }
+
+    @Test
+    void orcamentoBaseInconsistente() {
+        Votacao v = preparar(TipoVotacao.ORCAMENTO_PARTICIPATIVO, EstadoVotacao.Apuracao);
+        v.definirOrcamentoTotal(new BigDecimal("100.00"));
+        when(participacoes.countByVotacaoId(id)).thenReturn(1L);
+        assertThatThrownBy(() -> service.apurar(id))
+                .isInstanceOf(RegraDeNegocioException.class)
+                .hasMessageContaining("Quantidade de cédulas");
+        verifyNoInteractions(motorOrcamento);
     }
 
     @Test

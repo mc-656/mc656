@@ -15,13 +15,17 @@ import com.unicamp.engsoft.eleicao.votacao.dto.CadastrarCandidatoRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoForm;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoRequest;
+import com.unicamp.engsoft.eleicao.votacao.dto.DefinirOrcamentoRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.DefinirPeriodoForm;
 import com.unicamp.engsoft.eleicao.votacao.dto.DefinirPeriodoRequest;
+import com.unicamp.engsoft.eleicao.votacao.dto.PropostaRequest;
+import com.unicamp.engsoft.eleicao.votacao.dto.PropostasResponse;
 import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.AnulacaoVotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.AutorizacaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
 import com.unicamp.engsoft.eleicao.votacao.service.EleitorService;
+import com.unicamp.engsoft.eleicao.votacao.service.PropostaService;
 import com.unicamp.engsoft.eleicao.votacao.service.ResultadoVotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoStateService;
@@ -72,11 +76,13 @@ public class VotacaoViewController {
     private static final String NOVA = "votacoes/nova";
     private static final String REGRAS = "votacoes/regras";
     private static final String CANDIDATOS = "votacoes/candidatos";
+    private static final String PROPOSTAS = "votacoes/propostas";
     private static final String ELEITORES = "votacoes/eleitores";
     private static final String PAINEL = "votacoes/painel";
 
     private final VotacaoService votacaoService;
     private final CandidatoOuChapaService candidatoService;
+    private final PropostaService propostaService;
     private final EleitorService eleitorService;
     private final VotacaoStateService stateService;
     private final ResultadoVotacaoService resultadoService;
@@ -88,6 +94,7 @@ public class VotacaoViewController {
     public VotacaoViewController(
             VotacaoService votacaoService,
             CandidatoOuChapaService candidatoService,
+            PropostaService propostaService,
             EleitorService eleitorService,
             VotacaoStateService stateService,
             ResultadoVotacaoService resultadoService,
@@ -97,6 +104,7 @@ public class VotacaoViewController {
             Validator validator) {
         this.votacaoService = votacaoService;
         this.candidatoService = candidatoService;
+        this.propostaService = propostaService;
         this.eleitorService = eleitorService;
         this.stateService = stateService;
         this.resultadoService = resultadoService;
@@ -337,6 +345,84 @@ public class VotacaoViewController {
                 redirect);
     }
 
+    @GetMapping("/{votacaoId}/propostas")
+    @PreAuthorize(ADMIN)
+    public String propostas(@PathVariable UUID votacaoId, Model model) {
+        return prepararPropostas(carregar(votacaoId, model), model);
+    }
+
+    @PostMapping("/{votacaoId}/orcamento")
+    @PreAuthorize(ADMIN)
+    public String definirOrcamento(
+            @PathVariable UUID votacaoId,
+            @Valid @ModelAttribute("orcamentoForm") DefinirOrcamentoRequest request,
+            BindingResult erros,
+            Model model,
+            RedirectAttributes redirect) {
+        if (!erros.hasErrors()) {
+            try {
+                propostaService.definirOrcamento(votacaoId, request);
+                redirect.addFlashAttribute("sucesso", "Orçamento total salvo.");
+                return "redirect:/votacoes/" + votacaoId + "/propostas";
+            } catch (DomainException ex) {
+                erros.reject("orcamento.recusado", ex.getMessage());
+            }
+        }
+        return prepararPropostas(carregar(votacaoId, model), model);
+    }
+
+    @PostMapping("/{votacaoId}/propostas")
+    @PreAuthorize(ADMIN)
+    public String cadastrarProposta(
+            @PathVariable UUID votacaoId,
+            @Valid @ModelAttribute("propostaForm") PropostaRequest request,
+            BindingResult erros,
+            Model model,
+            RedirectAttributes redirect) {
+        if (!erros.hasErrors()) {
+            try {
+                propostaService.cadastrar(votacaoId, request);
+                redirect.addFlashAttribute("sucesso", "Proposta cadastrada.");
+                return "redirect:/votacoes/" + votacaoId + "/propostas";
+            } catch (DomainException ex) {
+                erros.reject("proposta.recusada", ex.getMessage());
+            }
+        }
+        return prepararPropostas(carregar(votacaoId, model), model);
+    }
+
+    @PostMapping("/{votacaoId}/propostas/{propostaId}/editar")
+    @PreAuthorize(ADMIN)
+    public String editarProposta(
+            @PathVariable UUID votacaoId,
+            @PathVariable UUID propostaId,
+            @Valid @ModelAttribute PropostaRequest request,
+            BindingResult erros,
+            RedirectAttributes redirect) {
+        if (erros.hasErrors()) {
+            redirect.addFlashAttribute("erro", "Dados inválidos para atualizar a proposta.");
+            return "redirect:/votacoes/" + votacaoId + "/propostas";
+        }
+        return executarERedirecionar(
+                () -> propostaService.editar(votacaoId, propostaId, request),
+                "Proposta atualizada.",
+                "/votacoes/" + votacaoId + "/propostas",
+                redirect);
+    }
+
+    @PostMapping("/{votacaoId}/propostas/{propostaId}/remover")
+    @PreAuthorize(ADMIN)
+    public String removerProposta(
+            @PathVariable UUID votacaoId,
+            @PathVariable UUID propostaId,
+            RedirectAttributes redirect) {
+        return executarERedirecionar(
+                () -> propostaService.remover(votacaoId, propostaId),
+                "Proposta removida.",
+                "/votacoes/" + votacaoId + "/propostas",
+                redirect);
+    }
+
     @GetMapping("/{votacaoId}/eleitores")
     @PreAuthorize(ADMIN)
     public String eleitores(@PathVariable UUID votacaoId, Model model) {
@@ -431,6 +517,25 @@ public class VotacaoViewController {
         return CANDIDATOS;
     }
 
+    private String prepararPropostas(Votacao votacao, Model model) {
+        PropostasResponse info = propostaService.listar(votacao.getId());
+        model.addAttribute("orcamentoTotal", info.orcamentoTotal());
+        model.addAttribute("propostas", info.propostas());
+        model.addAttribute("avisos", info.avisos());
+        if (!model.containsAttribute("orcamentoForm")) {
+            model.addAttribute("orcamentoForm", new DefinirOrcamentoRequest(info.orcamentoTotal()));
+        }
+        if (!model.containsAttribute("propostaForm")) {
+            model.addAttribute("propostaForm", new PropostaRequest(null, null, null));
+        }
+        model.addAttribute(
+                "editavel",
+                votacao.getTipo() == TipoVotacao.ORCAMENTO_PARTICIPATIVO
+                        && ComportamentosDeEstado.de(votacao.getEstado())
+                                .permite(OperacaoVotacao.GERENCIAR_PROPOSTAS));
+        return PROPOSTAS;
+    }
+
     private String prepararEleitores(Votacao votacao, Model model) {
         model.addAttribute("eleitores", eleitorService.listar(votacao.getId()));
         model.addAttribute(
@@ -445,6 +550,11 @@ public class VotacaoViewController {
         Apuracao apuracao = apuracaoRepository.findById(votacaoId).orElse(null);
         EstadoVotacao estado = votacao.getEstado();
         model.addAttribute("totalCandidatos", candidatoService.contar(votacaoId));
+        model.addAttribute(
+                "totalPropostas",
+                votacao.getTipo() == TipoVotacao.ORCAMENTO_PARTICIPATIVO
+                        ? propostaService.listar(votacaoId).propostas().size()
+                        : 0);
         model.addAttribute("totalEleitores", eleitorService.contar(votacaoId));
         model.addAttribute("podePublicar", estado == EstadoVotacao.RascunhoVotacao);
         model.addAttribute(

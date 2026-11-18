@@ -682,4 +682,46 @@ class VotacaoViewControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Fraude detectada")));
     }
+
+    @Test
+    @DisplayName("Tela de propostas do orçamento participativo configura orçamento, edita e remove")
+    void gerenciarPropostasNaTela() throws Exception {
+        Votacao op =
+                votacaoService.criarVotacao(
+                        new CriarVotacaoRequest(
+                                TipoVotacao.ORCAMENTO_PARTICIPATIVO,
+                                Instant.parse("2099-10-01T12:00:00Z"),
+                                Instant.parse("2099-10-02T12:00:00Z"),
+                                "Orçamento 2099",
+                                "Melhorias no campus"),
+                        admin.getId());
+
+        mvc.perform(get("/votacoes/{id}/propostas", op.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Orçamento total")));
+
+        mvc.perform(
+                        post("/votacoes/{id}/orcamento", op.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("orcamentoTotal", "500.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + op.getId() + "/propostas"))
+                .andExpect(flash().attributeExists("sucesso"));
+
+        mvc.perform(
+                        post("/votacoes/{id}/propostas", op.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("titulo", "Iluminação")
+                                .param("descricao", "Postes LED")
+                                .param("custo", "200.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + op.getId() + "/propostas"));
+
+        mvc.perform(get("/votacoes/{id}", op.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("500.00")))
+                .andExpect(content().string(containsString("<dd>1</dd>")));
+    }
 }

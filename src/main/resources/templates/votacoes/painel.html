@@ -68,8 +68,13 @@
                       th:text="|· quórum de ${v.regras.quorumMinimoPercentual}%|"></span>
                 <span th:if="${v.regras.votoPonderado}">· voto ponderado</span>
             </dd>
-            <dt>Candidatos/chapas</dt>
-            <dd th:text="${totalCandidatos}">0</dd>
+            <dt th:if="${v.tipo.name() == 'ELEICAO_PRIVADA'}">Candidatos/chapas</dt>
+            <dd th:if="${v.tipo.name() == 'ELEICAO_PRIVADA'}" th:text="${totalCandidatos}">0</dd>
+            <dt th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}">Orçamento total</dt>
+            <dd th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}"
+                th:text="${v.orcamentoTotal != null ? v.orcamentoTotal : 'Não definido'}">0</dd>
+            <dt th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}">Propostas</dt>
+            <dd th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}" th:text="${totalPropostas}">0</dd>
             <dt>Eleitores</dt>
             <dd th:text="${totalEleitores}">0</dd>
         </dl>
