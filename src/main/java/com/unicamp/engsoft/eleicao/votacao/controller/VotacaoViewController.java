@@ -2,6 +2,7 @@ package com.unicamp.engsoft.eleicao.votacao.controller;
 
 import com.unicamp.engsoft.eleicao.shared.exception.DomainException;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
+import com.unicamp.engsoft.eleicao.votacao.domain.Apuracao;
 import com.unicamp.engsoft.eleicao.votacao.domain.ComportamentosDeEstado;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.OperacaoVotacao;
@@ -14,16 +15,24 @@ import com.unicamp.engsoft.eleicao.votacao.dto.CadastrarCandidatoRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoForm;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoRequest;
+import com.unicamp.engsoft.eleicao.votacao.dto.DefinirPeriodoForm;
+import com.unicamp.engsoft.eleicao.votacao.dto.DefinirPeriodoRequest;
+import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
+import com.unicamp.engsoft.eleicao.votacao.service.AnulacaoVotacaoService;
+import com.unicamp.engsoft.eleicao.votacao.service.AutorizacaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
 import com.unicamp.engsoft.eleicao.votacao.service.EleitorService;
+import com.unicamp.engsoft.eleicao.votacao.service.ResultadoVotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoStateService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -34,6 +43,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
@@ -55,16 +65,24 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class VotacaoViewController {
 
     private static final String ADMIN = "@autorizacaoVotacao.ehAdmin(#votacaoId, authentication)";
+    private static final String ADMIN_OU_ELEITOR =
+            "@autorizacaoVotacao.ehAdmin(#votacaoId, authentication) or"
+                    + " @autorizacaoVotacao.ehEleitor(#votacaoId, authentication)";
 
     private static final String NOVA = "votacoes/nova";
     private static final String REGRAS = "votacoes/regras";
     private static final String CANDIDATOS = "votacoes/candidatos";
     private static final String ELEITORES = "votacoes/eleitores";
+    private static final String PAINEL = "votacoes/painel";
 
     private final VotacaoService votacaoService;
     private final CandidatoOuChapaService candidatoService;
     private final EleitorService eleitorService;
     private final VotacaoStateService stateService;
+    private final ResultadoVotacaoService resultadoService;
+    private final AnulacaoVotacaoService anulacaoService;
+    private final ApuracaoRepository apuracaoRepository;
+    private final AutorizacaoVotacao autorizacaoVotacao;
     private final Validator validator;
 
     public VotacaoViewController(
@@ -72,11 +90,19 @@ public class VotacaoViewController {
             CandidatoOuChapaService candidatoService,
             EleitorService eleitorService,
             VotacaoStateService stateService,
+            ResultadoVotacaoService resultadoService,
+            AnulacaoVotacaoService anulacaoService,
+            ApuracaoRepository apuracaoRepository,
+            AutorizacaoVotacao autorizacaoVotacao,
             Validator validator) {
         this.votacaoService = votacaoService;
         this.candidatoService = candidatoService;
         this.eleitorService = eleitorService;
         this.stateService = stateService;
+        this.resultadoService = resultadoService;
+        this.anulacaoService = anulacaoService;
+        this.apuracaoRepository = apuracaoRepository;
+        this.autorizacaoVotacao = autorizacaoVotacao;
         this.validator = validator;
     }
 
@@ -111,10 +137,7 @@ public class VotacaoViewController {
             return NOVA;
         }
         CriarVotacaoRequest request = form.paraRequest(RotulosVotacao.FUSO);
-        for (ConstraintViolation<CriarVotacaoRequest> violacao : validator.validate(request)) {
-            erros.rejectValue(
-                    violacao.getPropertyPath().toString(), "invalido", violacao.getMessage());
-        }
+        validarRequest(request, erros);
         if (erros.hasErrors()) {
             return NOVA;
         }
@@ -133,10 +156,32 @@ public class VotacaoViewController {
     @PreAuthorize(ADMIN)
     public String painel(@PathVariable UUID votacaoId, Model model) {
         Votacao votacao = carregar(votacaoId, model);
-        model.addAttribute("totalCandidatos", candidatoService.contar(votacaoId));
-        model.addAttribute("totalEleitores", eleitorService.contar(votacaoId));
-        model.addAttribute("podePublicar", votacao.getEstado() == EstadoVotacao.RascunhoVotacao);
-        return "votacoes/painel";
+        model.addAttribute("periodoForm", periodoInicial(votacao));
+        return prepararPainel(votacao, model);
+    }
+
+    @PostMapping("/{votacaoId}/periodo")
+    @PreAuthorize(ADMIN)
+    public String definirPeriodo(
+            @PathVariable UUID votacaoId,
+            @ModelAttribute("periodoForm") DefinirPeriodoForm form,
+            BindingResult erros,
+            Model model,
+            RedirectAttributes redirect) {
+        if (!erros.hasErrors()) {
+            DefinirPeriodoRequest request = form.paraRequest(RotulosVotacao.FUSO);
+            validarRequest(request, erros);
+            if (!erros.hasErrors()) {
+                try {
+                    votacaoService.definirPeriodo(votacaoId, request.inicioEm(), request.fimEm());
+                    redirect.addFlashAttribute("sucesso", "Período da votação salvo.");
+                    return "redirect:/votacoes/" + votacaoId;
+                } catch (DomainException ex) {
+                    erros.reject("periodo.recusado", ex.getMessage());
+                }
+            }
+        }
+        return prepararPainel(carregar(votacaoId, model), model);
     }
 
     /**
@@ -157,6 +202,71 @@ public class VotacaoViewController {
                 "Votação publicada.",
                 "/votacoes/" + votacaoId,
                 redirect);
+    }
+
+    @PostMapping("/{votacaoId}/encerrar")
+    @PreAuthorize(ADMIN)
+    public String encerrar(
+            @PathVariable UUID votacaoId,
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
+            RedirectAttributes redirect) {
+        return executarERedirecionar(
+                () ->
+                        stateService.transitar(
+                                votacaoId, EstadoVotacao.Encerrada, usuario.getId(), null),
+                "Resultado publicado.",
+                "/votacoes/" + votacaoId + "/resultado",
+                redirect);
+    }
+
+    @PostMapping("/{votacaoId}/homologar")
+    @PreAuthorize(ADMIN)
+    public String homologar(
+            @PathVariable UUID votacaoId,
+            @RequestParam(required = false) String motivo,
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
+            RedirectAttributes redirect) {
+        String motivoNormalizado = motivo == null || motivo.isBlank() ? null : motivo.strip();
+        return executarERedirecionar(
+                () ->
+                        stateService.transitar(
+                                votacaoId,
+                                EstadoVotacao.Homologada,
+                                usuario.getId(),
+                                motivoNormalizado),
+                "Resultado homologado.",
+                "/votacoes/" + votacaoId + "/resultado",
+                redirect);
+    }
+
+    @PostMapping("/{votacaoId}/anular")
+    @PreAuthorize(ADMIN)
+    public String anular(
+            @PathVariable UUID votacaoId,
+            @RequestParam(defaultValue = "") String justificativa,
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
+            RedirectAttributes redirect) {
+        return executarERedirecionar(
+                () ->
+                        anulacaoService.anularPorIrregularidade(
+                                votacaoId, usuario.getId(), justificativa),
+                "Votação anulada.",
+                "/votacoes/" + votacaoId + "/resultado",
+                redirect);
+    }
+
+    @GetMapping("/{votacaoId}/resultado")
+    @PreAuthorize(ADMIN_OU_ELEITOR)
+    public String resultado(
+            @PathVariable UUID votacaoId,
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
+            Authentication autenticacao,
+            Model model) {
+        model.addAttribute("v", votacaoService.buscar(votacaoId));
+        model.addAttribute(
+                "resultado", resultadoService.consultarResultado(votacaoId, usuario.getId()));
+        model.addAttribute("ehAdmin", autorizacaoVotacao.ehAdmin(votacaoId, autenticacao));
+        return "votacoes/resultado";
     }
 
     @GetMapping("/{votacaoId}/regras")
@@ -328,6 +438,47 @@ public class VotacaoViewController {
                 votacao.getRegras() != null && votacao.getRegras().votoPonderado());
         editavel(votacao, OperacaoVotacao.GERENCIAR_ELEITORES, model);
         return ELEITORES;
+    }
+
+    private String prepararPainel(Votacao votacao, Model model) {
+        UUID votacaoId = votacao.getId();
+        Apuracao apuracao = apuracaoRepository.findById(votacaoId).orElse(null);
+        EstadoVotacao estado = votacao.getEstado();
+        model.addAttribute("totalCandidatos", candidatoService.contar(votacaoId));
+        model.addAttribute("totalEleitores", eleitorService.contar(votacaoId));
+        model.addAttribute("podePublicar", estado == EstadoVotacao.RascunhoVotacao);
+        model.addAttribute(
+                "editavelPeriodo",
+                ComportamentosDeEstado.de(estado).permite(OperacaoVotacao.CONFIGURAR_PERIODO));
+        model.addAttribute("apuracao", apuracao);
+        model.addAttribute(
+                "podeEncerrar",
+                estado == EstadoVotacao.Apuracao && apuracao != null && apuracao.quorumAtingido());
+        model.addAttribute("podeAnular", estado == EstadoVotacao.Apuracao);
+        model.addAttribute("podeHomologar", estado == EstadoVotacao.Encerrada);
+        model.addAttribute(
+                "temResultadoOuAnulacao",
+                estado == EstadoVotacao.Encerrada
+                        || estado == EstadoVotacao.Homologada
+                        || estado == EstadoVotacao.Anulada
+                        || (estado == EstadoVotacao.Apuracao && apuracao != null));
+        return PAINEL;
+    }
+
+    private static DefinirPeriodoForm periodoInicial(Votacao votacao) {
+        if (votacao.getInicioEm() == null || votacao.getFimEm() == null) {
+            return DefinirPeriodoForm.vazio();
+        }
+        return new DefinirPeriodoForm(
+                LocalDateTime.ofInstant(votacao.getInicioEm(), RotulosVotacao.FUSO),
+                LocalDateTime.ofInstant(votacao.getFimEm(), RotulosVotacao.FUSO));
+    }
+
+    private <T> void validarRequest(T request, BindingResult erros) {
+        for (ConstraintViolation<T> violacao : validator.validate(request)) {
+            erros.rejectValue(
+                    violacao.getPropertyPath().toString(), "invalido", violacao.getMessage());
+        }
     }
 
     private static ConfigurarRegrasRequest paraFormulario(RegraVotacao regra) {

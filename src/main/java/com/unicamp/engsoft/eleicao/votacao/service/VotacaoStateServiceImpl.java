@@ -4,6 +4,8 @@ import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Anulada;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Apuracao;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Cancelada;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.EmVotacao;
+import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Encerrada;
+import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Homologada;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Publicada;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.RascunhoVotacao;
 import static com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao.Suspensa;
@@ -12,12 +14,14 @@ import static com.unicamp.engsoft.eleicao.votacao.domain.OrigemTransicao.USUARIO
 
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
+import com.unicamp.engsoft.eleicao.votacao.domain.Apuracao;
 import com.unicamp.engsoft.eleicao.votacao.domain.ApuracaoIniciada;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.OrigemTransicao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoInvalidaException;
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
+import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.TransicaoVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import java.time.Clock;
@@ -73,7 +77,11 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
                             Map.of(
                                     EmVotacao, Set.of(USUARIO),
                                     Cancelada, Set.of(USUARIO)),
-                    Apuracao, Map.of(Anulada, Set.of(USUARIO, SISTEMA)));
+                    Apuracao,
+                            Map.of(
+                                    Anulada, Set.of(USUARIO, SISTEMA),
+                                    Encerrada, Set.of(USUARIO)),
+                    Encerrada, Map.of(Homologada, Set.of(USUARIO)));
 
     /**
      * Transições que interrompem uma votação em andamento: sem justificativa registrada, a
@@ -97,6 +105,7 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
 
     private final VotacaoRepository votacaoRepository;
     private final TransicaoVotacaoRepository transicaoRepository;
+    private final ApuracaoRepository apuracaoRepository;
     private final List<GuardaPublicacao> guardasPublicacao;
     private final Clock clock;
     private final MetricasVotacao metricas;
@@ -105,12 +114,14 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
     public VotacaoStateServiceImpl(
             VotacaoRepository votacaoRepository,
             TransicaoVotacaoRepository transicaoRepository,
+            ApuracaoRepository apuracaoRepository,
             List<GuardaPublicacao> guardasPublicacao,
             Clock clock,
             MetricasVotacao metricas,
             ApplicationEventPublisher eventos) {
         this.votacaoRepository = votacaoRepository;
         this.transicaoRepository = transicaoRepository;
+        this.apuracaoRepository = apuracaoRepository;
         this.guardasPublicacao = List.copyOf(guardasPublicacao);
         this.clock = clock;
         this.metricas = metricas;
@@ -194,6 +205,22 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
         }
         if (destino == Publicada) {
             guardasPublicacao.forEach(guarda -> guarda.validar(votacaoId));
+        }
+        if (destino == Encerrada) {
+            Apuracao apuracao =
+                    apuracaoRepository
+                            .findById(votacaoId)
+                            .orElseThrow(
+                                    () ->
+                                            new TransicaoInvalidaException(
+                                                    votacaoId,
+                                                    atual,
+                                                    destino,
+                                                    "a apuração ainda não foi concluída"));
+            if (!apuracao.quorumAtingido()) {
+                throw new TransicaoInvalidaException(
+                        votacaoId, atual, destino, "o quórum mínimo não foi atingido");
+            }
         }
 
         if (novoFimEm != null) {

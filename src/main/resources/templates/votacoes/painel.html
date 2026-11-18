@@ -20,10 +20,36 @@
             <dt>Tipo</dt>
             <dd th:text="${@rotulosVotacao.tipo(v.tipo)}">Eleição privada</dd>
             <dt>Início</dt>
-            <dd><time th:datetime="${v.inicioEm}" th:text="${@rotulosVotacao.dataHora(v.inicioEm)}"></time></dd>
+            <dd>
+                <time th:if="${v.inicioEm != null}" th:datetime="${v.inicioEm}" th:text="${@rotulosVotacao.dataHora(v.inicioEm)}"></time>
+                <span th:if="${v.inicioEm == null}">A definir</span>
+            </dd>
             <dt>Fim</dt>
-            <dd><time th:datetime="${v.fimEm}" th:text="${@rotulosVotacao.dataHora(v.fimEm)}"></time></dd>
+            <dd>
+                <time th:if="${v.fimEm != null}" th:datetime="${v.fimEm}" th:text="${@rotulosVotacao.dataHora(v.fimEm)}"></time>
+                <span th:if="${v.fimEm == null}">A definir</span>
+            </dd>
         </dl>
+    </section>
+
+    <section th:if="${editavelPeriodo}" aria-labelledby="titulo-periodo">
+        <h2 id="titulo-periodo">Período da votação</h2>
+        <form th:action="@{/votacoes/{id}/periodo(id=${v.id})}" th:object="${periodoForm}" method="post" class="formulario">
+            <div th:if="${#fields.hasGlobalErrors()}" class="alerta erro" role="alert">
+                <p th:each="e : ${#fields.globalErrors()}" th:text="${e}"></p>
+            </div>
+            <div class="campo">
+                <label for="inicioEm">Início</label>
+                <input id="inicioEm" type="datetime-local" th:field="*{inicioEm}" required>
+                <p th:if="${#fields.hasErrors('inicioEm')}" th:errors="*{inicioEm}" class="erro-campo"></p>
+            </div>
+            <div class="campo">
+                <label for="fimEm">Fim</label>
+                <input id="fimEm" type="datetime-local" th:field="*{fimEm}" required>
+                <p th:if="${#fields.hasErrors('fimEm')}" th:errors="*{fimEm}" class="erro-campo"></p>
+            </div>
+            <button type="submit">Salvar período</button>
+        </form>
     </section>
 
     <section aria-labelledby="titulo-config">
@@ -55,6 +81,41 @@
             eleitores, e abre automaticamente na data de início.</p>
         <form th:action="@{/votacoes/{id}/publicar(id=${v.id})}" method="post">
             <button type="submit">Publicar votação</button>
+        </form>
+    </section>
+
+    <section th:if="${temResultadoOuAnulacao or podeEncerrar or podeHomologar or podeAnular}"
+             aria-labelledby="titulo-resultado-painel">
+        <h2 id="titulo-resultado-painel">Apuração e resultado</h2>
+        <p th:if="${temResultadoOuAnulacao}">
+            <a th:href="@{/votacoes/{id}/resultado(id=${v.id})}" class="botao">Ver resultado</a>
+        </p>
+        <p th:if="${apuracao != null and apuracao.segundoTurnoId != null}">
+            Foi gerada uma votação de segundo turno:
+            <a th:href="@{/votacoes/{id}(id=${apuracao.segundoTurnoId})}">Configurar 2º turno</a>.
+        </p>
+
+        <form th:if="${podeEncerrar}" th:action="@{/votacoes/{id}/encerrar(id=${v.id})}" method="post"
+              style="margin-top: 0.75rem;">
+            <button type="submit">Publicar resultado</button>
+        </form>
+
+        <form th:if="${podeHomologar}" th:action="@{/votacoes/{id}/homologar(id=${v.id})}" method="post"
+              class="formulario" style="margin-top: 0.75rem;">
+            <div class="campo">
+                <label for="motivoHomologacao">Observação da homologação (opcional)</label>
+                <input id="motivoHomologacao" type="text" name="motivo" maxlength="500">
+            </div>
+            <button type="submit">Homologar resultado</button>
+        </form>
+
+        <form th:if="${podeAnular}" th:action="@{/votacoes/{id}/anular(id=${v.id})}" method="post"
+              class="formulario" style="margin-top: 1rem;">
+            <div class="campo">
+                <label for="justificativaAnulacao">Justificativa para anulação por irregularidade</label>
+                <input id="justificativaAnulacao" type="text" name="justificativa" maxlength="500" required>
+            </div>
+            <button type="submit" class="secundario">Anular votação</button>
         </form>
     </section>
 </main>
