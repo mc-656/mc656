@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
     <h1 th:text="${votacao.nome}">Votação</h1>
 
@@ -30,13 +30,13 @@
 
     <!-- Bloqueio: eleitor já votou (RF-14) -->
     <div th:if="${jaVotou}" class="alerta">
-        <h3>Voto já registrado</h3>
+        <h2>Voto já registrado</h2>
         <p>Você já registrou seu voto nesta votação. O sistema assegura o princípio do voto único (RF-14) e o sigilo do voto (RNF-02).</p>
     </div>
 
     <!-- Bloqueio: fora da janela de votação -->
     <div th:if="${!jaVotou and !aberta}" class="alerta">
-        <h3>Votação indisponível</h3>
+        <h2>Votação indisponível</h2>
         <p>Esta votação não está aberta para receber votos no momento. Votações só aceitam votos durante o período estabelecido e quando em andamento.</p>
     </div>
 
