@@ -26,7 +26,7 @@ jobs:
             group: ${{ github.workflow }}-${{ github.ref }}
             cancel-in-progress: true
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - uses: actions/setup-java@v6
               name: Setup Java
