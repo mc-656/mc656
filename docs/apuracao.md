@@ -88,9 +88,9 @@ sua resposta não devem expor opção, peso individual ou ID da cédula.
 
 ## Migração e validação
 
-A migração `V19__integra_apuracao_e_segundo_turno.sql` acrescenta o snapshot, o
+A migração `V20__integra_apuracao_e_segundo_turno.sql` acrescenta o snapshot, o
 vínculo de origem e o nascimento da opção. Permite datas nulas somente para
-votação derivada em rascunho. Foi usada uma nova versão após V18, em vez da reserva
+votação derivada em rascunho. Foi usada uma nova versão após V19, em vez da reserva
 V9 antiga da issue, para preservar bancos que já aplicaram a cadeia existente.
 
 Os testes cobrem maiorias simples/absoluta/qualificada com votos reais, pesos,

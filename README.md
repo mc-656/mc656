@@ -115,6 +115,9 @@ Documentação da API (Swagger UI): `http://localhost:8080/swagger-ui.html`
 Apuração de eleições privadas (#50): veja o [fluxo, snapshot e configuração do
 segundo turno](docs/apuracao.md).
 
+Comprovante anônimo de voto (#83): veja o [contrato de verificação e a dependência
+da integração da apuração](docs/comprovante-anonimo.md).
+
 ### Migrações de banco (Flyway)
 
 As migrações ficam em `src/main/resources/db/migration` e são aplicadas
