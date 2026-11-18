@@ -215,6 +215,23 @@ class EleicaoPublicaM4IntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.totalElementos", greaterThanOrEqualTo(2)))
                 .andExpect(jsonPath("$.itens", hasSize(2)));
 
+        mvc.perform(
+                        get("/api/eleicoes-publicas/{id}/conteudos", ELEICAO_2026)
+                                .param("size", "2")
+                                .param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(3))
+                .andExpect(jsonPath("$.totalPaginas").value(2))
+                .andExpect(jsonPath("$.itens", hasSize(1)));
+
+        mvc.perform(
+                        get("/api/eleicoes-publicas/{id}/conteudos", ELEICAO_2026)
+                                .param("size", "10")
+                                .param("page", "1000000000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(3))
+                .andExpect(jsonPath("$.itens", hasSize(0)));
+
         mvc.perform(get("/api/eleicoes-publicas/{id}/conteudos", ELEICAO_2026).param("page", "-1"))
                 .andExpect(status().isBadRequest());
 

@@ -401,12 +401,17 @@ public class EleicaoPublicaService {
 
         long totalElementos = filtrados.size();
         int totalPaginas = (int) Math.ceil((double) totalElementos / size);
-        int inicio = Math.min(page * size, filtrados.size());
-        int fim = Math.min(inicio + size, filtrados.size());
+        List<ConteudoPublicoItemResponse> pagina =
+                page >= totalPaginas
+                        ? List.of()
+                        : filtrados.stream()
+                                .skip(Math.multiplyFull(page, size))
+                                .limit(size)
+                                .toList();
 
         return new ConteudosEleicaoResponse(
                 EleicaoPublicaResponse.de(eleicao, LocalDate.now(clock)),
-                filtrados.subList(inicio, fim),
+                pagina,
                 page,
                 size,
                 totalElementos,
