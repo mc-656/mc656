@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'eleitores')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
@@ -53,17 +53,21 @@
 
             <label for="email">E-mail do usuário cadastrado</label>
             <input type="email" id="email" name="email" th:value="*{email}"
+                   th:aria-invalid="${#fields.hasErrors('email')}"
+                   th:aria-describedby="${#fields.hasErrors('email')} ? 'erro-email-eleitor' : null"
                    th:classappend="${#fields.hasErrors('email')} ? 'invalido'">
-            <p th:if="${#fields.hasErrors('email')}" th:errors="*{email}" class="erro-campo"></p>
+            <p id="erro-email-eleitor" th:if="${#fields.hasErrors('email')}" th:errors="*{email}" class="erro-campo" role="alert"></p>
 
             <label for="peso">Peso</label>
             <input type="number" id="peso" name="peso" th:value="*{peso}" step="0.01" min="0"
-                   placeholder="1" aria-describedby="ajuda-peso"
+                   placeholder="1"
+                   th:aria-invalid="${#fields.hasErrors('peso')}"
+                   aria-describedby="ajuda-peso erro-peso-eleitor"
                    th:classappend="${#fields.hasErrors('peso')} ? 'invalido'">
             <p id="ajuda-peso" class="ajuda"
                th:text="${votoPonderado} ? 'Em branco vale 1.' : 'Esta votação não usa voto ponderado: deixe em branco ou 1.'">
                 Em branco vale 1.</p>
-            <p th:if="${#fields.hasErrors('peso')}" th:errors="*{peso}" class="erro-campo"></p>
+            <p id="erro-peso-eleitor" th:if="${#fields.hasErrors('peso')}" th:errors="*{peso}" class="erro-campo" role="alert"></p>
 
             <button type="submit">Adicionar</button>
         </form>

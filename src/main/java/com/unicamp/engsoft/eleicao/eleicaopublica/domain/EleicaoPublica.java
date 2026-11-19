@@ -37,8 +37,21 @@ public class EleicaoPublica {
     @Column(name = "data_primeiro_turno", nullable = false)
     private LocalDate dataPrimeiroTurno;
 
+    @Column(name = "data_fim")
+    private LocalDate dataFim;
+
     @Column(nullable = false, length = 100)
     private String abrangencia;
 
     @Embedded private Fonte fonte;
+
+    public SituacaoEleicaoPublica situacaoEm(LocalDate hoje) {
+        if (hoje.isBefore(dataPrimeiroTurno)) {
+            return SituacaoEleicaoPublica.FUTURA;
+        }
+        LocalDate fimEfetivo = dataFim != null ? dataFim : dataPrimeiroTurno;
+        return hoje.isAfter(fimEfetivo)
+                ? SituacaoEleicaoPublica.ENCERRADA
+                : SituacaoEleicaoPublica.ATIVA;
+    }
 }
