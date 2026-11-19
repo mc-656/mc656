@@ -9,15 +9,22 @@ import static org.mockito.Mockito.when;
 
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
+import com.unicamp.engsoft.eleicao.votacao.domain.Apuracao;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.OrigemTransicao;
+import com.unicamp.engsoft.eleicao.votacao.domain.RegraVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.ResultadoApuracao;
+import com.unicamp.engsoft.eleicao.votacao.domain.StatusApuracao;
+import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoInvalidaException;
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
+import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.TransicaoVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -78,6 +85,8 @@ class VotacaoStateServiceImplTest {
 
     @Mock TransicaoVotacaoRepository transicaoRepository;
 
+    @Mock ApuracaoRepository apuracaoRepository;
+
     /** Guardas falsas: registram as chamadas e falham quando configuradas para isso. */
     private final List<UUID> guardasChamadas = new ArrayList<>();
 
@@ -100,6 +109,7 @@ class VotacaoStateServiceImplTest {
                 new VotacaoStateServiceImpl(
                         votacaoRepository,
                         transicaoRepository,
+                        apuracaoRepository,
                         List.of(guardaQueRegistra, guardaQuePodeFalhar),
                         Clock.fixed(AGORA, ZoneOffset.UTC),
                         new MetricasVotacao(metricas, votacaoRepository),
@@ -142,7 +152,8 @@ class VotacaoStateServiceImplTest {
         "EmVotacao, Cancelada, USUARIO",
         "Suspensa, Cancelada, USUARIO",
         "Apuracao, Anulada, USUARIO",
-        "Apuracao, Anulada, SISTEMA"
+        "Apuracao, Anulada, SISTEMA",
+        "Encerrada, Homologada, USUARIO"
     })
     @DisplayName("CE-V1: transições válidas alteram o estado e geram auditoria")
     void transicoesValidas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
@@ -185,7 +196,10 @@ class VotacaoStateServiceImplTest {
         "Anulada, Encerrada, USUARIO",
         "Anulada, Encerrada, SISTEMA",
         "Anulada, Apuracao, SISTEMA",
-        "Anulada, Cancelada, USUARIO"
+        "Anulada, Cancelada, USUARIO",
+        "Homologada, Encerrada, USUARIO",
+        "Homologada, Anulada, USUARIO",
+        "Homologada, Cancelada, USUARIO"
     })
     @DisplayName("CE-I2: transições não previstas são rejeitadas sem alterar estado nem auditar")
     void transicoesNaoPrevistas(EstadoVotacao origem, EstadoVotacao destino, OrigemTransicao quem) {
@@ -206,7 +220,9 @@ class VotacaoStateServiceImplTest {
         "Publicada, Cancelada",
         "EmVotacao, Suspensa",
         "Suspensa, EmVotacao",
-        "Suspensa, Cancelada"
+        "Suspensa, Cancelada",
+        "Apuracao, Encerrada",
+        "Encerrada, Homologada"
     })
     @DisplayName("CE-I4: sistema não dispara transição que exige ação de um usuário")
     void sistemaEmTransicaoDeUsuario(EstadoVotacao origem, EstadoVotacao destino) {
@@ -239,11 +255,13 @@ class VotacaoStateServiceImplTest {
     }
 
     @Test
-    @DisplayName("CE-I2: Anulada e Cancelada são finais: não têm nenhuma transição de saída")
+    @DisplayName(
+            "CE-I2: Homologada, Anulada e Cancelada são finais: não têm nenhuma transição de saída")
     void estadosFinaisSemSaida() {
         // Assert
         assertThat(VotacaoStateServiceImpl.TRANSICOES)
-                .doesNotContainKeys(EstadoVotacao.Anulada, EstadoVotacao.Cancelada);
+                .doesNotContainKeys(
+                        EstadoVotacao.Homologada, EstadoVotacao.Anulada, EstadoVotacao.Cancelada);
     }
 
     @Test
@@ -615,5 +633,75 @@ class VotacaoStateServiceImplTest {
                                 .mapToDouble(c -> c.count())
                                 .sum())
                 .isZero();
+    }
+
+    @Test
+    @DisplayName("Apuracao -> Encerrada exige snapshot persistido com quórum atingido")
+    void apuracaoParaEncerradaComSnapshot() {
+        Votacao votacao = votacaoEm(EstadoVotacao.Apuracao);
+        Apuracao snapshot =
+                new Apuracao(
+                        VOTACAO,
+                        AGORA,
+                        new RegraVotacao(TipoMaioria.MAIORIA_SIMPLES, null, false, null, false),
+                        new ResultadoApuracao(
+                                StatusApuracao.DEFINIDO,
+                                UUID.randomUUID(),
+                                List.of(),
+                                List.of(),
+                                BigDecimal.ONE,
+                                1,
+                                1,
+                                new BigDecimal("100.00"),
+                                true),
+                        1,
+                        null);
+        when(apuracaoRepository.findById(VOTACAO)).thenReturn(Optional.of(snapshot));
+
+        service.transitar(VOTACAO, EstadoVotacao.Encerrada, ADMIN, "publicar resultado");
+
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Encerrada);
+        assertThat(auditoriaSalva().getEstadoNovo()).isEqualTo(EstadoVotacao.Encerrada);
+    }
+
+    @Test
+    @DisplayName("Apuracao -> Encerrada recusa quando falta snapshot ou quórum não foi atingido")
+    void apuracaoParaEncerradaRecusaSemSnapshotOuSemQuorum() {
+        Votacao votacao = votacaoEm(EstadoVotacao.Apuracao);
+        when(apuracaoRepository.findById(VOTACAO)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.transitar(VOTACAO, EstadoVotacao.Encerrada, ADMIN, null))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("apuração ainda não foi concluída");
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Apuracao);
+
+        Apuracao semQuorum =
+                new Apuracao(
+                        VOTACAO,
+                        AGORA,
+                        new RegraVotacao(
+                                TipoMaioria.MAIORIA_SIMPLES,
+                                null,
+                                false,
+                                new BigDecimal("50"),
+                                false),
+                        new ResultadoApuracao(
+                                StatusApuracao.QUORUM_NAO_ATINGIDO,
+                                null,
+                                List.of(),
+                                List.of(),
+                                BigDecimal.ZERO,
+                                1,
+                                4,
+                                new BigDecimal("25.00"),
+                                false),
+                        1,
+                        null);
+        when(apuracaoRepository.findById(VOTACAO)).thenReturn(Optional.of(semQuorum));
+
+        assertThatThrownBy(() -> service.transitar(VOTACAO, EstadoVotacao.Encerrada, ADMIN, null))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("quórum mínimo não foi atingido");
+        assertThat(votacao.getEstado()).isEqualTo(EstadoVotacao.Apuracao);
     }
 }

@@ -10,4 +10,6 @@ public interface ApuracaoRepository extends Repository<Apuracao, UUID> {
     Apuracao save(Apuracao apuracao);
 
     Optional<Apuracao> findById(UUID votacaoId);
+
+    boolean existsByVotacaoId(UUID votacaoId);
 }

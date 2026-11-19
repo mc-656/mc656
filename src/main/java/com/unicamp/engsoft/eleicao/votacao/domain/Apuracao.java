@@ -28,12 +28,16 @@ public class Apuracao {
     private Instant concluidaEm;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, updatable = false, columnDefinition = "jsonb")
+    @Column(updatable = false, columnDefinition = "jsonb")
     private RegraVotacao regra;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, updatable = false, columnDefinition = "jsonb")
+    @Column(updatable = false, columnDefinition = "jsonb")
     private ResultadoApuracao resultado;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "resultado_orcamento", updatable = false, columnDefinition = "jsonb")
+    private ResultadoApuracaoOrcamento resultadoOrcamento;
 
     @Column(name = "total_cedulas", nullable = false, updatable = false)
     private long totalCedulas;
@@ -54,5 +58,25 @@ public class Apuracao {
         this.resultado = resultado;
         this.totalCedulas = totalCedulas;
         this.segundoTurnoId = segundoTurnoId;
+    }
+
+    public static Apuracao deOrcamento(
+            UUID votacaoId,
+            Instant concluidaEm,
+            RegraVotacao regra,
+            ResultadoApuracaoOrcamento resultadoOrcamento,
+            long totalCedulas) {
+        Apuracao apuracao = new Apuracao();
+        apuracao.votacaoId = votacaoId;
+        apuracao.concluidaEm = concluidaEm;
+        apuracao.regra = regra;
+        apuracao.resultadoOrcamento = resultadoOrcamento;
+        apuracao.totalCedulas = totalCedulas;
+        return apuracao;
+    }
+
+    public boolean quorumAtingido() {
+        return (resultado != null && resultado.quorumAtingido())
+                || (resultadoOrcamento != null && resultadoOrcamento.quorumAtingido());
     }
 }

@@ -18,6 +18,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.VotoForaDaJanelaException;
 import com.unicamp.engsoft.eleicao.votacao.dto.ComprovanteResponse;
 import com.unicamp.engsoft.eleicao.votacao.dto.SituacaoApuracaoComprovante;
 import com.unicamp.engsoft.eleicao.votacao.dto.VerificacaoComprovanteResponse;
+import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CedulaOrcamentoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CedulaRepository;
@@ -69,6 +70,7 @@ public class RegistroVotoService {
     private final CedulaRepository cedulaRepository;
     private final CedulaOrcamentoRepository cedulaOrcamentoRepository;
     private final ComprovanteService comprovanteService;
+    private final ApuracaoRepository apuracaoRepository;
     private final Clock clock;
     private final MetricasVotacao metricasVotacao;
 
@@ -81,6 +83,7 @@ public class RegistroVotoService {
             CedulaRepository cedulaRepository,
             CedulaOrcamentoRepository cedulaOrcamentoRepository,
             ComprovanteService comprovanteService,
+            ApuracaoRepository apuracaoRepository,
             Clock clock,
             MetricasVotacao metricasVotacao) {
         this.votacaoRepository = votacaoRepository;
@@ -91,6 +94,7 @@ public class RegistroVotoService {
         this.cedulaRepository = cedulaRepository;
         this.cedulaOrcamentoRepository = cedulaOrcamentoRepository;
         this.comprovanteService = comprovanteService;
+        this.apuracaoRepository = apuracaoRepository;
         this.clock = clock;
         this.metricasVotacao = metricasVotacao;
     }
@@ -179,13 +183,16 @@ public class RegistroVotoService {
                 votacaoRepository
                         .findById(dados.votacaoId())
                         .orElseThrow(ComprovanteInvalidoException::new);
-        // Apuracao/Encerrada/Homologada não provam que esta cédula entrou na contagem.
-        // A confirmação depende da integração com a evidência persistida da apuração (#83).
+        // Apuracao/Encerrada/Homologada isolados não bastam: confirma inclusão apenas quando há
+        // snapshot persistido garantindo que todas as cédulas imutáveis da votação foram contadas.
         SituacaoApuracaoComprovante situacao =
                 switch (votacao.getEstado()) {
                     case Anulada -> SituacaoApuracaoComprovante.VOTACAO_ANULADA;
                     case Cancelada -> SituacaoApuracaoComprovante.VOTACAO_CANCELADA;
-                    default -> SituacaoApuracaoComprovante.NAO_CONFIRMADA;
+                    default ->
+                            apuracaoRepository.existsByVotacaoId(dados.votacaoId())
+                                    ? SituacaoApuracaoComprovante.INCLUIDA_NA_APURACAO
+                                    : SituacaoApuracaoComprovante.NAO_CONFIRMADA;
                 };
         return new VerificacaoComprovanteResponse(dados.votacaoId(), dados.emitidoEm(), situacao);
     }
