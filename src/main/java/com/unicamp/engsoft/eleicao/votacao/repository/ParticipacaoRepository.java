@@ -14,5 +14,7 @@ public interface ParticipacaoRepository extends Repository<Participacao, UUID> {
     /** Insere a participação e já sincroniza, para a {@code UNIQUE} estourar dentro do service. */
     Participacao saveAndFlush(Participacao participacao);
 
+    long countByVotacaoId(UUID votacaoId);
+
     boolean existsByUsuarioIdAndVotacaoId(UUID usuarioId, UUID votacaoId);
 }

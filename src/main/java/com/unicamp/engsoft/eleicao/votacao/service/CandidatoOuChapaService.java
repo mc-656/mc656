@@ -46,7 +46,9 @@ public class CandidatoOuChapaService {
             throw new RegraDeNegocioException(
                     "Já existe candidato/chapa com o nome '%s' nesta votação".formatted(nome));
         }
-        return candidatoRepository.save(new CandidatoOuChapa(votacaoId, nome, request.descricao()));
+        return candidatoRepository.save(
+                new CandidatoOuChapa(
+                        votacaoId, nome, request.descricao(), request.dataNascimento()));
     }
 
     @Transactional(readOnly = true)
