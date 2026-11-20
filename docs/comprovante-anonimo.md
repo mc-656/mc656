@@ -21,6 +21,7 @@ Uma resposta de sucesso confirma o registro da cédula. `situacaoApuracao` pode 
 | Valor | Significado |
 | --- | --- |
 | `NAO_CONFIRMADA` | Não há confirmação de inclusão da cédula na apuração. |
+| `INCLUIDA_NA_APURACAO` | A cédula é imutável e há snapshot persistido em `apuracoes` confirmando sua contagem. |
 | `VOTACAO_ANULADA` | O registro continua verificável, mas a votação foi anulada. |
 | `VOTACAO_CANCELADA` | O registro continua verificável, mas a votação foi cancelada. |
 
@@ -33,23 +34,24 @@ O eleitor recebe o código imediatamente após votar. Na interface, o código é
 entregue por flash attribute; atualizar a página não emite uma segunda via.
 O eleitor deve guardar o código. A verificação continua exigindo autenticação.
 
-## Dependência para concluir o aceite de inclusão na apuração
+## Garantia de inclusão na apuração
 
-**A issue #83 ainda não atende integralmente o critério de comprovar que o voto
-foi contado.** Nesta branch, o motor matemático existe, mas falta sua integração
-com execução e persistência da apuração. Essa integração fica fora desta mudança.
+A apuração (`ApuracaoService`) roda de forma síncrona na mesma transação em que
+a votação entra em `Apuracao`, lê **todas** as cédulas da votação sob lock de
+escrita e persiste o snapshot em `apuracoes`:
 
-Ao implementá-la:
-
-1. Persistir o resultado e a evidência de quais cédulas foram processadas na mesma
-   transação. Se todas as cédulas imutáveis forem obrigatoriamente processadas,
-   documentar e garantir essa invariante para usar evidência por votação.
-2. Consultar essa evidência em `RegistroVotoService.verificar` e adicionar um
-   estado explícito de inclusão confirmada ao contrato e à tela.
-3. Testar voto → código recebido → registro pendente → apuração efetiva →
-   inclusão confirmada, incluindo falha/rollback da apuração e anulação posterior.
-4. Preservar o sigilo: nenhuma associação usuário–cédula, opção votada ou ID de
-   cédula deve ser exposta pela verificação.
-
-Não inferir inclusão a partir dos estados `Apuracao`, `Encerrada` ou `Homologada`.
-Os testes atuais verificam que esses estados isolados retornam `NAO_CONFIRMADA`.
+1. Como as cédulas são imutáveis e a entrada de novos votos é encerrada antes
+   da apuração, a existência do registro em `apuracoes` para a votação comprova
+   que todas as cédulas válidas daquela votação integraram a totalização; caso a
+   apuração falhe e sofra rollback, nenhum snapshot é gravado e o comprovante
+   permanece em `NAO_CONFIRMADA`.
+2. `RegistroVotoService.verificar` consulta essa evidência persistida em vez de
+   inferir inclusão pelo estado da votação — estados `Apuracao`, `Encerrada` ou
+   `Homologada` sem snapshot em `apuracoes` continuam retornando
+   `NAO_CONFIRMADA`.
+3. Se a votação for anulada (`Anulada`) ou cancelada (`Cancelada`), esse
+   estado prevalece na resposta (`VOTACAO_ANULADA` / `VOTACAO_CANCELADA`), mesmo
+   que o snapshot exista (caso típico da anulação automática por falta de
+   quórum).
+4. O sigilo (RNF-02) permanece preservado: nenhuma associação usuário–cédula,
+   opção votada ou identificador interno de cédula é exposta pela verificação.
