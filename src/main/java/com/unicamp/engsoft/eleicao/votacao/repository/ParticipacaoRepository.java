@@ -17,4 +17,6 @@ public interface ParticipacaoRepository extends Repository<Participacao, UUID> {
     long countByVotacaoId(UUID votacaoId);
 
     boolean existsByUsuarioIdAndVotacaoId(UUID usuarioId, UUID votacaoId);
+
+    long countByVotacaoId(UUID votacaoId);
 }
