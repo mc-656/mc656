@@ -102,7 +102,8 @@ class VotacaoStateServiceImplTest {
                         transicaoRepository,
                         List.of(guardaQueRegistra, guardaQuePodeFalhar),
                         Clock.fixed(AGORA, ZoneOffset.UTC),
-                        new MetricasVotacao(metricas, votacaoRepository));
+                        new MetricasVotacao(metricas, votacaoRepository),
+                        event -> {});
     }
 
     /** Votação em memória no estado pedido, devolvida pelo repositório mockado. */

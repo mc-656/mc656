@@ -12,6 +12,7 @@ import static com.unicamp.engsoft.eleicao.votacao.domain.OrigemTransicao.USUARIO
 
 import com.unicamp.engsoft.eleicao.shared.exception.DadosInvalidosException;
 import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
+import com.unicamp.engsoft.eleicao.votacao.domain.ApuracaoIniciada;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.OrigemTransicao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoInvalidaException;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,18 +100,21 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
     private final List<GuardaPublicacao> guardasPublicacao;
     private final Clock clock;
     private final MetricasVotacao metricas;
+    private final ApplicationEventPublisher eventos;
 
     public VotacaoStateServiceImpl(
             VotacaoRepository votacaoRepository,
             TransicaoVotacaoRepository transicaoRepository,
             List<GuardaPublicacao> guardasPublicacao,
             Clock clock,
-            MetricasVotacao metricas) {
+            MetricasVotacao metricas,
+            ApplicationEventPublisher eventos) {
         this.votacaoRepository = votacaoRepository;
         this.transicaoRepository = transicaoRepository;
         this.guardasPublicacao = List.copyOf(guardasPublicacao);
         this.clock = clock;
         this.metricas = metricas;
+        this.eventos = eventos;
     }
 
     /**
@@ -197,6 +202,9 @@ public class VotacaoStateServiceImpl implements VotacaoStateService {
         votacao.alterarEstado(destino);
         transicaoRepository.save(
                 new TransicaoVotacao(votacaoId, atual, destino, autorId, motivoAuditado, agora));
+        if (destino == Apuracao) {
+            eventos.publishEvent(new ApuracaoIniciada(votacaoId));
+        }
     }
 
     /**
