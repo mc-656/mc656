@@ -11,6 +11,7 @@ package com.unicamp.engsoft.eleicao.votacao.domain;
  * um {@code EnumSet.allOf}, senão a próxima operação estaria liberada de graça em estados errados.
  */
 public enum OperacaoVotacao {
+    CONFIGURAR_PERIODO("configurar o período"),
     CONFIGURAR_REGRAS("configurar as regras"),
     GERENCIAR_CANDIDATOS("gerenciar candidatos/chapas"),
     GERENCIAR_ELEITORES("gerenciar eleitores"),

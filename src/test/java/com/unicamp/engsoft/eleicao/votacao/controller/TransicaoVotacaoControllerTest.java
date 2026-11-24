@@ -76,6 +76,8 @@ class TransicaoVotacaoControllerTest extends AbstractIntegrationTest {
                         fimEm,
                         "Eleição",
                         "Descrição");
+        votacao.configurarRegras(
+                com.unicamp.engsoft.eleicao.votacao.domain.ModeloVotacao.ELEICAO_CHAPA.regra());
         votacao.alterarEstado(estado);
         votacao = votacaoRepository.save(votacao);
         papelVotacaoRepository.save(
