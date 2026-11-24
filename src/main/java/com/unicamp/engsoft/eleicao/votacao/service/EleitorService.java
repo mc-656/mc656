@@ -148,6 +148,49 @@ public class EleitorService {
     }
 
     /**
+     * Alerta o organizador quando, sob voto ponderado, algum eleitor tem peso único (SPECS §4.1,
+     * #80): um peso exclusivo permite identificar a cédula correspondente na apuração.
+     */
+    @Transactional(readOnly = true)
+    public List<String> avisosPesoUnico(UUID votacaoId) {
+        Votacao votacao =
+                votacaoRepository
+                        .findById(votacaoId)
+                        .orElseThrow(() -> new RecursoNaoEncontradoException("Votação", votacaoId));
+        boolean votoPonderado =
+                consultaRegraVotacao
+                        .regraDe(votacao)
+                        .map(RegraVotacao::votoPonderado)
+                        .orElse(false);
+        if (!votoPonderado) {
+            return List.of();
+        }
+        Map<BigDecimal, Long> ocorrenciasPorPeso =
+                papelVotacaoRepository
+                        .findByIdVotacaoIdAndIdPapel(votacaoId, PapelUsuario.ELEITOR)
+                        .stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        p -> p.getPeso().stripTrailingZeros(),
+                                        Collectors.counting()));
+        List<String> pesosUnicos =
+                ocorrenciasPorPeso.entrySet().stream()
+                        .filter(e -> e.getValue() == 1L)
+                        .map(Map.Entry::getKey)
+                        .sorted()
+                        .map(BigDecimal::toPlainString)
+                        .toList();
+        if (pesosUnicos.isEmpty()) {
+            return List.of();
+        }
+        return List.of(
+                ("Atenção de sigilo (SPECS §4.1): há eleitor(es) com peso único nesta votação"
+                                + " (%s). Em voto ponderado, um peso exclusivo permite identificar"
+                                + " a cédula correspondente na apuração.")
+                        .formatted(String.join(", ", pesosUnicos)));
+    }
+
+    /**
      * Peso negativo não tem significado em nenhuma regra. Peso diferente de 1 só faz sentido com
      * voto ponderado: sem ele a apuração ignora o peso, e aceitar o valor daria ao administrador a
      * falsa impressão de que ele conta. Compara com {@code compareTo} para aceitar {@code 1.0}.

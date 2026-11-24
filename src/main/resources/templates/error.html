@@ -8,7 +8,7 @@
     <title>Erro</title>
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao">
     <h1 th:text="${status}">Erro</h1>
     <p th:switch="${status}">
         <span th:case="404">Página não encontrada.</span>

@@ -81,7 +81,8 @@ class UsuarioViewControllerTest extends AbstractIntegrationTest {
         // Act & Assert
         mvc.perform(get("/cadastro"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("name=\"cpf\"")));
+                .andExpect(content().string(containsString("name=\"cpf\"")))
+                .andExpect(content().string(containsString("name=\"dataNascimento\"")));
     }
 
     @Test

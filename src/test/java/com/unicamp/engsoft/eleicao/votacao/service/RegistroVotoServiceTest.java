@@ -5,13 +5,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.unicamp.engsoft.eleicao.shared.exception.ComprovanteInvalidoException;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.UsuarioNaoElegivelException;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
+import com.unicamp.engsoft.eleicao.votacao.dto.SituacaoApuracaoComprovante;
+import com.unicamp.engsoft.eleicao.votacao.dto.VerificacaoComprovanteResponse;
+import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
+import com.unicamp.engsoft.eleicao.votacao.repository.CedulaOrcamentoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.CedulaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
@@ -35,7 +40,10 @@ class RegistroVotoServiceTest {
     private final ParticipacaoRepository participacaoRepository =
             mock(ParticipacaoRepository.class);
     private final CedulaRepository cedulaRepository = mock(CedulaRepository.class);
+    private final CedulaOrcamentoRepository cedulaOrcamentoRepository =
+            mock(CedulaOrcamentoRepository.class);
     private final ComprovanteService comprovanteService = mock(ComprovanteService.class);
+    private final ApuracaoRepository apuracaoRepository = mock(ApuracaoRepository.class);
     private final Clock clock = Clock.systemUTC();
     private final MetricasVotacao metricasVotacao = mock(MetricasVotacao.class);
 
@@ -47,9 +55,27 @@ class RegistroVotoServiceTest {
                     candidatoRepository,
                     participacaoRepository,
                     cedulaRepository,
+                    cedulaOrcamentoRepository,
                     comprovanteService,
+                    apuracaoRepository,
                     clock,
                     metricasVotacao);
+
+    @Test
+    void verificacaoSemVotacaoNaoConfirmaRegistro() {
+        UUID votacaoId = UUID.randomUUID();
+        UUID cedulaId = UUID.randomUUID();
+        when(comprovanteService.verificar("codigo"))
+                .thenReturn(
+                        new ComprovanteService.DadosComprovante(
+                                votacaoId, cedulaId, Instant.now()));
+        when(cedulaRepository.existsByIdAndVotacaoId(cedulaId, votacaoId)).thenReturn(true);
+        when(votacaoRepository.findById(votacaoId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.verificar("codigo"))
+                .isInstanceOf(ComprovanteInvalidoException.class)
+                .hasMessage("Comprovante não encontrado.");
+    }
 
     @Test
     @DisplayName("usuarioDe extrai UUID de UsuarioAutenticado")
@@ -110,5 +136,42 @@ class RegistroVotoServiceTest {
 
         assertThatThrownBy(() -> service.registrar(votacaoId, opcaoId, auth))
                 .isInstanceOf(UsuarioNaoElegivelException.class);
+    }
+
+    @Test
+    @DisplayName("verificar retorna INCLUIDA_NA_APURACAO apenas quando existe snapshot persistido")
+    void verificarComESemSnapshot() {
+        UUID votacaoId = UUID.randomUUID();
+        UUID cedulaId = UUID.randomUUID();
+        Instant emitidoEm = Instant.parse("2026-10-06T12:00:00Z");
+        Votacao votacao =
+                new Votacao(
+                        TipoVotacao.ELEICAO_PRIVADA,
+                        emitidoEm.minusSeconds(60),
+                        emitidoEm.plusSeconds(3600),
+                        "Eleição",
+                        "Descrição");
+        votacao.alterarEstado(EstadoVotacao.Encerrada);
+
+        when(comprovanteService.verificar("codigo"))
+                .thenReturn(
+                        new ComprovanteService.DadosComprovante(votacaoId, cedulaId, emitidoEm));
+        when(cedulaRepository.existsByIdAndVotacaoId(cedulaId, votacaoId)).thenReturn(true);
+        when(votacaoRepository.findById(votacaoId)).thenReturn(Optional.of(votacao));
+
+        when(apuracaoRepository.existsByVotacaoId(votacaoId)).thenReturn(false);
+        VerificacaoComprovanteResponse semSnapshot = service.verificar("codigo");
+        assertThat(semSnapshot.situacaoApuracao())
+                .isEqualTo(SituacaoApuracaoComprovante.NAO_CONFIRMADA);
+
+        when(apuracaoRepository.existsByVotacaoId(votacaoId)).thenReturn(true);
+        VerificacaoComprovanteResponse comSnapshot = service.verificar("codigo");
+        assertThat(comSnapshot.situacaoApuracao())
+                .isEqualTo(SituacaoApuracaoComprovante.INCLUIDA_NA_APURACAO);
+
+        votacao.alterarEstado(EstadoVotacao.Anulada);
+        VerificacaoComprovanteResponse anulada = service.verificar("codigo");
+        assertThat(anulada.situacaoApuracao())
+                .isEqualTo(SituacaoApuracaoComprovante.VOTACAO_ANULADA);
     }
 }
