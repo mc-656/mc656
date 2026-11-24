@@ -151,7 +151,7 @@ java -jar target/eleicao-0.0.1-SNAPSHOT.jar   # executa o jar gerado
 ## Deploy (Docker e CD)
 
 Requisito RNF-08. O pipeline publica a imagem e implanta numa VPS própria
-(stack em `deploy/`: Compose + Caddy com HTTPS, domínio gratuito via
+(stack em `deploy/`: Compose atrás do Caddy da VPS, com HTTPS e domínio gratuito via
 [nip.io](https://nip.io)), sem custo de hospedagem; um alvo genérico por
 webhook também é suportado.
 
@@ -208,10 +208,12 @@ docker compose --profile app up -d --build   # API em :${APP_PORT:-8080}
 
 ### Deploy em VPS
 
-Stack em `deploy/`: Postgres 17, a API (imagem do GHCR) e o Caddy, único
-serviço exposto (portas 80/443), que obtém o certificado TLS sozinho. Sem
-domínio próprio, o [nip.io](https://nip.io) resolve
-`eleicao.<ip>.nip.io` para `<ip>`. O `deploy.sh` grava a tag no `.env`, sobe
+Stack em `deploy/`: Postgres 17 e a API (imagem do GHCR), sem porta
+publicada. HTTPS e portas 80/443 ficam com o **Caddy central** que já atende
+os outros domínios da VPS: a API entra numa rede Docker exclusiva com ele
+(`eleicao-proxy`) e o site é um bloco no Caddyfile dele
+(`deploy/Caddyfile.site`). Sem domínio próprio, o [nip.io](https://nip.io)
+resolve `eleicao.<ip>.nip.io` para `<ip>`. O `deploy.sh` grava a tag no `.env`, sobe
 com `docker compose up --wait` (espera o `HEALTHCHECK`) e, se a versão nova
 não ficar saudável, volta para a anterior.
 
@@ -221,16 +223,18 @@ workflows e nos secrets do environment) não deve ganhar acesso à VPS. Por isso
 - a chave de deploy tem **comando forçado** no `authorized_keys`: com ela só
   se executa o `deploy.sh`, que aceita apenas `ghcr.io/mc-656/mc656:sha-<hex>`.
   Sem shell, sem port forwarding, sem copiar arquivos;
-- a stack (`compose.yaml`, `Caddyfile`, `deploy.sh`) é instalada e atualizada
-  **pelo dono da VPS**, revisando o diff; o CD não copia nada para lá;
+- a stack (`compose.yaml`, `deploy.sh`) e o Caddy central são instalados e
+  atualizados **pelo dono da VPS**, revisando o diff; o CD não copia nada para lá;
 - a API roda confinada (`cap_drop: ALL`, `no-new-privileges`, sem volume do
   host, teto de memória/CPU/processos). Uma imagem maliciosa ainda controla a
   própria aplicação e o banco dela e tem acesso à rede, então não deixe
-  serviços sem autenticação escutando em `0.0.0.0` na mesma VPS.
+  serviços sem autenticação escutando em `0.0.0.0` na mesma VPS;
+- a rede com o Caddy é **só dela**: na rede compartilhada do Caddy, a API
+  alcançaria os backends dos outros sites sem passar pelo proxy.
 
 **Requisitos da VPS:** Linux com Docker e o plugin Compose, ~1 GB de RAM
-livre (JVM + Postgres), portas 80 e 443 abertas para a internet (o Let's
-Encrypt valida pela 80) e a porta do SSH para o GitHub Actions.
+livre (JVM + Postgres), um Caddy em container já publicando 80/443 e a porta
+do SSH aberta para o GitHub Actions.
 
 **Preparação (uma vez, como root/sudo na VPS):**
 
@@ -243,13 +247,26 @@ sudo usermod -aG docker deploy
 sudo install -d -o root -g deploy -m 750 /home/deploy/eleicao
 cd /home/deploy/eleicao
 sudo curl -fsSLO https://raw.githubusercontent.com/mc-656/mc656/main/deploy/compose.yaml
-sudo curl -fsSLO https://raw.githubusercontent.com/mc-656/mc656/main/deploy/Caddyfile
 sudo curl -fsSLO https://raw.githubusercontent.com/mc-656/mc656/main/deploy/deploy.sh
 sudo curl -fsSL  https://raw.githubusercontent.com/mc-656/mc656/main/deploy/.env.example -o .env
-sudo chown root:deploy compose.yaml Caddyfile deploy.sh .env
-sudo chmod 644 compose.yaml Caddyfile && sudo chmod 755 deploy.sh && sudo chmod 660 .env
-sudoedit .env   # DOMINIO=eleicao.<ip>.nip.io, APP_URL_BASE=https://eleicao.<ip>.nip.io, segredos
+sudo chown root:deploy compose.yaml deploy.sh .env
+sudo chmod 644 compose.yaml && sudo chmod 755 deploy.sh && sudo chmod 660 .env
+sudoedit .env   # APP_URL_BASE=https://eleicao.<ip>.nip.io, segredos
+
+# rede exclusiva entre a API e o Caddy central
+sudo docker network create eleicao-proxy
 ```
+
+No **Caddy central**:
+
+1. Ligue-o à rede de forma persistente: no `compose.yaml` dele, acrescente
+   `eleicao-proxy` em `networks:` do serviço e declare-a no fim como
+   `external: true` (só `docker network connect` se perde quando o container
+   do Caddy é recriado).
+2. Cole o bloco de `deploy/Caddyfile.site` no Caddyfile dele, trocando o IP.
+3. Recarregue: `docker compose up -d` (por causa da rede nova) e, nas
+   próximas mudanças só de Caddyfile,
+   `docker exec <container-do-caddy> caddy reload --config /etc/caddy/Caddyfile`.
 
 Leia os arquivos baixados antes de usar. Para atualizar a stack depois, repita
 o `curl` do arquivo alterado, revisando o diff do PR que o mudou.

@@ -126,7 +126,7 @@ jobs:
                 GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                 # O comando forçado da chave ignora o que pedimos para executar e roda deploy.sh,
-                # que lê a imagem de SSH_ORIGINAL_COMMAND (e valida). A stack (compose, Caddyfile,
+                # que lê a imagem de SSH_ORIGINAL_COMMAND (e valida). A stack (compose,
                 # deploy.sh) é mantida na VPS pelo dono dela, não copiada daqui: assim um push no
                 # repositório não muda o que roda como root na máquina.
                 # O GITHUB_TOKEN do job vai no stdin para o pull funcionar com pacote privado.
