@@ -23,11 +23,19 @@ import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.dto.ComprovanteResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.PropostaResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.PropostasResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.SaldoOrcamentoResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.SituacaoApuracaoComprovante;
 import com.unicamp.engsoft.eleicao.votacao.dto.VerificacaoComprovanteResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.VotoOrcamentoRequest;
 import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
+import com.unicamp.engsoft.eleicao.votacao.service.PropostaService;
+import com.unicamp.engsoft.eleicao.votacao.service.RegistroVotoOrcamentoService;
 import com.unicamp.engsoft.eleicao.votacao.service.RegistroVotoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -57,7 +65,9 @@ class VotoViewControllerUnitTest {
 
     @Mock VotacaoService votacaoService;
     @Mock CandidatoOuChapaService candidatoService;
+    @Mock PropostaService propostaService;
     @Mock RegistroVotoService registroVotoService;
+    @Mock RegistroVotoOrcamentoService registroVotoOrcamentoService;
     @Mock ParticipacaoRepository participacaoRepository;
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-06-01T12:00:00Z"), ZoneOffset.UTC);
@@ -74,7 +84,9 @@ class VotoViewControllerUnitTest {
                 new VotoViewController(
                         votacaoService,
                         candidatoService,
+                        propostaService,
                         registroVotoService,
+                        registroVotoOrcamentoService,
                         participacaoRepository,
                         clock);
         mvc =
@@ -211,7 +223,8 @@ class VotoViewControllerUnitTest {
         Instant emitidoEm = Instant.now();
         Votacao votacao = votacaoAberta(votacaoId);
         VerificacaoComprovanteResponse verificado =
-                new VerificacaoComprovanteResponse(votacaoId, emitidoEm);
+                new VerificacaoComprovanteResponse(
+                        votacaoId, emitidoEm, SituacaoApuracaoComprovante.NAO_CONFIRMADA);
 
         when(registroVotoService.verificar("COMPROVANTE-OK")).thenReturn(verificado);
         when(votacaoService.buscar(votacaoId)).thenReturn(votacao);
@@ -240,7 +253,8 @@ class VotoViewControllerUnitTest {
         Instant emitidoEm = Instant.now();
         Votacao votacao = votacaoAberta(votacaoId);
         VerificacaoComprovanteResponse verificado =
-                new VerificacaoComprovanteResponse(votacaoId, emitidoEm);
+                new VerificacaoComprovanteResponse(
+                        votacaoId, emitidoEm, SituacaoApuracaoComprovante.NAO_CONFIRMADA);
 
         when(registroVotoService.verificar("CODIGO-PARAM")).thenReturn(verificado);
         when(votacaoService.buscar(votacaoId)).thenReturn(votacao);
@@ -316,5 +330,71 @@ class VotoViewControllerUnitTest {
         assertThat(viewName).isEqualTo("error");
         assertThat(response.getStatus()).isEqualTo(400);
         assertThat(model.getAttribute("status")).isEqualTo(400);
+    }
+
+    @Test
+    @DisplayName("GET e POST de orçamento participativo exibem saldo/propostas e registram voto")
+    void fluxoOrcamentoParticipativoNaTela() throws Exception {
+        UUID votacaoId = UUID.randomUUID();
+        UUID propId = UUID.randomUUID();
+        Votacao op =
+                new Votacao(
+                        TipoVotacao.ORCAMENTO_PARTICIPATIVO,
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        Instant.parse("2026-12-31T23:59:59Z"),
+                        "Obras 2026",
+                        "Orçamento");
+        op.alterarEstado(EstadoVotacao.EmVotacao);
+        PropostasResponse propostas =
+                new PropostasResponse(
+                        new BigDecimal("100.00"),
+                        List.of(
+                                new PropostaResponse(
+                                        propId, "Parque", "Desc", new BigDecimal("50.00"))),
+                        List.of());
+        SaldoOrcamentoResponse saldo =
+                new SaldoOrcamentoResponse(
+                        votacaoId, new BigDecimal("100.00"), new BigDecimal("100.00"), false);
+
+        when(votacaoService.buscar(votacaoId)).thenReturn(op);
+        when(participacaoRepository.existsByUsuarioIdAndVotacaoId(usuario.getId(), votacaoId))
+                .thenReturn(false);
+        when(propostaService.listar(votacaoId)).thenReturn(propostas);
+        when(registroVotoOrcamentoService.consultarSaldo(eq(votacaoId), any(Authentication.class)))
+                .thenReturn(saldo);
+
+        mvc.perform(get("/votacoes/{id}/votar", votacaoId).principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("propostasInfo", propostas))
+                .andExpect(model().attribute("saldo", saldo));
+
+        Instant emitidoEm = Instant.now();
+        when(registroVotoOrcamentoService.registrar(
+                        eq(votacaoId), any(VotoOrcamentoRequest.class), any(Authentication.class)))
+                .thenReturn(new ComprovanteResponse(votacaoId, "COMP-OP", emitidoEm));
+
+        mvc.perform(
+                        post("/votacoes/{id}/votar-orcamento", votacaoId)
+                                .principal(auth)
+                                .param("propostaIds", propId.toString())
+                                .param("pontos", "60,5"))
+                .andExpect(redirectedUrl("/votacoes/" + votacaoId + "/comprovante"))
+                .andExpect(flash().attribute("comprovante", "COMP-OP"));
+
+        mvc.perform(
+                        post("/votacoes/{id}/votar-orcamento", votacaoId)
+                                .principal(auth)
+                                .param("propostaIds", propId.toString())
+                                .param("pontos", "abc"))
+                .andExpect(redirectedUrl("/votacoes/" + votacaoId + "/votar"))
+                .andExpect(flash().attributeExists("erro"));
+
+        mvc.perform(
+                        post("/votacoes/{id}/votar-orcamento", votacaoId)
+                                .principal(auth)
+                                .param("propostaIds", propId.toString())
+                                .param("pontos", "-5"))
+                .andExpect(redirectedUrl("/votacoes/" + votacaoId + "/votar"))
+                .andExpect(flash().attributeExists("erro"));
     }
 }

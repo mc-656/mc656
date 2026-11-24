@@ -8,58 +8,70 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
-    <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
-    <h1>Comprovante de Votação</h1>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
+    <header>
+        <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
+        <h1>Comprovante de Votação</h1>
+    </header>
 
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
-    <th:block th:if="${comprovante}">
-        <p>
-            Votação: <strong th:text="${votacao.nome}">Votação</strong>
-        </p>
-
-        <p class="suave">
-            Data/Hora do Voto:
+    <!-- Canhoto: confirmação, picote e o código para guardar. A escolha nunca aparece aqui (RNF-02). -->
+    <div th:if="${comprovante}" class="canhoto">
+        <div class="faixa">
+            <span>Voto registrado</span>
             <time th:if="${emitidoEm}" th:datetime="${emitidoEm}" th:text="${@rotulosVotacao.dataHora(emitidoEm)}">01/01/2027 10:00</time>
-        </p>
-
-        <p>
-            Guarde o código de comprovante criptográfico abaixo. Ele é a sua garantia de que sua cédula foi
-            registrada e poderá ser verificada a qualquer momento na apuração (RNF-01, RNF-02):
-        </p>
-
-        <div style="margin: 1.25rem 0;">
-            <label for="comprovante-codigo">Código do Comprovante (Criptográfico):</label>
-            <textarea id="comprovante-codigo" readonly rows="4"
-                      style="width: 100%; font-family: monospace; font-size: 0.875rem; word-break: break-all; resize: none; margin-top: 0.25rem;"
-                      th:text="${comprovante}"></textarea>
-            <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
-                <button type="button" id="btn-copiar" style="margin-top: 0;">Copiar Comprovante</button>
-                <span id="msg-copiado" class="suave" style="display: none; color: var(--sucesso); font-weight: 500;">Copiado para a área de transferência!</span>
+        </div>
+        <div class="corpo">
+            <dl class="dados">
+                <dt>Votação</dt>
+                <dd><strong th:text="${votacao.nome}">Votação</strong></dd>
+                <dt>Sua escolha</dt>
+                <dd class="suave">Sigilosa: não aparece aqui nem no código.</dd>
+            </dl>
+        </div>
+        <div class="picote" aria-hidden="true"></div>
+        <div class="corpo">
+            <p>
+                Guarde o código de comprovante criptográfico abaixo. Ele é a sua garantia de que sua cédula foi
+                registrada. Use-o na página de verificação para consultar seu registro sem revelar sua escolha:
+            </p>
+            <span class="rotulo" id="rotulo-codigo">Código do Comprovante (Criptográfico)</span>
+            <!-- Blocos de 4 só na apresentação: sem espaço entre os <span>, a seleção copia o código original. -->
+            <code class="codigo-comprovante" id="comprovante-codigo" aria-labelledby="rotulo-codigo"
+                  th:data-codigo="${comprovante}"><span
+                    th:each="i : ${#numbers.sequence(0, (#strings.length(comprovante) - 1) / 4)}"
+                    th:text="${#strings.substring(comprovante, i * 4, (i * 4 + 4 > #strings.length(comprovante)) ? #strings.length(comprovante) : i * 4 + 4)}">9f3a</span></code>
+            <div class="acoes">
+                <button type="button" id="btn-copiar" class="secundario pequeno">Copiar Comprovante</button>
+                <a th:href="@{/comprovantes/verificar(codigo=${comprovante})}" class="botao secundario pequeno">
+                    Verificar este comprovante
+                </a>
+                <span id="msg-copiado" class="copiado" role="status"></span>
             </div>
         </div>
-
-        <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
-            <a th:href="@{/comprovantes/verificar(codigo=${comprovante})}" class="botao"
-               style="background: var(--superficie); color: var(--primaria); border: 1px solid var(--borda);">
-                Verificar este comprovante
-            </a>
-            <a th:href="@{/votacoes}" class="botao">Voltar para Minhas votações</a>
-        </div>
-
         <script>
-            document.getElementById('btn-copiar')?.addEventListener('click', function() {
-                var textarea = document.getElementById('comprovante-codigo');
-                textarea.select();
-                navigator.clipboard.writeText(textarea.value).then(function() {
-                    var msg = document.getElementById('msg-copiado');
-                    msg.style.display = 'inline';
-                    setTimeout(function() { msg.style.display = 'none'; }, 3000);
-                });
+            document.getElementById('btn-copiar')?.addEventListener('click', function () {
+                var codigo = document.getElementById('comprovante-codigo');
+                var msg = document.getElementById('msg-copiado');
+                function selecionar() {
+                    var faixa = document.createRange();
+                    faixa.selectNodeContents(codigo);
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(faixa);
+                    msg.textContent = 'Código selecionado: use Ctrl+C para copiar.';
+                }
+                if (!navigator.clipboard) { selecionar(); return; }
+                navigator.clipboard.writeText(codigo.dataset.codigo).then(function () {
+                    msg.textContent = 'Copiado para a área de transferência!';
+                    setTimeout(function () { msg.textContent = ''; }, 3000);
+                }, selecionar);
             });
         </script>
-    </th:block>
+    </div>
+
+    <p th:if="${comprovante}"><a th:href="@{/votacoes}" class="botao">Voltar para Minhas votações</a></p>
 
     <th:block th:unless="${comprovante}">
         <p class="alerta">

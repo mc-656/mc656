@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="|Notícias e debates · ${dados.eleicao.nome}|">Notícias e debates</title>
+</head>
+<body>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
+    <p class="voltar"><a th:href="@{/eleicoes-publicas/{id}(id=${dados.eleicao.id})}"
+          th:text="|← ${dados.eleicao.nome}|">← Candidatos</a></p>
+    <h1 th:text="|Notícias e resumos de debates: ${dados.eleicao.nome}|">Notícias e debates</h1>
+    <p th:replace="~{eleicoes-publicas/fonte :: fonte(${dados.eleicao.fonte})}"></p>
+
+    <p th:if="${erro}" th:text="${erro}" class="alerta erro" role="alert"></p>
+
+    <form th:action="@{/eleicoes-publicas/{id}/conteudos(id=${dados.eleicao.id})}"
+          method="get" class="filtros">
+        <div class="campo">
+            <label for="tipoConteudo">Tipo</label>
+            <select id="tipoConteudo" name="tipo">
+                <option value="" th:selected="${tipoSelecionado == null}">Todos os tipos</option>
+                <option th:each="t : ${tiposConteudo}" th:value="${t}" th:selected="${t == tipoSelecionado}"
+                        th:text="${t.name() == 'NOTICIA' ? 'Notícia' : 'Resumo de debate'}">Notícia</option>
+            </select>
+        </div>
+        <div class="campo">
+            <label for="candidatoFiltro">Candidato mencionado</label>
+            <select id="candidatoFiltro" name="candidatoId">
+                <option value="" th:selected="${candidatoIdSelecionado == null}">Todos os candidatos</option>
+                <option th:each="c : ${dados.candidatosDisponiveis}" th:value="${c.id}"
+                        th:selected="${c.id == candidatoIdSelecionado}"
+                        th:text="|${c.nomeUrna} (${c.partidoSigla} · ${c.cargoNome})|">Candidato</option>
+            </select>
+        </div>
+        <div class="campo">
+            <label for="temaFiltro">Tema</label>
+            <input id="temaFiltro" type="text" name="tema" th:value="${temaSelecionado}"
+                   list="temas-sugestoes" placeholder="Ex.: Educação, Saúde">
+            <datalist id="temas-sugestoes">
+                <option th:each="t : ${dados.temasDisponiveis}" th:value="${t}"></option>
+            </datalist>
+        </div>
+        <button type="submit">Filtrar conteúdos</button>
+    </form>
+
+    <p th:if="${#lists.isEmpty(dados.itens)}">Nenhum conteúdo encontrado para os filtros informados.</p>
+
+    <ul th:unless="${#lists.isEmpty(dados.itens)}" class="lista-blocos">
+        <li th:each="item : ${dados.itens}" class="bloco">
+            <h2>
+                <span class="etiqueta" th:text="${item.tipo.name() == 'NOTICIA' ? 'Notícia' : 'Resumo de debate'}"></span>
+                <span th:text="${item.titulo}">Título</span>
+            </h2>
+            <p>
+                Publicado em
+                <time th:datetime="${item.publicadaEm}"
+                      th:text="${#temporals.format(item.publicadaEm, 'dd/MM/yyyy')}">15/10/2026</time>
+                <span th:if="${item.tema != null}" th:text="| · Tema: ${item.tema}|"></span>
+            </p>
+            <p th:text="${item.resumo}">Resumo</p>
+
+            <div th:unless="${#lists.isEmpty(item.temasDebate)}">
+                <h3>Tópicos por tema</h3>
+                <div th:each="td : ${item.temasDebate}">
+                    <p><strong th:text="${td.tema}">Tema</strong></p>
+                    <ul>
+                        <li th:each="top : ${td.topicos}" th:text="${top.resumo}">Tópico</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p th:replace="~{eleicoes-publicas/fonte :: fonte(${item.fonte})}"></p>
+        </li>
+    </ul>
+
+    <nav th:if="${dados.totalPaginas > 1}" aria-label="Paginação de conteúdos" class="paginacao">
+        <a th:if="${dados.pagina > 0}"
+           th:href="@{/eleicoes-publicas/{id}/conteudos(id=${dados.eleicao.id}, tipo=${tipoSelecionado}, candidatoId=${candidatoIdSelecionado}, tema=${temaSelecionado}, page=${dados.pagina - 1}, size=${dados.tamanho})}">
+            ← Anterior
+        </a>
+        <span th:text="|Página ${dados.pagina + 1} de ${dados.totalPaginas}|">Página 1 de 1</span>
+        <a th:if="${dados.pagina + 1 < dados.totalPaginas}"
+           th:href="@{/eleicoes-publicas/{id}/conteudos(id=${dados.eleicao.id}, tipo=${tipoSelecionado}, candidatoId=${candidatoIdSelecionado}, tema=${temaSelecionado}, page=${dados.pagina + 1}, size=${dados.tamanho})}">
+            Próxima →
+        </a>
+    </nav>
+</main>
+</body>
+</html>

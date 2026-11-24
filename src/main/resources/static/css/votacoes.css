@@ -1,85 +1,340 @@
-/* Telas de votação (#67). Folha própria para não disputar linhas com app.css. */
+/*
+  Componentes exclusivos das telas de votação (#67). Folha própria para não disputar linhas com
+  app.css; tokens, formulários, botões e .dados vêm de lá.
+*/
 
-.cartao.largo { width: min(100% - 2rem, 48rem); }
+/* ===== Cabeçalho da votação: nome, estado, ciclo e etapas ===== */
 
-h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+.cabecalho-votacao { display: grid; gap: 0.9rem; }
+.cabecalho-votacao h1 { margin: 0; }
+.cabecalho-votacao p { margin: 0; }
+.cabecalho-votacao > div { display: grid; gap: 0.4rem; }
 
-select, textarea {
-    padding: 0.5rem;
-    font: inherit;
-    border: 1px solid var(--borda);
-    border-radius: 4px;
-    background: var(--superficie);
-    color: inherit;
+/* Mensagens de flash: o contêiner existe sempre, mas não ocupa espaço na grade quando vazio. */
+.mensagens { display: grid; gap: 0.5rem; }
+.mensagens:not(:has(*)) { display: none; }
+
+.meta { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; font-size: 0.85rem; color: var(--suave); }
+
+/*
+  Trilha do ciclo (máquina de estados, SPECS 4.2). Mostra o caminho feliz; estados fora dele
+  (Anulada, Cancelada) escondem a trilha e ficam só na pílula.
+*/
+.trilha {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
-select.invalido, textarea.invalido { border-color: var(--erro); }
 
-label.opcao { display: flex; gap: 0.5rem; align-items: center; font-weight: 400; }
+.trilha li {
+    flex: 1 0 6rem;
+    display: grid;
+    gap: 0.4rem;
+    padding-right: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--suave);
+}
 
-.ajuda { margin: 0; color: var(--suave); font-size: 0.875rem; }
-.suave { color: var(--suave); font-size: 0.875rem; }
-.migalha { margin: 0 0 0.5rem; font-size: 0.875rem; }
+.trilha li::before {
+    content: "";
+    height: 4px;
+    border-radius: 2px;
+    background: var(--linha);
+}
 
-.estado { margin: 0 0 0.75rem; }
+.trilha li.feita { color: var(--texto); }
+.trilha li.feita::before { background: var(--tinta); }
+.trilha li.atual { color: var(--texto); font-weight: 600; }
+.trilha li.atual::before { background: linear-gradient(90deg, var(--tinta) 50%, var(--linha) 50%); }
 
 .etapas {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--borda);
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--linha);
+    overflow-x: auto;
+    overflow-y: hidden;
 }
-.etapas a[aria-current="page"] { font-weight: 600; text-decoration: none; color: var(--texto); }
 
-.botao {
-    display: inline-block;
-    padding: 0.6rem 1rem;
-    color: #fff;
-    background: var(--primaria);
-    border-radius: 4px;
+.etapas a {
+    margin-bottom: -1px;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--suave);
     text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
 }
 
-.etiqueta {
-    display: inline-block;
-    padding: 0 0.5rem;
-    font-size: 0.8rem;
-    border: 1px solid var(--borda);
-    border-radius: 999px;
+.etapas a:hover { color: var(--texto); }
+.etapas a[aria-current="page"] { font-weight: 600; color: var(--texto); border-bottom-color: var(--tinta); }
+
+/* ===== Minhas votações ===== */
+
+.titulo-pagina { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+.titulo-pagina h1 { margin: 0; }
+
+.grupo-votacoes { display: grid; gap: 0.6rem; }
+.grupo-votacoes > h2 { margin: 0; }
+.grupo-votacoes > p { margin: 0; color: var(--suave); }
+
+.lista-votacoes, .lista-itens {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background: var(--folha);
+    border: 1px solid var(--linha);
+    border-radius: var(--r-bloco);
+    overflow: hidden;
 }
 
-.lista-votacoes, .lista-itens { list-style: none; padding: 0; margin: 0; }
-.lista-votacoes li, .lista-itens li {
+.lista-votacoes li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.35rem 1.25rem;
+    align-items: center;
+    padding: 0.9rem 1.2rem;
+    border-bottom: 1px solid var(--linha);
+}
+
+.lista-votacoes li:last-child, .lista-itens li:last-child { border-bottom: 0; }
+.lista-votacoes .nome { font-weight: 600; }
+.lista-votacoes .sub { display: block; font-size: 0.8rem; color: var(--suave); }
+
+.lista-itens li {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem 0.75rem;
-    align-items: baseline;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--borda);
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid var(--linha);
 }
-.lista-votacoes .suave { flex-basis: 100%; }
-.lista-itens li { justify-content: space-between; }
-.lista-itens li div { display: flex; flex-direction: column; }
 
-.dados { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0; }
-.dados dt { font-weight: 500; }
-.dados dd { margin: 0; overflow-wrap: anywhere; }
+.lista-itens li > div:first-child { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1 1 14rem; }
+.lista-itens p { margin: 0; }
 
-.tabela-rolavel { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--borda); }
-td { overflow-wrap: anywhere; }
+/* Dentro de um bloco a lista não precisa de moldura própria. */
+section > .lista-itens, section > .lista-votacoes { border: 0; border-radius: 0; background: none; }
+section > .lista-itens li { padding-inline: 0; }
 
-.visualmente-oculto {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
+@media (max-width: 36rem) {
+    .lista-votacoes li { grid-template-columns: minmax(0, 1fr) auto; }
+    .lista-votacoes li > :last-child { grid-column: 1 / -1; }
 }
+
+/* ===== Painel da votação ===== */
+
+.grade-painel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.grade-painel > .coluna { display: grid; gap: 1.25rem; min-width: 0; }
+.grade-painel.sem-acoes { grid-template-columns: minmax(0, 1fr); }
+.grade-painel section > :last-child { margin-bottom: 0; }
+
+@media (max-width: 48rem) {
+    .grade-painel { grid-template-columns: minmax(0, 1fr); }
+}
+
+.zona-perigo { border-color: color-mix(in srgb, var(--perigo) 35%, var(--linha)) !important; }
+.zona-perigo h2 { color: var(--perigo); }
+
+/* Medidor de comparecimento: preenchimento até o percentual, marca vertical no quórum mínimo. */
+.medidor { position: relative; height: 10px; margin: 1.6rem 0 0.5rem; border-radius: 5px; background: var(--neutro-fundo); }
+.medidor .preenchido { position: absolute; inset: 0 auto 0 0; max-width: 100%; border-radius: 5px; background: var(--tinta); transition: width 0.4s; }
+.medidor .marca { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--texto); }
+.medidor .marca span { position: absolute; top: -1.4rem; transform: translateX(-50%); font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+
+.quorum-atingido { color: var(--ok); font-weight: 600; }
+
+/* ===== Cédula ===== */
+
+.cedula { display: grid; gap: 0.6rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.cedula legend { margin-bottom: 0.6rem; padding: 0; font-weight: 600; }
+
+.opcao-cedula {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.9rem;
+    align-items: center;
+    margin: 0;
+    padding: 0.9rem 1rem;
+    font-weight: 400;
+    background: var(--folha);
+    border: 1px solid var(--linha-forte);
+    border-radius: var(--r-bloco);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.opcao-cedula:hover { border-color: var(--suave); }
+.opcao-cedula input { width: 1.15rem; height: 1.15rem; margin: 0; }
+.opcao-cedula strong { display: block; font-weight: 600; }
+.opcao-cedula .suave { display: block; margin-top: 0.15rem; }
+
+/* A escolha muda a opção inteira, não só o radio de 13px. */
+.opcao-cedula:has(input:checked) {
+    border-color: var(--tinta);
+    box-shadow: 0 0 0 1px var(--tinta);
+    background: color-mix(in srgb, var(--tinta-suave) 45%, var(--folha));
+}
+
+.confirmar {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 1rem 1.1rem;
+    border: 1px dashed var(--linha-forte);
+    border-radius: var(--r-bloco);
+}
+
+.confirmar button { margin-top: 0; justify-self: start; }
+
+/* ===== Orçamento participativo ===== */
+
+.saldo {
+    position: sticky;
+    top: 0.5rem;
+    z-index: 1;
+    display: grid;
+    gap: 0.6rem;
+    padding: 1rem 1.15rem;
+    background: var(--folha);
+    border: 1px solid var(--linha);
+    border-radius: var(--r-bloco);
+}
+
+.saldo .topo { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.saldo output { font: 600 1.3rem var(--f-mono); }
+.saldo .barra { height: 8px; overflow: hidden; border-radius: 4px; background: var(--neutro-fundo); }
+.saldo .barra span { display: block; height: 100%; background: var(--tinta); transition: width 0.25s; }
+.saldo.estourou output { color: var(--perigo); }
+.saldo.estourou .barra span { background: var(--perigo); }
+
+.proposta-cedula {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 9rem;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.9rem 1rem;
+    background: var(--folha);
+    border: 1px solid var(--linha);
+    border-radius: var(--r-bloco);
+}
+
+.proposta-cedula p { margin: 0.2rem 0 0; }
+.proposta-cedula input { font-family: var(--f-mono); text-align: right; }
 
 @media (max-width: 30rem) {
-    .dados { grid-template-columns: 1fr; }
-    .dados dd { margin-bottom: 0.5rem; }
+    .proposta-cedula { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ===== Comprovante: canhoto destacável ===== */
+
+.canhoto {
+    overflow: hidden;
+    background: var(--folha);
+    border: 1px solid var(--linha);
+    border-radius: var(--r-bloco);
+}
+
+.canhoto .faixa {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    flex-wrap: wrap;
+    padding: 0.9rem 1.35rem;
+    font-weight: 600;
+    color: var(--ok);
+    background: var(--ok-fundo);
+}
+
+.canhoto .faixa time { font: 500 0.82rem var(--f-mono); }
+.canhoto .corpo { display: grid; gap: 1rem; padding: 1.35rem; }
+.canhoto .corpo > p { margin: 0; }
+
+.picote { position: relative; height: 0; margin: 0 1.35rem; border-top: 2px dashed var(--linha-forte); }
+
+.picote::before, .picote::after {
+    content: "";
+    position: absolute;
+    top: -11px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--papel);
+    border: 1px solid var(--linha);
+}
+
+.picote::before { left: calc(-1.35rem - 11px); }
+.picote::after { right: calc(-1.35rem - 11px); }
+
+/*
+  Código em blocos de 4 caracteres para conferir a olho. Os blocos são só visuais (margem, sem
+  espaço no texto); a verificação também ignora espaços caso o eleitor cole o código com eles.
+*/
+.codigo-comprovante {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0;
+    margin: 0;
+    padding: 0.9rem 1rem;
+    font: 500 0.95rem var(--f-mono);
+    letter-spacing: 0.03em;
+    background: var(--papel);
+    border-radius: var(--r-campo);
+    overflow-wrap: anywhere;
+}
+
+.codigo-comprovante span { margin-right: 0.55rem; }
+.codigo-comprovante span:nth-child(4n + 1) { color: var(--tinta); }
+
+.copiado { font-size: 0.85rem; font-weight: 600; color: var(--ok); }
+
+textarea.mono { font: 0.85rem/1.5 var(--f-mono); word-break: break-all; resize: vertical; }
+
+/* ===== Resultado ===== */
+
+.vencedor {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem 1.2rem;
+    border-radius: var(--r-bloco);
+    background: var(--ok-fundo);
+    border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
+}
+
+.vencedor .selo-vencedor {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    color: var(--folha);
+    background: var(--ok);
+}
+
+.vencedor strong { display: block; font-size: 1.1rem; }
+
+/* Barra no percentual: todas as linhas na mesma escala (0–100%), a vencedora em tinta. */
+.percentual { display: grid; gap: 0.3rem; min-width: 7rem; }
+.percentual .trilho { height: 6px; border-radius: 3px; background: var(--neutro-fundo); overflow: hidden; }
+.percentual .trilho span { display: block; height: 100%; border-radius: 3px; background: var(--linha-forte); }
+tr.vencedora .percentual .trilho span { background: var(--tinta); }
+tr.vencedora td:first-child { font-weight: 600; }
+
+/* ===== Propostas (administração) ===== */
+
+details > summary { cursor: pointer; font-weight: 500; color: var(--tinta); }
+details[open] { flex-basis: 100%; }
+details[open] > form { margin-top: 0.75rem; }

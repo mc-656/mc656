@@ -8,57 +8,72 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
-    <h1>Minhas votações</h1>
-    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
-
-    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
-        <a th:href="@{/votacoes/nova}" class="botao">Criar votação</a>
-        <a th:href="@{/comprovantes/verificar}" class="botao"
-           style="background: var(--superficie); color: var(--primaria); border: 1px solid var(--borda);">
-            Verificar comprovante
-        </a>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
+    <div class="titulo-pagina">
+        <h1>Minhas votações</h1>
+        <div class="acoes">
+            <a th:href="@{/comprovantes/verificar}" class="botao secundario">Verificar comprovante</a>
+            <a th:href="@{/votacoes/nova}" class="botao">Criar votação</a>
+        </div>
     </div>
 
-    <h2>Votações como eleitor</h2>
-    <p th:if="${#lists.isEmpty(votacoesEleitor)}">Você ainda não participa como eleitor(a) em nenhuma votação.</p>
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
-    <ul th:unless="${#lists.isEmpty(votacoesEleitor)}" class="lista-votacoes">
-        <li th:each="item : ${votacoesEleitor}">
-            <a th:href="@{/votacoes/{id}/votar(id=${item.id})}" th:text="${item.nome}">Votação</a>
-            <span class="etiqueta" th:text="${@rotulosVotacao.estado(item.estado)}">Em votação</span>
-            <span class="suave">
-                <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
-                <time th:datetime="${item.inicioEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
-                a
-                <time th:datetime="${item.fimEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
-            </span>
-            <span th:if="${item.estado.name() == 'EmVotacao'}">
-                <a th:href="@{/votacoes/{id}/votar(id=${item.id})}" class="botao"
-                   style="padding: 0.25rem 0.6rem; font-size: 0.875rem;">Votar</a>
-            </span>
-        </li>
-    </ul>
+    <div class="grupo-votacoes">
+        <h2 class="rotulo">Votações como eleitor</h2>
+        <p th:if="${#lists.isEmpty(votacoesEleitor)}">Você ainda não participa como eleitor(a) em nenhuma votação.</p>
+        <ul th:unless="${#lists.isEmpty(votacoesEleitor)}" class="lista-votacoes">
+            <li th:each="item : ${votacoesEleitor}">
+                <div>
+                    <a class="nome" th:href="@{/votacoes/{id}/votar(id=${item.id})}" th:text="${item.nome}">Votação</a>
+                    <span class="sub">
+                        <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
+                        <th:block th:if="${item.inicioEm != null and item.fimEm != null}">
+                            <time th:datetime="${item.inicioEm}"
+                                  th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
+                            a
+                            <time th:datetime="${item.fimEm}"
+                                  th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+                        </th:block>
+                        <span th:if="${item.inicioEm == null or item.fimEm == null}">Período a definir</span>
+                    </span>
+                </div>
+                <span th:replace="~{votacoes/fragmentos :: estado(${item.estado})}"></span>
+                <span>
+                    <a th:if="${item.estado.name() == 'EmVotacao'}"
+                       th:href="@{/votacoes/{id}/votar(id=${item.id})}" class="botao pequeno">Votar</a>
+                    <a th:if="${item.estado.name() == 'Encerrada' or item.estado.name() == 'Homologada' or item.estado.name() == 'Anulada'}"
+                       th:href="@{/votacoes/{id}/resultado(id=${item.id})}" class="botao secundario pequeno">Resultado</a>
+                </span>
+            </li>
+        </ul>
+    </div>
 
-    <h2>Votações que administro</h2>
-    <p th:if="${#lists.isEmpty(votacoes)}">Você ainda não administra nenhuma votação.</p>
-
-    <ul th:unless="${#lists.isEmpty(votacoes)}" class="lista-votacoes">
-        <li th:each="item : ${votacoes}">
-            <a th:href="@{/votacoes/{id}(id=${item.id})}" th:text="${item.nome}">Votação</a>
-            <span class="etiqueta" th:text="${@rotulosVotacao.estado(item.estado)}">Rascunho</span>
-            <span class="suave">
-                <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
-                <time th:datetime="${item.inicioEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
-                a
-                <time th:datetime="${item.fimEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
-            </span>
-        </li>
-    </ul>
+    <div class="grupo-votacoes">
+        <h2 class="rotulo">Votações que administro</h2>
+        <p th:if="${#lists.isEmpty(votacoes)}">Você ainda não administra nenhuma votação.</p>
+        <ul th:unless="${#lists.isEmpty(votacoes)}" class="lista-votacoes">
+            <li th:each="item : ${votacoes}">
+                <div>
+                    <a class="nome" th:href="@{/votacoes/{id}(id=${item.id})}" th:text="${item.nome}">Votação</a>
+                    <span class="sub">
+                        <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
+                        <th:block th:if="${item.inicioEm != null and item.fimEm != null}">
+                            <time th:datetime="${item.inicioEm}"
+                                  th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
+                            a
+                            <time th:datetime="${item.fimEm}"
+                                  th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+                        </th:block>
+                        <span th:if="${item.inicioEm == null or item.fimEm == null}">Período a definir</span>
+                    </span>
+                </div>
+                <span th:replace="~{votacoes/fragmentos :: estado(${item.estado})}"></span>
+                <a th:href="@{/votacoes/{id}(id=${item.id})}" class="botao secundario pequeno"
+                   th:aria-label="|Abrir painel de ${item.nome}|">Painel</a>
+            </li>
+        </ul>
+    </div>
 </main>
 </body>
 </html>

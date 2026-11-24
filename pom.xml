@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.1.1</version>
+    <version>4.2.0</version>
     <relativePath/>
     <!-- lookup parent from repository -->
   </parent>
@@ -227,7 +227,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>2.46.1</version>
+        <version>3.12.0</version>
         <configuration>
           <java>
             <googleJavaFormat>
@@ -271,7 +271,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.15</version>
+        <version>0.8.16</version>
         <executions>
           <!--Prepara o agente para os testes-->
           <execution>
@@ -360,7 +360,7 @@
       <plugin>
         <groupId>org.pitest</groupId>
         <artifactId>pitest-maven</artifactId>
-        <version>1.30.1</version>
+        <version>1.30.2</version>
         <configuration>
           <targetClasses>
             <param>com.unicamp.engsoft.eleicao.votacao.service.MotorApuracao*</param>

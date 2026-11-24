@@ -3,11 +3,12 @@ name: CD
 # (homologação):
 #   1. constrói a imagem Docker e publica no GHCR (ghcr.io/<owner>/<repo>), com
 #      tags sha-<commit>, <branch> e latest (só main);
-#   2. se o environment tiver o secret DEPLOY_WEBHOOK_URL, avisa o alvo de deploy
-#      (POST com a imagem imutável sha-<commit>) e faz health check em
-#      DEPLOY_HEALTH_URL; health check falho falha o job.
-# Sem DEPLOY_WEBHOOK_URL o job termina após publicar a imagem (hoje o time roda
-# só local, sem hospedagem paga). Configuração do alvo: ver README, seção "Deploy".
+#   2. implanta a imagem imutável sha-<commit> no alvo configurado no environment:
+#      - DEPLOY_SSH_HOST: VPS com a stack de deploy/ (Compose + Caddy), via SSH;
+#      - DEPLOY_WEBHOOK_URL: alvo genérico (POST com a imagem);
+#      e faz health check em DEPLOY_HEALTH_URL; health check falho falha o job.
+# Sem nenhum dos dois o job termina após publicar a imagem.
+# Configuração do alvo: ver README, seção "Deploy".
 on:
     push:
         branches:
@@ -28,7 +29,7 @@ jobs:
             imagem: ${{ steps.nome.outputs.imagem }}
             tag-sha: ${{ steps.nome.outputs.tag_sha }}
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - name: Nome da imagem
               id: nome
@@ -39,7 +40,7 @@ jobs:
                 echo "tag_sha=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
             - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
               name: Setup Buildx
-            - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+            - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
               name: Login no GHCR
               with:
                 registry: ghcr.io
@@ -54,7 +55,7 @@ jobs:
                     type=sha,prefix=sha-,format=short
                     type=ref,event=branch
                     type=raw,value=latest,enable={{is_default_branch}}
-            - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+            - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
               name: Build e push
               with:
                 context: .
@@ -78,10 +79,16 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 15
         environment: ${{ github.ref_name == 'main' && 'producao' || 'homologacao' }}
+        permissions:
+            contents: read
+            packages: read
         concurrency:
             group: deploy-${{ github.ref_name }}
             cancel-in-progress: false
         env:
+            DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+            DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+            DEPLOY_SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
             DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
             DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
             DEPLOY_HEALTH_URL: ${{ secrets.DEPLOY_HEALTH_URL || vars.DEPLOY_HEALTH_URL }}
@@ -91,10 +98,42 @@ jobs:
             AMBIENTE: ${{ github.ref_name == 'main' && 'producao' || 'homologacao' }}
         steps:
             - name: Sem alvo de deploy configurado
-              if: env.DEPLOY_WEBHOOK_URL == ''
+              if: env.DEPLOY_WEBHOOK_URL == '' && env.DEPLOY_SSH_HOST == ''
               run: |
-                echo "DEPLOY_WEBHOOK_URL não configurado no environment $AMBIENTE; imagem publicada, deploy ignorado."
+                echo "Nem DEPLOY_SSH_HOST nem DEPLOY_WEBHOOK_URL no environment $AMBIENTE; imagem publicada, deploy ignorado."
                 echo "Imagem: $IMAGEM" >> "$GITHUB_STEP_SUMMARY"
+            # ---- Alvo VPS (deploy/): a chave só executa deploy.sh (comando forçado na VPS) ----
+            - name: Configurar SSH
+              if: env.DEPLOY_SSH_HOST != ''
+              env:
+                CHAVE: ${{ secrets.DEPLOY_SSH_KEY }}
+                KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+              run: |
+                # known_hosts fixo (ssh-keyscan feito uma vez pelo mantenedor) em vez de aceitar
+                # qualquer chave: senão um MITM receberia o token do GHCR e controlaria o deploy.
+                if [ -z "$CHAVE" ] || [ -z "$KNOWN_HOSTS" ] || [ -z "$DEPLOY_SSH_USER" ]; then
+                  echo "::error::DEPLOY_SSH_HOST exige DEPLOY_SSH_USER, DEPLOY_SSH_KEY e DEPLOY_SSH_KNOWN_HOSTS."
+                  exit 1
+                fi
+                install -m 700 -d ~/.ssh
+                printf '%s\n' "$CHAVE" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+                printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+                printf 'Host vps\n  HostName %s\n  User %s\n  Port %s\n  IdentityFile ~/.ssh/deploy\n  StrictHostKeyChecking yes\n' \
+                  "$DEPLOY_SSH_HOST" "$DEPLOY_SSH_USER" "$DEPLOY_SSH_PORT" > ~/.ssh/config
+            - name: Deploy na VPS
+              if: env.DEPLOY_SSH_HOST != ''
+              env:
+                GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                # O comando forçado da chave ignora o que pedimos para executar e roda deploy.sh,
+                # que lê a imagem de SSH_ORIGINAL_COMMAND (e valida). A stack (compose,
+                # deploy.sh) é mantida na VPS pelo dono dela, não copiada daqui: assim um push no
+                # repositório não muda o que roda como root na máquina.
+                # O GITHUB_TOKEN do job vai no stdin para o pull funcionar com pacote privado.
+                # shellcheck disable=SC2029
+                printf '%s\n' "$GHCR_TOKEN" | ssh vps "$IMAGEM"
+                echo "Deploy na VPS: $IMAGEM em $AMBIENTE." >> "$GITHUB_STEP_SUMMARY"
+            # ---- Alvo genérico: webhook ----
             - name: Disparar deploy
               if: env.DEPLOY_WEBHOOK_URL != ''
               run: |
@@ -111,7 +150,9 @@ jobs:
                 curl -fsS --retry 3 -X POST "${auth[@]}" -H "Content-Type: application/json" \
                   -d "$payload" "$DEPLOY_WEBHOOK_URL"
             - name: Health check pós-deploy
-              if: env.DEPLOY_WEBHOOK_URL != ''
+              # No SSH o deploy.sh já esperou o healthcheck do container; aqui, se houver
+              # DEPLOY_HEALTH_URL, confere também o caminho público (DNS, Caddy, TLS).
+              if: env.DEPLOY_WEBHOOK_URL != '' || (env.DEPLOY_SSH_HOST != '' && env.DEPLOY_HEALTH_URL != '')
               run: |
                 # Webhooks costumam ser assíncronos: logo após o POST o health ainda
                 # pode estar respondendo pela versão antiga. Por isso:

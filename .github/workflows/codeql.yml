@@ -8,6 +8,9 @@ on:
         branches:
             - main
             - develop
+            # O ruleset de release/** exige "CodeQL (Java)"; sem o gatilho, o PR
+            # fica esperando para sempre um check que nunca é reportado.
+            - 'release/**'
     schedule:
         # Semanal, para pegar consultas novas do CodeQL mesmo sem commits.
         - cron: '0 6 * * 1'
@@ -26,9 +29,9 @@ jobs:
             group: ${{ github.workflow }}-${{ github.ref }}
             cancel-in-progress: true
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
-            - uses: actions/setup-java@v6
+            - uses: actions/setup-java@v6.2.0
               name: Setup Java
               with:
                 distribution: temurin

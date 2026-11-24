@@ -31,6 +31,18 @@ public record CadastroUsuarioRequest(
                 @Past(message = "A data de nascimento deve ser uma data no passado")
                 LocalDate dataNascimento) {
 
+    /**
+     * Tira a máscara ({@code 123.456.789-09}) antes da validação: {@code @CPF} aceita os dois
+     * formatos, mas a coluna é {@code VARCHAR(11)} e a checagem de duplicidade compara texto, então
+     * sem isso o formatado estoura no banco e o mesmo CPF entraria duas vezes. Só pontuação de
+     * máscara sai; letras continuam lá para o {@code @CPF} recusar.
+     */
+    public CadastroUsuarioRequest {
+        if (cpf != null) {
+            cpf = cpf.replaceAll("[.\\-\\s]", "");
+        }
+    }
+
     public Usuario paraUsuario(String senhaHash) {
         return new Usuario(nome, cpf, email, senhaHash, dataNascimento);
     }

@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'candidatos')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
@@ -24,7 +24,7 @@
                 <form th:if="${editavel}" class="inline"
                       th:action="@{/votacoes/{id}/candidatos/{c}/remover(id=${v.id},c=${c.id})}"
                       method="post">
-                    <button type="submit" class="link" th:aria-label="|Remover ${c.nome}|">Remover</button>
+                    <button type="submit" class="link perigo" th:aria-label="|Remover ${c.nome}|">Remover</button>
                 </form>
             </li>
         </ul>
@@ -40,14 +40,18 @@
 
             <label for="nome">Nome</label>
             <input type="text" id="nome" name="nome" th:value="*{nome}" maxlength="100"
+                   th:aria-invalid="${#fields.hasErrors('nome')}"
+                   th:aria-describedby="${#fields.hasErrors('nome')} ? 'erro-nome-candidato' : null"
                    th:classappend="${#fields.hasErrors('nome')} ? 'invalido'">
-            <p th:if="${#fields.hasErrors('nome')}" th:errors="*{nome}" class="erro-campo"></p>
+            <p id="erro-nome-candidato" th:if="${#fields.hasErrors('nome')}" th:errors="*{nome}" class="erro-campo" role="alert"></p>
 
             <label for="descricao">Descrição (opcional)</label>
             <textarea id="descricao" name="descricao" maxlength="255" rows="2"
                       th:text="*{descricao}"
+                      th:aria-invalid="${#fields.hasErrors('descricao')}"
+                      th:aria-describedby="${#fields.hasErrors('descricao')} ? 'erro-desc-candidato' : null"
                       th:classappend="${#fields.hasErrors('descricao')} ? 'invalido'"></textarea>
-            <p th:if="${#fields.hasErrors('descricao')}" th:errors="*{descricao}" class="erro-campo"></p>
+            <p id="erro-desc-candidato" th:if="${#fields.hasErrors('descricao')}" th:errors="*{descricao}" class="erro-campo" role="alert"></p>
 
             <button type="submit">Cadastrar</button>
         </form>

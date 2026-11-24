@@ -8,11 +8,18 @@
     <title>Início</title>
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao">
-    <h1>Bem-vindo</h1>
-    <p>Conectado como <strong sec:authentication="name">usuario@example.com</strong>.</p>
-    <p><a th:href="@{/votacoes}">Minhas votações</a> · <a th:href="@{/votacoes/nova}">Criar votação</a> · <a th:href="@{/comprovantes/verificar}">Verificar comprovante</a></p>
-    <p><a th:href="@{/eleicoes-publicas}">Consultar eleições públicas e candidatos</a></p>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
+    <div class="cabecalho-pagina">
+        <h1>Bem-vindo</h1>
+        <p class="suave">Conectado como <strong sec:authentication="name">usuario@example.com</strong>.</p>
+    </div>
+    <!-- O cartão inteiro é o link: o título diz para onde vai, a linha de baixo diz o que se faz lá. -->
+    <ul class="atalhos-inicio">
+        <li><a th:href="@{/votacoes}"><strong>Minhas votações</strong><span>Votar, acompanhar e ver resultados</span></a></li>
+        <li><a th:href="@{/votacoes/nova}"><strong>Criar votação</strong><span>Eleição privada ou orçamento participativo</span></a></li>
+        <li><a th:href="@{/comprovantes/verificar}"><strong>Verificar comprovante</strong><span>Confirmar que sua cédula foi registrada</span></a></li>
+        <li><a th:href="@{/eleicoes-publicas}"><strong>Eleições públicas</strong><span>Consultar eleições públicas e candidatos</span></a></li>
+    </ul>
 </main>
 </body>
 </html>

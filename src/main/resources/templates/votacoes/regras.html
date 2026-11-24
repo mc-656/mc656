@@ -8,11 +8,12 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'regras')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
-    <h2>Regras de apuração</h2>
+    <section aria-labelledby="titulo-regras">
+    <h2 id="titulo-regras">Regras de apuração</h2>
     <th:block th:unless="${editavel}"><p th:replace="~{votacoes/fragmentos :: bloqueada}"></p></th:block>
 
     <form th:if="${editavel}" th:action="@{/votacoes/{id}/regras(id=${v.id})}"
@@ -21,30 +22,34 @@
 
         <label for="tipoMaioria">Tipo de maioria</label>
         <select id="tipoMaioria" name="tipoMaioria"
+                th:aria-invalid="${#fields.hasErrors('tipoMaioria')}"
+                th:aria-describedby="${#fields.hasErrors('tipoMaioria')} ? 'erro-tipoMaioria' : null"
                 th:classappend="${#fields.hasErrors('tipoMaioria')} ? 'invalido'">
             <option value="">Selecione</option>
             <option th:each="m : ${maiorias}" th:value="${m}" th:text="${@rotulosVotacao.maioria(m)}"
                     th:selected="${m == regras.tipoMaioria}">Maioria simples</option>
         </select>
-        <p th:if="${#fields.hasErrors('tipoMaioria')}" th:errors="*{tipoMaioria}" class="erro-campo"></p>
+        <p id="erro-tipoMaioria" th:if="${#fields.hasErrors('tipoMaioria')}" th:errors="*{tipoMaioria}" class="erro-campo" role="alert"></p>
 
         <label for="percentualQualificado">Percentual qualificado (%)</label>
         <input type="number" id="percentualQualificado" name="percentualQualificado"
                th:value="*{percentualQualificado}" step="0.01" min="0" max="100"
-               aria-describedby="ajuda-percentual"
+               th:aria-invalid="${#fields.hasErrors('percentualQualificado')}"
+               aria-describedby="ajuda-percentual erro-percentualQualificado"
                th:classappend="${#fields.hasErrors('percentualQualificado')} ? 'invalido'">
         <p id="ajuda-percentual" class="ajuda">Só para maioria qualificada: maior que 50 e até 100.</p>
-        <p th:if="${#fields.hasErrors('percentualQualificado')}" th:errors="*{percentualQualificado}"
-           class="erro-campo"></p>
+        <p id="erro-percentualQualificado" th:if="${#fields.hasErrors('percentualQualificado')}" th:errors="*{percentualQualificado}"
+           class="erro-campo" role="alert"></p>
 
         <label for="quorumMinimoPercentual">Quórum mínimo (%)</label>
         <input type="number" id="quorumMinimoPercentual" name="quorumMinimoPercentual"
                th:value="*{quorumMinimoPercentual}" step="0.01" min="0" max="100"
-               aria-describedby="ajuda-quorum"
+               th:aria-invalid="${#fields.hasErrors('quorumMinimoPercentual')}"
+               aria-describedby="ajuda-quorum erro-quorumMinimoPercentual"
                th:classappend="${#fields.hasErrors('quorumMinimoPercentual')} ? 'invalido'">
         <p id="ajuda-quorum" class="ajuda">Opcional. Em branco, a votação não exige quórum.</p>
-        <p th:if="${#fields.hasErrors('quorumMinimoPercentual')}" th:errors="*{quorumMinimoPercentual}"
-           class="erro-campo"></p>
+        <p id="erro-quorumMinimoPercentual" th:if="${#fields.hasErrors('quorumMinimoPercentual')}" th:errors="*{quorumMinimoPercentual}"
+           class="erro-campo" role="alert"></p>
 
         <label class="opcao">
             <input type="checkbox" name="segundoTurno" value="true" th:checked="*{segundoTurno}">
@@ -58,6 +63,7 @@
 
         <button type="submit">Salvar regras</button>
     </form>
+    </section>
 </main>
 </body>
 </html>

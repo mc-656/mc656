@@ -7,15 +7,60 @@
     <title>Eleições públicas</title>
 </head>
 <body>
-<main layout:fragment="conteudo" class="pagina">
-    <h1>Eleições públicas</h1>
-    <p th:if="${#lists.isEmpty(eleicoes)}">Nenhuma eleição pública cadastrada.</p>
-    <ul class="lista-blocos">
-        <li th:each="e : ${eleicoes}" class="bloco">
-            <h2><a th:href="@{/eleicoes-publicas/{id}(id=${e.id})}" th:text="${e.nome}">Eleição</a></h2>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
+    <div class="cabecalho-pagina">
+        <h1>Eleições públicas</h1>
+        <p class="suave">Informações de fontes oficiais, separadas das votações da plataforma.</p>
+    </div>
+
+    <!-- Chips são radios de um GET comum: o filtro funciona sem JavaScript. -->
+    <form th:action="@{/eleicoes-publicas}" method="get" class="filtros">
+        <fieldset class="chips">
+            <legend>Situação</legend>
+            <label>
+                <input type="radio" name="situacao" value="" th:checked="${situacaoSelecionada == null}">
+                Ativas e futuras (padrão)
+            </label>
+            <label th:each="s : ${situacoes}">
+                <input type="radio" name="situacao" th:value="${s}" th:checked="${s == situacaoSelecionada}">
+                <span th:text="${s.name() == 'ATIVA' ? 'Em andamento (Ativa)' : (s.name() == 'FUTURA' ? 'Futura' : 'Encerrada')}">Ativa</span>
+            </label>
+        </fieldset>
+        <div class="campo">
+            <label for="cargo">Cargo em disputa</label>
+            <input id="cargo" type="text" name="cargo" th:value="${cargoFiltro}"
+                   placeholder="Ex.: Prefeito, Governador, Senador">
+        </div>
+        <button type="submit">Filtrar eleições</button>
+    </form>
+
+    <p th:if="${#lists.isEmpty(eleicoes)}">Nenhuma eleição pública encontrada para os filtros selecionados.</p>
+
+    <ul class="cartoes">
+        <li th:each="e : ${eleicoes}" class="cartao-eleicao">
+            <div class="data">
+                <time class="dia" th:datetime="${e.dataPrimeiroTurno}">
+                    <span class="sr-only">1º turno em</span>
+                    <b th:text="${#temporals.format(e.dataPrimeiroTurno, 'dd/MM')}">01/10</b>
+                    <small th:text="${#temporals.format(e.dataPrimeiroTurno, 'yyyy')}">2028</small>
+                </time>
+                <div>
+                    <h2><a th:href="@{/eleicoes-publicas/{id}(id=${e.id})}" th:text="${e.nome}">Eleição</a></h2>
+                    <p class="suave">
+                        <span th:text="${e.abrangencia}">Abrangência</span>
+                        <span th:if="${e.dataFim != null}"
+                              th:text="| · até ${#temporals.format(e.dataFim, 'dd/MM/yyyy')}|"></span>
+                    </p>
+                </div>
+            </div>
             <p>
-                <span th:text="${e.abrangencia}">Abrangência</span> ·
-                1º turno em <span th:text="${#temporals.format(e.dataPrimeiroTurno, 'dd/MM/yyyy')}">01/10/2028</span>
+                <span class="pilula" th:classappend="|situacao-${e.situacao.name()}|"
+                      th:text="${e.situacao.name() == 'ATIVA' ? 'Ativa' : (e.situacao.name() == 'FUTURA' ? 'Futura' : 'Encerrada')}">Futura</span>
+            </p>
+            <p class="links">
+                <a th:href="@{/eleicoes-publicas/{id}(id=${e.id})}">Candidatos</a>
+                <a th:href="@{/eleicoes-publicas/{id}/comparar(id=${e.id})}">Comparar propostas</a>
+                <a th:href="@{/eleicoes-publicas/{id}/conteudos(id=${e.id})}">Notícias e debates</a>
             </p>
             <p th:replace="~{eleicoes-publicas/fonte :: fonte(${e.fonte})}"></p>
         </li>

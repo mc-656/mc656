@@ -11,27 +11,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title layout:title-pattern="$CONTENT_TITLE · Decisão Coletiva">Decisão Coletiva</title>
+    <link rel="preload" th:href="@{/css/fonts/public-sans-400.woff2}" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <!--
+      Tema antes da primeira pintura, para não piscar no tema errado: a escolha salva vence; sem ela,
+      vale a preferência do sistema. O localStorage pode estar bloqueado (aba privada), daí o try.
+    -->
+    <script>
+        (function () {
+            var salvo = null;
+            try { salvo = localStorage.getItem('tema'); } catch (e) {}
+            var escuro = salvo ? salvo === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', escuro ? 'dark' : 'light');
+        })();
+    </script>
 </head>
 <body>
+<a class="pular-conteudo" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
 <header class="cabecalho">
-    <a th:href="@{/}" class="marca">Decisão Coletiva</a>
+    <a th:href="@{/}" class="marca">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="9" width="17" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M8 9V4.5h8V9M8 13h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Decisão Coletiva
+    </a>
 
     <!-- Logout é POST com token CSRF (injetado pelo th:action): via GET, qualquer site deslogaria o usuário. -->
-    <nav sec:authorize="isAuthenticated()">
-        <span sec:authentication="name">usuario@example.com</span>
-        <form th:action="@{/logout}" method="post" class="inline">
-            <button type="submit" class="link">Sair</button>
-        </form>
+    <nav sec:authorize="isAuthenticated()" aria-label="Menu do usuário">
+        <a th:href="@{/votacoes}">Minhas votações</a>
+        <a th:href="@{/eleicoes-publicas}">Eleições públicas</a>
+        <span class="conta">
+            <span class="avatar" aria-hidden="true"
+                  th:text="${#strings.toUpperCase(#strings.substring(#authentication.name, 0, 1))}">U</span>
+            <span class="email" sec:authentication="name">usuario@example.com</span>
+            <form th:action="@{/logout}" method="post" class="inline">
+                <button type="submit" class="link">Sair</button>
+            </form>
+        </span>
     </nav>
-    <nav sec:authorize="isAnonymous()">
+    <nav sec:authorize="isAnonymous()" aria-label="Menu principal">
+        <a th:href="@{/eleicoes-publicas}">Eleições públicas</a>
         <a th:href="@{/login}">Entrar</a>
         <a th:href="@{/cadastro}">Cadastrar</a>
     </nav>
+
+    <button type="button" class="alternar-tema" id="alternar-tema" aria-label="Alternar tema claro/escuro">
+        <svg class="lua" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        <svg class="sol" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+    </button>
+    <script>
+        (function () {
+            var raiz = document.documentElement;
+            var botao = document.getElementById('alternar-tema');
+            function rotular() {
+                var escuro = raiz.getAttribute('data-theme') === 'dark';
+                botao.setAttribute('aria-label', escuro ? 'Ativar tema claro' : 'Ativar tema escuro');
+                botao.title = botao.getAttribute('aria-label');
+            }
+            botao.addEventListener('click', function () {
+                var novo = raiz.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                raiz.setAttribute('data-theme', novo);
+                try { localStorage.setItem('tema', novo); } catch (e) {}
+                rotular();
+            });
+            // Sem escolha salva, acompanha a mudança de tema do sistema em tempo real.
+            matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (ev) {
+                var salvo = null;
+                try { salvo = localStorage.getItem('tema'); } catch (e) {}
+                if (!salvo) { raiz.setAttribute('data-theme', ev.matches ? 'dark' : 'light'); rotular(); }
+            });
+            rotular();
+        })();
+    </script>
 </header>
 
-<main layout:fragment="conteudo"></main>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1"></main>
 
 <footer class="rodape">MC656 · Unicamp</footer>
 

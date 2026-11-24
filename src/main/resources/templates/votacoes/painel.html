@@ -8,55 +8,233 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'painel')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
-    <section aria-labelledby="titulo-dados">
-        <h2 id="titulo-dados">Dados</h2>
-        <dl class="dados">
-            <dt>Descrição</dt>
-            <dd th:text="${v.descricao}">Descrição</dd>
-            <dt>Tipo</dt>
-            <dd th:text="${@rotulosVotacao.tipo(v.tipo)}">Eleição privada</dd>
-            <dt>Início</dt>
-            <dd><time th:datetime="${v.inicioEm}" th:text="${@rotulosVotacao.dataHora(v.inicioEm)}"></time></dd>
-            <dt>Fim</dt>
-            <dd><time th:datetime="${v.fimEm}" th:text="${@rotulosVotacao.dataHora(v.fimEm)}"></time></dd>
-        </dl>
-    </section>
+    <div th:each="aviso : ${avisosPesoUnico}" class="alerta" role="status" th:text="${aviso}"></div>
 
-    <section aria-labelledby="titulo-config">
-        <h2 id="titulo-config">Configuração</h2>
-        <dl class="dados">
-            <dt>Regras</dt>
-            <dd th:if="${v.regras == null}">
-                Não configuradas. <a th:href="@{/votacoes/{id}/regras(id=${v.id})}">Configurar</a>
-            </dd>
-            <dd th:if="${v.regras != null}">
-                <span th:text="${@rotulosVotacao.maioria(v.regras.tipoMaioria)}">Maioria simples</span>
-                <span th:if="${v.regras.percentualQualificado != null}"
-                      th:text="|(${v.regras.percentualQualificado}%)|"></span>
-                <span th:if="${v.regras.segundoTurno}">· segundo turno</span>
-                <span th:if="${v.regras.quorumMinimoPercentual != null}"
-                      th:text="|· quórum de ${v.regras.quorumMinimoPercentual}%|"></span>
-                <span th:if="${v.regras.votoPonderado}">· voto ponderado</span>
-            </dd>
-            <dt>Candidatos/chapas</dt>
-            <dd th:text="${totalCandidatos}">0</dd>
-            <dt>Eleitores</dt>
-            <dd th:text="${totalEleitores}">0</dd>
-        </dl>
-    </section>
+    <!-- Esquerda: o que a votação é. Direita: o que fazer agora, com a ação destrutiva isolada. -->
+    <!-- Sem nenhuma ação disponível (ex.: durante a votação), a coluna da direita não existe e os dados ocupam tudo. -->
+    <div class="grade-painel"
+         th:with="temAcoes=${editavelPeriodo or podePublicar or podeConvidar or temResultadoOuAnulacao or podeEncerrar or podeHomologar or podeAnular}"
+         th:classappend="${temAcoes} ? '' : 'sem-acoes'">
+        <div class="coluna">
+            <section th:if="${comparecimento != null}" aria-labelledby="titulo-comparecimento">
+                <h2 id="titulo-comparecimento">Acompanhamento de comparecimento</h2>
+                <p class="suave">Atualizado automaticamente durante a votação sem expor escolhas ou votos individuais.</p>
+                <div class="medidor" aria-hidden="true">
+                    <span class="preenchido" id="cmp-barra"
+                          th:style="|width: ${comparecimento.percentualComparecimento}%|"></span>
+                    <span th:if="${comparecimento.quorumMinimoPercentual != null}" class="marca"
+                          th:style="|left: ${comparecimento.quorumMinimoPercentual}%|">
+                        <span th:text="|quórum ${comparecimento.quorumMinimoPercentual}%|">quórum 50%</span>
+                    </span>
+                </div>
+                <dl class="dados" id="painel-comparecimento"
+                    th:data-url="@{/votacoes/{id}/comparecimento(id=${v.id})}"
+                    aria-live="polite">
+                    <dt>Votantes</dt>
+                    <dd id="cmp-participacoes" th:text="${comparecimento.totalParticipacoes}">0</dd>
+                    <dt>Eleitores aptos</dt>
+                    <dd id="cmp-aptos" th:text="${comparecimento.totalEleitoresAptos}">0</dd>
+                    <dt>Comparecimento</dt>
+                    <dd id="cmp-percentual" th:text="|${comparecimento.percentualComparecimento}%|">0%</dd>
+                    <dt>Quórum mínimo</dt>
+                    <dd id="cmp-quorum-minimo"
+                        th:text="${comparecimento.quorumMinimoPercentual != null ? comparecimento.quorumMinimoPercentual + '%' : 'Não exigido'}">
+                        Não exigido
+                    </dd>
+                    <dt>Status do quórum</dt>
+                    <dd id="cmp-quorum-status"
+                        th:classappend="${comparecimento.quorumAtingido} ? 'quorum-atingido'"
+                        th:text="${comparecimento.quorumAtingido ? 'Quórum atingido' : 'Quórum ainda não atingido'}">
+                        Quórum atingido
+                    </dd>
+                </dl>
+                <script>
+                    (function () {
+                        var painel = document.getElementById('painel-comparecimento');
+                        if (!painel) { return; }
+                        var url = painel.getAttribute('data-url');
+                        function atualizar() {
+                            fetch(url, { headers: { 'Accept': 'application/json' } })
+                                .then(function (r) { return r.ok ? r.json() : null; })
+                                .then(function (d) {
+                                    if (!d) { return; }
+                                    document.getElementById('cmp-participacoes').textContent = String(d.totalParticipacoes);
+                                    document.getElementById('cmp-aptos').textContent = String(d.totalEleitoresAptos);
+                                    document.getElementById('cmp-percentual').textContent = d.percentualComparecimento + '%';
+                                    document.getElementById('cmp-barra').style.width = d.percentualComparecimento + '%';
+                                    var status = document.getElementById('cmp-quorum-status');
+                                    status.textContent = d.quorumAtingido ? 'Quórum atingido' : 'Quórum ainda não atingido';
+                                    status.classList.toggle('quorum-atingido', d.quorumAtingido);
+                                })
+                                .catch(function () {});
+                        }
+                        setInterval(atualizar, 15000);
+                    })();
+                </script>
+            </section>
 
-    <section th:if="${podePublicar}" aria-labelledby="titulo-publicar">
-        <h2 id="titulo-publicar">Publicar</h2>
-        <p>Depois de publicada, a votação não aceita mais mudanças em regras, candidatos ou
-            eleitores, e abre automaticamente na data de início.</p>
-        <form th:action="@{/votacoes/{id}/publicar(id=${v.id})}" method="post">
-            <button type="submit">Publicar votação</button>
-        </form>
-    </section>
+            <section aria-labelledby="titulo-dados">
+                <h2 id="titulo-dados">Dados</h2>
+                <dl class="dados">
+                    <dt>Descrição</dt>
+                    <dd th:text="${v.descricao}">Descrição</dd>
+                    <dt>Tipo</dt>
+                    <dd th:text="${@rotulosVotacao.tipo(v.tipo)}">Eleição privada</dd>
+                    <dt>Início</dt>
+                    <dd>
+                        <time th:if="${v.inicioEm != null}" th:datetime="${v.inicioEm}" th:text="${@rotulosVotacao.dataHora(v.inicioEm)}"></time>
+                        <span th:if="${v.inicioEm == null}">A definir</span>
+                    </dd>
+                    <dt>Fim</dt>
+                    <dd>
+                        <time th:if="${v.fimEm != null}" th:datetime="${v.fimEm}" th:text="${@rotulosVotacao.dataHora(v.fimEm)}"></time>
+                        <span th:if="${v.fimEm == null}">A definir</span>
+                    </dd>
+                </dl>
+            </section>
+
+            <section aria-labelledby="titulo-config">
+                <h2 id="titulo-config">Configuração</h2>
+                <dl class="dados">
+                    <dt>Regras</dt>
+                    <dd th:if="${v.regras == null}">
+                        Não configuradas. <a th:href="@{/votacoes/{id}/regras(id=${v.id})}">Configurar</a>
+                    </dd>
+                    <dd th:if="${v.regras != null}">
+                        <span th:text="${@rotulosVotacao.maioria(v.regras.tipoMaioria)}">Maioria simples</span>
+                        <span th:if="${v.regras.percentualQualificado != null}"
+                              th:text="|(${v.regras.percentualQualificado}%)|"></span>
+                        <span th:if="${v.regras.segundoTurno}">· segundo turno</span>
+                        <span th:if="${v.regras.quorumMinimoPercentual != null}"
+                              th:text="|· quórum de ${v.regras.quorumMinimoPercentual}%|"></span>
+                        <span th:if="${v.regras.votoPonderado}">· voto ponderado</span>
+                    </dd>
+                    <dt th:if="${v.tipo.name() == 'ELEICAO_PRIVADA'}">Candidatos/chapas</dt>
+                    <dd th:if="${v.tipo.name() == 'ELEICAO_PRIVADA'}" th:text="${totalCandidatos}">0</dd>
+                    <dt th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}">Orçamento total</dt>
+                    <dd th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}"
+                        th:text="${v.orcamentoTotal != null ? v.orcamentoTotal : 'Não definido'}">0</dd>
+                    <dt th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}">Propostas</dt>
+                    <dd th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}" th:text="${totalPropostas}">0</dd>
+                    <dt>Eleitores</dt>
+                    <dd th:text="${totalEleitores}">0</dd>
+                </dl>
+            </section>
+        </div>
+
+        <div class="coluna" th:if="${temAcoes}">
+            <section th:if="${editavelPeriodo}" aria-labelledby="titulo-periodo">
+                <h2 id="titulo-periodo">Período da votação</h2>
+                <form th:action="@{/votacoes/{id}/periodo(id=${v.id})}" th:object="${periodoForm}" method="post" class="formulario">
+                    <div th:if="${#fields.hasGlobalErrors()}" class="alerta erro" role="alert">
+                        <p th:each="e : ${#fields.globalErrors()}" th:text="${e}"></p>
+                    </div>
+                    <div class="campo">
+                        <label for="inicioEm">Início</label>
+                        <input id="inicioEm" type="datetime-local" th:field="*{inicioEm}" required>
+                        <p th:if="${#fields.hasErrors('inicioEm')}" th:errors="*{inicioEm}" class="erro-campo"></p>
+                    </div>
+                    <div class="campo">
+                        <label for="fimEm">Fim</label>
+                        <input id="fimEm" type="datetime-local" th:field="*{fimEm}" required>
+                        <p th:if="${#fields.hasErrors('fimEm')}" th:errors="*{fimEm}" class="erro-campo"></p>
+                    </div>
+                    <button type="submit" class="secundario">Salvar período</button>
+                </form>
+            </section>
+
+            <section th:if="${podePublicar}" aria-labelledby="titulo-publicar">
+                <h2 id="titulo-publicar">Publicar</h2>
+                <p>Depois de publicada, a votação não aceita mais mudanças em regras, candidatos ou
+                    eleitores, e abre automaticamente na data de início.</p>
+                <form th:action="@{/votacoes/{id}/publicar(id=${v.id})}" method="post">
+                    <button type="submit">Publicar votação</button>
+                </form>
+            </section>
+
+            <section th:if="${podeConvidar}" aria-labelledby="titulo-convites">
+                <h2 id="titulo-convites">Convites (link e e-mail)</h2>
+                <form th:action="@{/votacoes/{id}/convite(id=${v.id})}" method="post" class="formulario">
+                    <div class="campo">
+                        <label for="modoConvite">Modo de acesso pelo link</label>
+                        <select id="modoConvite" name="modo">
+                            <option th:each="m : ${modosConvite}"
+                                    th:value="${m.name()}"
+                                    th:selected="${convite != null and convite.modo == m}"
+                                    th:text="${m.name() == 'ABERTO' ? 'Aberto (qualquer usuário com o link)' : 'Restrito (apenas e-mails convidados)'}">
+                                Aberto
+                            </option>
+                        </select>
+                    </div>
+                    <button type="submit" class="secundario"
+                            th:text="${convite != null ? 'Atualizar modo do convite' : 'Gerar link de convite'}">
+                        Gerar link de convite
+                    </button>
+                </form>
+
+                <div th:if="${convite != null}" style="margin-top: 1rem;">
+                    <p>
+                        <strong>Link do convite:</strong>
+                        <code th:text="${convite.link}"
+                              style="display: block; word-break: break-all; overflow-wrap: anywhere; margin-top: 0.25rem;">http://localhost:8080/convites/...</code>
+                    </p>
+                    <form th:action="@{/votacoes/{id}/convite/emails(id=${v.id})}" method="post" class="formulario">
+                        <div class="campo">
+                            <label for="emailsConvite">Enviar convite por e-mail</label>
+                            <textarea id="emailsConvite" name="emails" rows="3"
+                                      placeholder="um@exemplo.com, outro@exemplo.com" required></textarea>
+                        </div>
+                        <button type="submit">Enviar convites por e-mail</button>
+                    </form>
+                    <p th:if="${!#lists.isEmpty(convite.emails)}" class="suave">
+                        Convidados: <span th:text="${#strings.listJoin(convite.emails, ', ')}"></span>
+                    </p>
+                </div>
+            </section>
+
+            <section th:if="${temResultadoOuAnulacao or podeEncerrar or podeHomologar}"
+                     aria-labelledby="titulo-resultado-painel">
+                <h2 id="titulo-resultado-painel">Apuração e resultado</h2>
+                <p th:if="${temResultadoOuAnulacao}">
+                    <a th:href="@{/votacoes/{id}/resultado(id=${v.id})}" class="botao secundario">Ver resultado</a>
+                </p>
+                <p th:if="${apuracao != null and apuracao.segundoTurnoId != null}">
+                    Foi gerada uma votação de segundo turno:
+                    <a th:href="@{/votacoes/{id}(id=${apuracao.segundoTurnoId})}">Configurar 2º turno</a>.
+                </p>
+
+                <form th:if="${podeEncerrar}" th:action="@{/votacoes/{id}/encerrar(id=${v.id})}" method="post">
+                    <button type="submit">Publicar resultado</button>
+                </form>
+
+                <form th:if="${podeHomologar}" th:action="@{/votacoes/{id}/homologar(id=${v.id})}" method="post"
+                      class="formulario">
+                    <div class="campo">
+                        <label for="motivoHomologacao">Observação da homologação (opcional)</label>
+                        <input id="motivoHomologacao" type="text" name="motivo" maxlength="500">
+                    </div>
+                    <button type="submit">Homologar resultado</button>
+                </form>
+            </section>
+
+            <!-- Anular é irreversível: fica fora do fluxo principal, com borda e botão de perigo. -->
+            <section th:if="${podeAnular}" class="zona-perigo" aria-labelledby="titulo-anular">
+                <h2 id="titulo-anular">Anular votação</h2>
+                <p class="suave">Invalida todos os votos registrados. A anulação fica no histórico e não pode ser desfeita.</p>
+                <form th:action="@{/votacoes/{id}/anular(id=${v.id})}" method="post" class="formulario">
+                    <div class="campo">
+                        <label for="justificativaAnulacao">Justificativa para anulação por irregularidade</label>
+                        <input id="justificativaAnulacao" type="text" name="justificativa" maxlength="500" required>
+                    </div>
+                    <button type="submit" class="perigo">Anular votação</button>
+                </form>
+            </section>
+        </div>
+    </div>
 </main>
 </body>
 </html>

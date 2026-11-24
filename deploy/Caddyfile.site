@@ -1,0 +1,7 @@
+# Bloco para colar no Caddyfile do Caddy central da VPS (troque o IP pelo da VPS).
+# O Caddy precisa estar na rede eleicao-proxy para resolver eleicao-app (README, "Deploy em VPS").
+# Ele já envia X-Forwarded-Proto/For; a API confia neles (server.forward-headers-strategy).
+eleicao.203.0.113.10.nip.io {
+	encode zstd gzip
+	reverse_proxy eleicao-app:8080
+}

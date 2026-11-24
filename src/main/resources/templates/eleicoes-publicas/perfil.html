@@ -7,8 +7,8 @@
     <title th:text="${perfil.nomeUrna}">Perfil do candidato</title>
 </head>
 <body>
-<main layout:fragment="conteudo" class="pagina">
-    <p>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
+    <p class="voltar">
         <a th:href="@{/eleicoes-publicas/{id}(id=${perfil.cargoDisputado.eleicaoId})}"
            th:text="|← ${perfil.cargoDisputado.eleicaoNome}|">← Eleição</a>
     </p>
@@ -54,6 +54,24 @@
                 </li>
             </ul>
         </div>
+    </section>
+
+    <section>
+        <h2>Agenda de aparições</h2>
+        <p th:if="${#lists.isEmpty(perfil.agenda)}">Nenhuma aparição futura registrada.</p>
+        <ul class="lista-blocos">
+            <li th:each="a : ${perfil.agenda}" class="bloco">
+                <strong th:text="${a.titulo}">Evento</strong>
+                <p>
+                    <span th:text="${a.tipo}">DEBATE</span> ·
+                    <time th:datetime="${a.dataHora}"
+                          th:text="${@rotulosVotacao.dataHora(a.dataHora)}">15/09/2028 17:00</time> ·
+                    <span th:text="${a.local}">Local</span>
+                </p>
+                <p th:if="${a.descricao != null}" th:text="${a.descricao}"></p>
+                <p th:replace="~{eleicoes-publicas/fonte :: fonte(${a.fonte})}"></p>
+            </li>
+        </ul>
     </section>
 
     <section>
