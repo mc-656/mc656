@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao">
     <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
     <h1>Criar votação</h1>
 
@@ -18,32 +18,43 @@
 
         <label for="nome">Nome</label>
         <input type="text" id="nome" name="nome" th:value="*{nome}" maxlength="50"
+               th:aria-invalid="${#fields.hasErrors('nome')}"
+               th:aria-describedby="${#fields.hasErrors('nome')} ? 'erro-nome' : null"
                th:classappend="${#fields.hasErrors('nome')} ? 'invalido'">
-        <p th:if="${#fields.hasErrors('nome')}" th:errors="*{nome}" class="erro-campo"></p>
+        <p id="erro-nome" th:if="${#fields.hasErrors('nome')}" th:errors="*{nome}" class="erro-campo" role="alert"></p>
 
         <label for="descricao">Descrição</label>
         <textarea id="descricao" name="descricao" maxlength="100" rows="3"
                   th:text="*{descricao}"
+                  th:aria-invalid="${#fields.hasErrors('descricao')}"
+                  th:aria-describedby="${#fields.hasErrors('descricao')} ? 'erro-descricao' : null"
                   th:classappend="${#fields.hasErrors('descricao')} ? 'invalido'"></textarea>
-        <p th:if="${#fields.hasErrors('descricao')}" th:errors="*{descricao}" class="erro-campo"></p>
+        <p id="erro-descricao" th:if="${#fields.hasErrors('descricao')}" th:errors="*{descricao}" class="erro-campo" role="alert"></p>
 
         <label for="tipo">Tipo</label>
-        <select id="tipo" name="tipo" th:classappend="${#fields.hasErrors('tipo')} ? 'invalido'">
+        <select id="tipo" name="tipo"
+                th:aria-invalid="${#fields.hasErrors('tipo')}"
+                th:aria-describedby="${#fields.hasErrors('tipo')} ? 'erro-tipo' : null"
+                th:classappend="${#fields.hasErrors('tipo')} ? 'invalido'">
             <option th:each="t : ${tipos}" th:value="${t}" th:text="${@rotulosVotacao.tipo(t)}"
                     th:selected="${t == votacao.tipo}">Eleição privada</option>
         </select>
-        <p th:if="${#fields.hasErrors('tipo')}" th:errors="*{tipo}" class="erro-campo"></p>
+        <p id="erro-tipo" th:if="${#fields.hasErrors('tipo')}" th:errors="*{tipo}" class="erro-campo" role="alert"></p>
 
         <!-- datetime-local não carrega fuso: o servidor interpreta no horário de Brasília. -->
         <label for="inicioEm">Início (horário de Brasília)</label>
         <input type="datetime-local" id="inicioEm" name="inicioEm" th:value="*{inicioEm}"
+               th:aria-invalid="${#fields.hasErrors('inicioEm')}"
+               th:aria-describedby="${#fields.hasErrors('inicioEm')} ? 'erro-inicio' : null"
                th:classappend="${#fields.hasErrors('inicioEm')} ? 'invalido'">
-        <p th:if="${#fields.hasErrors('inicioEm')}" th:errors="*{inicioEm}" class="erro-campo"></p>
+        <p id="erro-inicio" th:if="${#fields.hasErrors('inicioEm')}" th:errors="*{inicioEm}" class="erro-campo" role="alert"></p>
 
         <label for="fimEm">Fim (horário de Brasília)</label>
         <input type="datetime-local" id="fimEm" name="fimEm" th:value="*{fimEm}"
+               th:aria-invalid="${#fields.hasErrors('fimEm')}"
+               th:aria-describedby="${#fields.hasErrors('fimEm')} ? 'erro-fim' : null"
                th:classappend="${#fields.hasErrors('fimEm')} ? 'invalido'">
-        <p th:if="${#fields.hasErrors('fimEm')}" th:errors="*{fimEm}" class="erro-campo"></p>
+        <p id="erro-fim" th:if="${#fields.hasErrors('fimEm')}" th:errors="*{fimEm}" class="erro-campo" role="alert"></p>
 
         <button type="submit">Criar votação</button>
     </form>
