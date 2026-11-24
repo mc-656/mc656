@@ -11,21 +11,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title layout:title-pattern="$CONTENT_TITLE · Decisão Coletiva">Decisão Coletiva</title>
+    <link rel="preload" th:href="@{/css/fonts/public-sans-400.woff2}" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
 <a class="pular-conteudo" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
 <header class="cabecalho">
-    <a th:href="@{/}" class="marca">Decisão Coletiva</a>
+    <a th:href="@{/}" class="marca">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="9" width="17" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M8 9V4.5h8V9M8 13h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Decisão Coletiva
+    </a>
 
     <!-- Logout é POST com token CSRF (injetado pelo th:action): via GET, qualquer site deslogaria o usuário. -->
     <nav sec:authorize="isAuthenticated()" aria-label="Menu do usuário">
+        <a th:href="@{/votacoes}">Minhas votações</a>
         <a th:href="@{/eleicoes-publicas}">Eleições públicas</a>
-        <span sec:authentication="name">usuario@example.com</span>
-        <form th:action="@{/logout}" method="post" class="inline">
-            <button type="submit" class="link">Sair</button>
-        </form>
+        <span class="conta">
+            <span class="avatar" aria-hidden="true"
+                  th:text="${#strings.toUpperCase(#strings.substring(#authentication.name, 0, 1))}">U</span>
+            <span class="email" sec:authentication="name">usuario@example.com</span>
+            <form th:action="@{/logout}" method="post" class="inline">
+                <button type="submit" class="link">Sair</button>
+            </form>
+        </span>
     </nav>
     <nav sec:authorize="isAnonymous()" aria-label="Menu principal">
         <a th:href="@{/eleicoes-publicas}">Eleições públicas</a>

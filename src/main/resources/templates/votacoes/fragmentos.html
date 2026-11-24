@@ -3,13 +3,38 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!-- Cabeçalho de uma votação: nome, estado e navegação entre as etapas de configuração. -->
+<!-- Pílula do estado da votação: a classe estado-<NomeDoEnum> dá a cor (app.css). -->
+<span th:fragment="estado(e)" class="pilula" th:classappend="|estado-${e.name()}|"
+      th:text="${@rotulosVotacao.estado(e)}">Rascunho</span>
+
+<!--
+  Trilha do ciclo de vida (SPECS 4.2): caminho feliz da máquina de estados. Suspensa aparece na
+  posição de "Em votação"; Anulada e Cancelada saem do caminho, então a trilha some e só a pílula fica.
+-->
+<!-- th:with fica num bloco externo porque o Thymeleaf avalia th:if antes de th:with no mesmo elemento. -->
+<th:block th:fragment="trilha(e)"
+          th:with="passos=${ {'RascunhoVotacao', 'Publicada', 'EmVotacao', 'Apuracao', 'Encerrada', 'Homologada'} },
+                   rotulos=${ {'Rascunho', 'Publicada', 'Em votação', 'Em apuração', 'Encerrada', 'Homologada'} },
+                   pos=${e.name() == 'Suspensa' ? 2 : passos.indexOf(e.name())}">
+    <ol th:if="${pos >= 0}" class="trilha" aria-label="Ciclo da votação">
+        <li th:each="p, it : ${passos}"
+            th:classappend="${it.index < pos} ? 'feita' : (${it.index == pos} ? 'atual' : '')"
+            th:attr="aria-current=${it.index == pos} ? 'step' : null"
+            th:text="${rotulos[it.index]}">Rascunho</li>
+    </ol>
+</th:block>
+
+<!-- Cabeçalho de uma votação: nome, estado, ciclo e navegação entre as etapas de configuração. -->
 <header th:fragment="cabecalho(v, atual)" class="cabecalho-votacao">
-    <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
-    <h1 th:text="${v.nome}">Nome da votação</h1>
-    <p class="estado">
-        Estado: <strong th:text="${@rotulosVotacao.estado(v.estado)}">Rascunho</strong>
-    </p>
+    <div>
+        <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
+        <h1 th:text="${v.nome}">Nome da votação</h1>
+        <p class="meta">
+            <span th:replace="~{votacoes/fragmentos :: estado(${v.estado})}"></span>
+            <span th:text="${@rotulosVotacao.tipo(v.tipo)}">Eleição privada</span>
+        </p>
+    </div>
+    <th:block th:replace="~{votacoes/fragmentos :: trilha(${v.estado})}"></th:block>
     <nav aria-label="Etapas da votação" class="etapas">
         <a th:href="@{/votacoes/{id}(id=${v.id})}"
            th:attr="aria-current=${atual == 'painel'} ? 'page' : null">Resumo</a>
@@ -27,7 +52,7 @@
 </header>
 
 <!-- Mensagens de flash (PRG): sucesso e erro de ações sem formulário próprio. -->
-<div th:fragment="mensagens">
+<div th:fragment="mensagens" class="mensagens">
     <p th:if="${sucesso}" th:text="${sucesso}" class="alerta sucesso" role="status"></p>
     <p th:if="${erro}" th:text="${erro}" class="alerta erro" role="alert"></p>
 </div>
