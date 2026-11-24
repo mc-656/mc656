@@ -162,6 +162,15 @@ make demo
 
 O script `scripts/demo.sh` cria contas de demonstração, publica votações via API real, aguarda as transições automáticas e imprime no terminal as credenciais, links diretos e comprovantes criptografados prontos para uso.
 
+Contas criadas pelo script (senha padrão `Senha123!`, alterável via `DEMO_SENHA`):
+
+| Papel no cenário | Nome | E-mail |
+| --- | --- | --- |
+| Administradora das votações | Ana Organizadora | `admin@demo.unicamp.br` |
+| Eleitor que já votou (gera comparecimento/comprovantes) | Bruno Eleitor | `eleitor1@demo.unicamp.br` |
+| Eleitora apta para votar ao vivo | Carla Eleitora | `eleitor2@demo.unicamp.br` |
+| Convidado por e-mail no Mailpit (RF-17) | Diego Convidado | `eleitor3@demo.unicamp.br` |
+
 ## Deploy (Docker e CD)
 
 Requisito RNF-08. Por decisão do time a aplicação roda só local por enquanto
