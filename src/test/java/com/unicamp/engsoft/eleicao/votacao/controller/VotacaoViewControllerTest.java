@@ -724,4 +724,51 @@ class VotacaoViewControllerTest extends AbstractIntegrationTest {
                 .andExpect(content().string(containsString("500.00")))
                 .andExpect(content().string(containsString("<dd>1</dd>")));
     }
+
+    @Test
+    @DisplayName("Painel durante EmVotacao exibe comparecimento em tempo real e endpoint JSON")
+    void painelEmVotacaoMostraComparecimento() throws Exception {
+        Votacao votacao =
+                votacaoService.criarVotacao(
+                        new CriarVotacaoRequest(
+                                TipoVotacao.ELEICAO_PRIVADA,
+                                Instant.parse("2020-01-01T12:00:00Z"),
+                                Instant.parse("2099-10-02T12:00:00Z"),
+                                "Assembleia 2099",
+                                "Descrição"),
+                        admin.getId());
+        votacaoService.configurarRegras(
+                votacao.getId(),
+                new ConfigurarRegrasRequest(
+                        TipoMaioria.MAIORIA_SIMPLES, null, false, new BigDecimal("50"), true));
+        candidatoService.cadastrar(votacao.getId(), new CadastrarCandidatoRequest("Chapa A", null));
+        candidatoService.cadastrar(votacao.getId(), new CadastrarCandidatoRequest("Chapa B", null));
+
+        Usuario bia =
+                usuarioRepository.save(
+                        new Usuario("Bia", "52998224725", "bia@example.com", "hash", NASCIMENTO));
+        mvc.perform(
+                        post("/votacoes/{id}/eleitores", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("email", "bia@example.com")
+                                .param("peso", "3"))
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/eleitores"));
+
+        mvc.perform(get("/votacoes/{id}/eleitores", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("peso único nesta votação (3)")));
+
+        stateService.transitar(votacao.getId(), EstadoVotacao.Publicada, admin.getId(), null);
+        stateService.transitar(votacao.getId(), EstadoVotacao.EmVotacao, null, null);
+
+        mvc.perform(get("/votacoes/{id}", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Acompanhamento de comparecimento")))
+                .andExpect(content().string(containsString("Quórum ainda não atingido")));
+
+        mvc.perform(get("/votacoes/{id}/comparecimento", votacao.getId()).with(logado(bia)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"totalEleitoresAptos\":1")));
+    }
 }
