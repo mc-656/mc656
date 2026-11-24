@@ -185,6 +185,28 @@ class UsuarioControllerTest extends AbstractIntegrationTest {
         cadastrar(corpoCadastro(CPF, "outro@example.com")).andExpect(status().isConflict());
     }
 
+    @Test
+    @DisplayName("CPF com máscara é gravado só com dígitos")
+    void gravaCpfComMascaraSoComDigitos() throws Exception {
+        // Act
+        cadastrar(corpoCadastro("123.456.789-09", EMAIL)).andExpect(status().isCreated());
+
+        // Assert
+        Usuario salvo = usuarioRepository.findByEmail(EMAIL).orElseThrow();
+        assertThat(salvo.getCpf()).isEqualTo(CPF);
+    }
+
+    @Test
+    @DisplayName("CPF já cadastrado sem máscara é recusado mesmo quando enviado com máscara")
+    void recusaCpfDuplicadoComMascara() throws Exception {
+        // Arrange
+        cadastrar(corpoCadastro(CPF, EMAIL)).andExpect(status().isCreated());
+
+        // Act + Assert
+        cadastrar(corpoCadastro("123.456.789-09", "outro@example.com"))
+                .andExpect(status().isConflict());
+    }
+
     /**
      * O único teste que pega incompatibilidade entre o BCrypt do cadastro e o da autenticação: se
      * os dois lados divergirem, o usuário se cadastra e nunca consegue entrar.
