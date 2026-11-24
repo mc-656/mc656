@@ -2,6 +2,7 @@ package com.unicamp.engsoft.eleicao.votacao.controller;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.StatusApuracao;
+import com.unicamp.engsoft.eleicao.votacao.domain.StatusPropostaApurada;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import java.time.Instant;
@@ -78,6 +79,18 @@ public class RotulosVotacao {
             case EMPATE -> "Empate";
             case QUORUM_NAO_ATINGIDO -> "Quórum não atingido";
             case SEM_VENCEDOR -> "Sem vencedor";
+        };
+    }
+
+    public String statusProposta(StatusPropostaApurada status) {
+        if (status == null) {
+            return "";
+        }
+        return switch (status) {
+            case SELECIONADA -> "Selecionada";
+            case NAO_SELECIONADA_ORCAMENTO -> "Fora do orçamento";
+            case EMPATADA_SEM_DECISAO -> "Empatada";
+            case QUORUM_NAO_ATINGIDO -> "Quórum não atingido";
         };
     }
 }

@@ -37,6 +37,7 @@ class ApuracaoIntegracaoTest extends AbstractIntegrationTest {
     @Autowired VotacaoRepository votacoes;
     @Autowired ApuracaoRepository snapshots;
     @Autowired CandidatoOuChapaRepository candidatos;
+    @Autowired PropostaRepository propostas;
     @Autowired PapelVotacaoRepository papeis;
     @Autowired UsuarioRepository usuarios;
     @Autowired CedulaRepository cedulas;
@@ -279,9 +280,14 @@ class ApuracaoIntegracaoTest extends AbstractIntegrationTest {
                         Instant.now().minusSeconds(1),
                         "Orçamento",
                         "Cotas");
+        v.definirOrcamentoTotal(new BigDecimal("100.00"));
         v.alterarEstado(EstadoVotacao.EmVotacao);
         v = votacoes.saveAndFlush(v);
+        propostas.saveAndFlush(
+                new Proposta(v.getId(), "Ciclovia", "Ciclovia central", new BigDecimal("40.00")));
         estados.transitar(v.getId(), EstadoVotacao.Apuracao, null, "Fim");
-        assertThat(snapshots.findById(v.getId())).isEmpty();
+        var snapshot = snapshots.findById(v.getId()).orElseThrow();
+        assertThat(snapshot.getResultado()).isNull();
+        assertThat(snapshot.getResultadoOrcamento()).isNotNull();
     }
 }

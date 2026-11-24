@@ -51,6 +51,14 @@
 
     <section th:if="${resultado.anulacao == null}" aria-labelledby="titulo-desfecho">
         <h2 id="titulo-desfecho">Totalização</h2>
+        <dl th:if="${resultado.orcamento != null}" class="dados" style="margin-bottom: 1rem;">
+            <dt>Orçamento total</dt>
+            <dd th:text="${resultado.orcamento.orcamentoTotal}">0</dd>
+            <dt>Orçamento utilizado</dt>
+            <dd th:text="${resultado.orcamento.orcamentoUtilizado}">0</dd>
+            <dt>Saldo restante</dt>
+            <dd th:text="${resultado.orcamento.saldoRestante}">0</dd>
+        </dl>
         <p th:if="${resultado.vencedorNome != null}" class="alerta sucesso">
             Vencedor: <strong th:text="${resultado.vencedorNome}">Candidato</strong>
         </p>
@@ -66,9 +74,10 @@
         <table th:unless="${#lists.isEmpty(resultado.opcoes)}">
             <thead>
             <tr>
-                <th scope="col">Opção</th>
-                <th scope="col">Votos</th>
+                <th scope="col" th:text="${resultado.orcamento != null} ? 'Proposta' : 'Opção'">Opção</th>
+                <th scope="col" th:text="${resultado.orcamento != null} ? 'Pontos' : 'Votos'">Votos</th>
                 <th scope="col">Percentual</th>
+                <th scope="col" th:if="${resultado.orcamento != null}">Custo</th>
                 <th scope="col">Situação</th>
             </tr>
             </thead>
@@ -77,8 +86,12 @@
                 <td th:text="${op.nome}">Opção</td>
                 <td th:text="${op.totalVotos}">0</td>
                 <td th:text="|${op.percentualVotosValidos}%|">0%</td>
+                <td th:if="${resultado.orcamento != null}" th:text="${op.custo}">0</td>
                 <td>
-                    <span th:if="${op.vencedora}" class="etiqueta">Vencedora</span>
+                    <span th:if="${op.statusOrcamento != null}"
+                          class="etiqueta"
+                          th:text="${@rotulosVotacao.statusProposta(op.statusOrcamento)}">Selecionada</span>
+                    <span th:if="${op.statusOrcamento == null and op.vencedora}" class="etiqueta">Vencedora</span>
                     <span th:if="${op.finalistaSegundoTurno}" class="etiqueta">2º turno</span>
                 </td>
             </tr>
