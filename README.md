@@ -185,6 +185,18 @@ Contas criadas pelo script (senha padrão `Senha123!`, alterável via `DEMO_SENH
 5. **Cenário C — *Orçamento Participativo do Campus 2026* (`EmVotacao`):**
    - Entre como `eleitor2@demo.unicamp.br`, abra a votação e distribua seu saldo de pontos (até `500.000` pontos, equivalente ao orçamento total de R$ 500.000,00) entre os 4 projetos cadastrados.
 
+#### Resetando o banco (limpar usuários e votações)
+
+Para apagar todos os usuários, votações, votos e e-mails capturados e voltar a um banco limpo (mantendo apenas a carga inicial de Eleições Públicas das migrações Flyway), pare a aplicação (`Ctrl+C`), destrua o volume do Docker e suba os serviços novamente:
+
+```bash
+docker compose down -v
+docker compose up -d postgres mailpit
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--votacao.agendador.intervalo=PT5S"
+```
+
+*(Atalho equivalente apenas para o Postgres: `make db-reset`.)*
+
 ## Deploy (Docker e CD)
 
 Requisito RNF-08. Por decisão do time a aplicação roda só local por enquanto
