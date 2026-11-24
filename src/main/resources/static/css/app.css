@@ -46,33 +46,54 @@
     color-scheme: light;
 }
 
-/* Tema escuro segue o sistema operacional. Só tokens mudam; nenhum componente tem cor própria. */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --papel: #0e131a;
-        --folha: #151c26;
-        --texto: #e5eaf1;
-        --suave: #9aa5b4;
-        --linha: #263142;
-        --linha-forte: #34425a;
+/*
+  Tema escuro. O script no <head> do layout sempre define data-theme (escolha salva ou, sem ela, a
+  preferência do sistema), então um só bloco basta. Só tokens mudam; nenhum componente tem cor própria.
+*/
+:root[data-theme="dark"] {
+    --papel: #0e131a;
+    --folha: #151c26;
+    --texto: #e5eaf1;
+    --suave: #9aa5b4;
+    --linha: #263142;
+    --linha-forte: #34425a;
 
-        --tinta: #8fb2ec;
-        --tinta-forte: #b5cdf3;
-        --tinta-suave: #1b2a44;
-        --sobre-tinta: #0e131a;
+    --tinta: #8fb2ec;
+    --tinta-forte: #b5cdf3;
+    --tinta-suave: #1b2a44;
+    --sobre-tinta: #0e131a;
 
-        --ok: #6cc890;
-        --ok-fundo: #12291d;
-        --atencao: #e3b45a;
-        --atencao-fundo: #2b2210;
-        --perigo: #f08a80;
-        --perigo-fundo: #2e1614;
-        --neutro: #b2bac6;
-        --neutro-fundo: #1f2733;
+    --ok: #6cc890;
+    --ok-fundo: #12291d;
+    --atencao: #e3b45a;
+    --atencao-fundo: #2b2210;
+    --perigo: #f08a80;
+    --perigo-fundo: #2e1614;
+    --neutro: #b2bac6;
+    --neutro-fundo: #1f2733;
 
-        color-scheme: dark;
-    }
+    color-scheme: dark;
 }
+
+/* Botão de tema: só o ícone do tema para o qual vai mudar fica visível. */
+.alternar-tema {
+    display: inline-grid;
+    place-items: center;
+    width: 2.1rem;
+    min-height: 2.1rem;
+    margin: 0;
+    padding: 0;
+    color: var(--suave);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--r-campo);
+}
+
+.alternar-tema:hover { color: var(--texto); background: var(--neutro-fundo); }
+.alternar-tema .lua { display: block; }
+.alternar-tema .sol { display: none; }
+:root[data-theme="dark"] .alternar-tema .lua { display: none; }
+:root[data-theme="dark"] .alternar-tema .sol { display: block; }
 
 * { box-sizing: border-box; }
 
@@ -166,7 +187,7 @@ main:focus-visible { outline: none; }
 
 .marca svg { color: var(--tinta); }
 
-.cabecalho nav { display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap; }
+.cabecalho nav { display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap; margin-left: auto; }
 
 .cabecalho nav a {
     padding: 0.4rem 0.7rem;
