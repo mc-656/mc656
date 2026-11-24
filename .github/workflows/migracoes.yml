@@ -9,6 +9,8 @@ on:
         branches:
             - main
             - develop
+            # Exigidos pelo ruleset de release/**; sem o gatilho o PR fica bloqueado.
+            - 'release/**'
 permissions:
     contents: read
 
