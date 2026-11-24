@@ -348,6 +348,33 @@ class VotoViewControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+            "Verificação aceita o código colado com espaços e quebras de linha entre os blocos")
+    void verificarComprovanteComEspacos() throws Exception {
+        // Arrange: código real do voto, quebrado em blocos de 4 como a tela do comprovante exibe
+        var resposta =
+                mvc.perform(
+                                post("/votacoes/{id}/votar", votacao.getId())
+                                        .with(logado(eleitor))
+                                        .with(csrf())
+                                        .param("opcaoId", chapaA.getId().toString()))
+                        .andReturn();
+        entityManager.flush();
+        String comprovante = (String) resposta.getFlashMap().get("comprovante");
+        String emBlocos = comprovante.replaceAll("(.{4})", "$1 ");
+        String colado = emBlocos.substring(0, 20) + "\n" + emBlocos.substring(20);
+
+        // Act + Assert
+        mvc.perform(
+                        post("/comprovantes/verificar")
+                                .with(logado(eleitor))
+                                .with(csrf())
+                                .param("comprovante", colado))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Comprovante Válido e Autêntico!")));
+    }
+
+    @Test
     void comprovanteDeCedulaInexistenteExibeMesmaMensagem() throws Exception {
         String codigo = comprovanteService.gerar(votacao.getId(), UUID.randomUUID(), Instant.now());
         mvc.perform(

@@ -216,7 +216,13 @@ public class VotoViewController {
         return "votacoes/verificar-comprovante";
     }
 
-    /** Executa a verificação do comprovante criptográfico. */
+    /**
+     * Executa a verificação do comprovante criptográfico.
+     *
+     * <p>Remove todo espaço em branco, não só nas pontas: a tela do comprovante mostra o código em
+     * blocos de 4 caracteres e o eleitor pode colá-lo com espaços ou quebras de linha. Base64url
+     * não tem espaço, então nada legítimo se perde.
+     */
     @PostMapping("/comprovantes/verificar")
     public String verificarComprovante(
             @RequestParam(name = "comprovante", required = false) String comprovante, Model model) {
@@ -225,7 +231,7 @@ public class VotoViewController {
             return "votacoes/verificar-comprovante";
         }
 
-        String limpo = comprovante.trim();
+        String limpo = comprovante.replaceAll("\\s+", "");
         model.addAttribute("comprovanteInformado", limpo);
 
         try {
