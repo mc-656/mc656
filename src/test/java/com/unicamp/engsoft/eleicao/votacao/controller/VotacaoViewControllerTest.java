@@ -18,8 +18,12 @@ import com.unicamp.engsoft.eleicao.AbstractIntegrationTest;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.usuario.domain.Usuario;
 import com.unicamp.engsoft.eleicao.usuario.repository.UsuarioRepository;
+import com.unicamp.engsoft.eleicao.votacao.domain.CandidatoOuChapa;
+import com.unicamp.engsoft.eleicao.votacao.domain.Cedula;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
+import com.unicamp.engsoft.eleicao.votacao.domain.PapelVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.Participacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
@@ -27,10 +31,16 @@ import com.unicamp.engsoft.eleicao.votacao.dto.CadastrarCandidatoRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoRequest;
 import com.unicamp.engsoft.eleicao.votacao.repository.CandidatoOuChapaRepository;
+import com.unicamp.engsoft.eleicao.votacao.repository.CedulaRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
+import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
+import com.unicamp.engsoft.eleicao.votacao.service.ComprovanteService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
+import com.unicamp.engsoft.eleicao.votacao.service.VotacaoStateService;
+import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -66,6 +76,16 @@ class VotacaoViewControllerTest extends AbstractIntegrationTest {
     @Autowired VotacaoService votacaoService;
 
     @Autowired CandidatoOuChapaService candidatoService;
+
+    @Autowired CedulaRepository cedulaRepository;
+
+    @Autowired ParticipacaoRepository participacaoRepository;
+
+    @Autowired VotacaoStateService stateService;
+
+    @Autowired ComprovanteService comprovanteService;
+
+    @Autowired EntityManager entityManager;
 
     private Usuario admin;
 
@@ -528,5 +548,227 @@ class VotacaoViewControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<dd>2</dd>")))
                 .andExpect(content().string(containsString("Maioria simples")));
+    }
+
+    @Test
+    @DisplayName("Admin redefine período no painel e validação inválida volta ao painel")
+    void definirPeriodoNoPainel() throws Exception {
+        Votacao votacao = rascunho();
+
+        mvc.perform(
+                        post("/votacoes/{id}/periodo", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("inicioEm", "2099-11-01T10:00")
+                                .param("fimEm", "2099-11-02T10:00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId()))
+                .andExpect(flash().attributeExists("sucesso"));
+
+        mvc.perform(
+                        post("/votacoes/{id}/periodo", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("inicioEm", "2099-11-05T10:00")
+                                .param("fimEm", "2099-11-02T10:00"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("posterior ao início")));
+    }
+
+    @Test
+    @DisplayName(
+            "Telas de apuração, publicação, homologação e comprovante incluído funcionam fim a fim")
+    void fluxoResultadoEComprovanteNaTela() throws Exception {
+        Votacao votacao = prontaParaPublicar();
+        Usuario eleitor =
+                usuarioRepository.save(
+                        new Usuario(
+                                "Eleitor",
+                                "52998224725",
+                                "eleitor-view@example.com",
+                                "hash",
+                                NASCIMENTO));
+        papelVotacaoRepository.save(
+                new PapelVotacao(eleitor.getId(), votacao.getId(), PapelUsuario.ELEITOR));
+        CandidatoOuChapa chapaA =
+                candidatoRepository.findByVotacaoIdOrderByCriadoEm(votacao.getId()).getFirst();
+
+        votacao.definirPeriodo(Instant.now().minusSeconds(120), Instant.now().minusSeconds(5));
+        votacao.alterarEstado(EstadoVotacao.EmVotacao);
+        participacaoRepository.saveAndFlush(new Participacao(eleitor.getId(), votacao.getId()));
+        Cedula cedula =
+                cedulaRepository.save(new Cedula(votacao.getId(), chapaA.getId(), BigDecimal.ONE));
+        String comprovante =
+                comprovanteService.gerar(votacao.getId(), cedula.getId(), Instant.now());
+        entityManager.flush();
+
+        stateService.transitar(votacao.getId(), EstadoVotacao.Apuracao, null, "fim");
+        entityManager.flush();
+
+        // Em Apuracao: admin vê resultado prévio, eleitor recebe 409
+        mvc.perform(get("/votacoes/{id}/resultado", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(chapaA.getNome())))
+                .andExpect(content().string(containsString("Publicar resultado")));
+
+        mvc.perform(get("/votacoes/{id}/resultado", votacao.getId()).with(logado(eleitor)))
+                .andExpect(status().isConflict());
+
+        // Comprovante mostra inclusão confirmada na tela
+        mvc.perform(
+                        post("/comprovantes/verificar")
+                                .with(logado(eleitor))
+                                .with(csrf())
+                                .param("comprovante", comprovante))
+                .andExpect(status().isOk())
+                .andExpect(
+                        content()
+                                .string(containsString("incluída na apuração oficial da votação")));
+
+        // Publicar resultado (Encerrada) -> eleitor passa a ver
+        mvc.perform(
+                        post("/votacoes/{id}/encerrar", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/resultado"));
+
+        mvc.perform(get("/votacoes/{id}/resultado", votacao.getId()).with(logado(eleitor)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(chapaA.getNome())))
+                .andExpect(content().string(not(containsString("Homologar resultado"))));
+
+        // Homologar resultado
+        mvc.perform(
+                        post("/votacoes/{id}/homologar", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("motivo", "Conferido pela comissão"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/resultado"));
+
+        mvc.perform(get("/votacoes/{id}/resultado", votacao.getId()).with(logado(eleitor)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Homologada")))
+                .andExpect(content().string(containsString("Conferido pela comissão")));
+    }
+
+    @Test
+    @DisplayName("Admin anula votação pelo painel e página de resultado exibe justificativa")
+    void anularPeloPainelExibeJustificativa() throws Exception {
+        Votacao votacao = prontaParaPublicar();
+        Usuario eleitor =
+                usuarioRepository.save(
+                        new Usuario(
+                                "Eleitor",
+                                "98765432100",
+                                "eleitor-anul@example.com",
+                                "hash",
+                                NASCIMENTO));
+        papelVotacaoRepository.save(
+                new PapelVotacao(eleitor.getId(), votacao.getId(), PapelUsuario.ELEITOR));
+        votacao.alterarEstado(EstadoVotacao.Apuracao);
+        entityManager.flush();
+
+        mvc.perform(
+                        post("/votacoes/{id}/anular", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("justificativa", "Fraude detectada"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/resultado"));
+
+        mvc.perform(get("/votacoes/{id}/resultado", votacao.getId()).with(logado(eleitor)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Fraude detectada")));
+    }
+
+    @Test
+    @DisplayName("Tela de propostas do orçamento participativo configura orçamento, edita e remove")
+    void gerenciarPropostasNaTela() throws Exception {
+        Votacao op =
+                votacaoService.criarVotacao(
+                        new CriarVotacaoRequest(
+                                TipoVotacao.ORCAMENTO_PARTICIPATIVO,
+                                Instant.parse("2099-10-01T12:00:00Z"),
+                                Instant.parse("2099-10-02T12:00:00Z"),
+                                "Orçamento 2099",
+                                "Melhorias no campus"),
+                        admin.getId());
+
+        mvc.perform(get("/votacoes/{id}/propostas", op.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Orçamento total")));
+
+        mvc.perform(
+                        post("/votacoes/{id}/orcamento", op.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("orcamentoTotal", "500.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + op.getId() + "/propostas"))
+                .andExpect(flash().attributeExists("sucesso"));
+
+        mvc.perform(
+                        post("/votacoes/{id}/propostas", op.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("titulo", "Iluminação")
+                                .param("descricao", "Postes LED")
+                                .param("custo", "200.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + op.getId() + "/propostas"));
+
+        mvc.perform(get("/votacoes/{id}", op.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("500.00")))
+                .andExpect(content().string(containsString("<dd>1</dd>")));
+    }
+
+    @Test
+    @DisplayName("Painel durante EmVotacao exibe comparecimento em tempo real e endpoint JSON")
+    void painelEmVotacaoMostraComparecimento() throws Exception {
+        Votacao votacao =
+                votacaoService.criarVotacao(
+                        new CriarVotacaoRequest(
+                                TipoVotacao.ELEICAO_PRIVADA,
+                                Instant.parse("2020-01-01T12:00:00Z"),
+                                Instant.parse("2099-10-02T12:00:00Z"),
+                                "Assembleia 2099",
+                                "Descrição"),
+                        admin.getId());
+        votacaoService.configurarRegras(
+                votacao.getId(),
+                new ConfigurarRegrasRequest(
+                        TipoMaioria.MAIORIA_SIMPLES, null, false, new BigDecimal("50"), true));
+        candidatoService.cadastrar(votacao.getId(), new CadastrarCandidatoRequest("Chapa A", null));
+        candidatoService.cadastrar(votacao.getId(), new CadastrarCandidatoRequest("Chapa B", null));
+
+        Usuario bia =
+                usuarioRepository.save(
+                        new Usuario("Bia", "52998224725", "bia@example.com", "hash", NASCIMENTO));
+        mvc.perform(
+                        post("/votacoes/{id}/eleitores", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("email", "bia@example.com")
+                                .param("peso", "3"))
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId() + "/eleitores"));
+
+        mvc.perform(get("/votacoes/{id}/eleitores", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("peso único nesta votação (3)")));
+
+        stateService.transitar(votacao.getId(), EstadoVotacao.Publicada, admin.getId(), null);
+        stateService.transitar(votacao.getId(), EstadoVotacao.EmVotacao, null, null);
+
+        mvc.perform(get("/votacoes/{id}", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Acompanhamento de comparecimento")))
+                .andExpect(content().string(containsString("Quórum ainda não atingido")));
+
+        mvc.perform(get("/votacoes/{id}/comparecimento", votacao.getId()).with(logado(bia)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"totalEleitoresAptos\":1")));
     }
 }

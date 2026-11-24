@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="|Resultado · ${v.nome}|">Resultado da votação</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao largo">
+    <p class="migalha">
+        <a th:href="${ehAdmin} ? @{/votacoes/{id}(id=${v.id})} : @{/votacoes}">
+            <span th:text="${ehAdmin} ? 'Voltar ao painel' : 'Minhas votações'">Voltar</span>
+        </a>
+    </p>
+    <h1 th:text="|Resultado: ${v.nome}|">Resultado da votação</h1>
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
+
+    <div th:if="${resultado.anulacao != null}" class="alerta erro" role="alert">
+        <strong th:text="${resultado.anulacao.resumo}">Votação anulada.</strong>
+        <p th:if="${resultado.anulacao.anuladaEm != null}" class="suave">
+            Registrada em
+            <time th:datetime="${resultado.anulacao.anuladaEm}"
+                  th:text="${@rotulosVotacao.dataHora(resultado.anulacao.anuladaEm)}"></time>.
+        </p>
+    </div>
+
+    <section aria-labelledby="titulo-resumo-resultado">
+        <h2 id="titulo-resumo-resultado">Resumo</h2>
+        <dl class="dados">
+            <dt>Estado da votação</dt>
+            <dd th:text="${@rotulosVotacao.estado(resultado.estado)}">Encerrada</dd>
+            <dt th:if="${resultado.statusApuracao != null}">Desfecho</dt>
+            <dd th:if="${resultado.statusApuracao != null}"
+                th:text="${@rotulosVotacao.statusApuracao(resultado.statusApuracao)}">Vencedor definido</dd>
+            <dt>Comparecimento</dt>
+            <dd th:text="|${resultado.totalParticipantes} de ${resultado.totalEleitoresAptos} eleitores (${resultado.percentualComparecimento}%)|">
+                0 de 0 eleitores (0%)
+            </dd>
+            <dt th:if="${resultado.quorumMinimoPercentual != null}">Quórum mínimo exigido</dt>
+            <dd th:if="${resultado.quorumMinimoPercentual != null}"
+                th:text="|${resultado.quorumMinimoPercentual}% (${resultado.quorumAtingido ? 'atingido' : 'não atingido'})|"></dd>
+            <dt th:if="${resultado.apuradaEm != null}">Apuração concluída em</dt>
+            <dd th:if="${resultado.apuradaEm != null}">
+                <time th:datetime="${resultado.apuradaEm}"
+                      th:text="${@rotulosVotacao.dataHora(resultado.apuradaEm)}"></time>
+            </dd>
+        </dl>
+    </section>
+
+    <section th:if="${resultado.anulacao == null}" aria-labelledby="titulo-desfecho">
+        <h2 id="titulo-desfecho">Totalização</h2>
+        <dl th:if="${resultado.orcamento != null}" class="dados" style="margin-bottom: 1rem;">
+            <dt>Orçamento total</dt>
+            <dd th:text="${resultado.orcamento.orcamentoTotal}">0</dd>
+            <dt>Orçamento utilizado</dt>
+            <dd th:text="${resultado.orcamento.orcamentoUtilizado}">0</dd>
+            <dt>Saldo restante</dt>
+            <dd th:text="${resultado.orcamento.saldoRestante}">0</dd>
+        </dl>
+        <p th:if="${resultado.vencedorNome != null}" class="alerta sucesso">
+            Vencedor: <strong th:text="${resultado.vencedorNome}">Candidato</strong>
+        </p>
+        <p th:if="${resultado.statusApuracao != null and resultado.statusApuracao.name() == 'SEGUNDO_TURNO'}" class="alerta">
+            Segundo turno convocado entre os finalistas.
+            <a th:if="${ehAdmin and resultado.segundoTurnoId != null}"
+               th:href="@{/votacoes/{id}(id=${resultado.segundoTurnoId})}">Definir período do 2º turno</a>
+        </p>
+        <p th:if="${resultado.statusApuracao != null and resultado.statusApuracao.name() == 'EMPATE'}" class="alerta">
+            A apuração terminou empatada segundo os critérios configurados.
+        </p>
+
+        <table th:unless="${#lists.isEmpty(resultado.opcoes)}">
+            <thead>
+            <tr>
+                <th scope="col" th:text="${resultado.orcamento != null} ? 'Proposta' : 'Opção'">Opção</th>
+                <th scope="col" th:text="${resultado.orcamento != null} ? 'Pontos' : 'Votos'">Votos</th>
+                <th scope="col">Percentual</th>
+                <th scope="col" th:if="${resultado.orcamento != null}">Custo</th>
+                <th scope="col">Situação</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="op : ${resultado.opcoes}">
+                <td th:text="${op.nome}">Opção</td>
+                <td th:text="${op.totalVotos}">0</td>
+                <td th:text="|${op.percentualVotosValidos}%|">0%</td>
+                <td th:if="${resultado.orcamento != null}" th:text="${op.custo}">0</td>
+                <td>
+                    <span th:if="${op.statusOrcamento != null}"
+                          class="etiqueta"
+                          th:text="${@rotulosVotacao.statusProposta(op.statusOrcamento)}">Selecionada</span>
+                    <span th:if="${op.statusOrcamento == null and op.vencedora}" class="etiqueta">Vencedora</span>
+                    <span th:if="${op.finalistaSegundoTurno}" class="etiqueta">2º turno</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section th:if="${resultado.homologacao != null}" aria-labelledby="titulo-homologacao">
+        <h2 id="titulo-homologacao">Homologação</h2>
+        <dl class="dados">
+            <dt>Homologada em</dt>
+            <dd>
+                <time th:datetime="${resultado.homologacao.homologadaEm}"
+                      th:text="${@rotulosVotacao.dataHora(resultado.homologacao.homologadaEm)}"></time>
+            </dd>
+            <dt th:if="${resultado.homologacao.motivo != null}">Observação</dt>
+            <dd th:if="${resultado.homologacao.motivo != null}"
+                th:text="${resultado.homologacao.motivo}"></dd>
+        </dl>
+    </section>
+
+    <section th:if="${ehAdmin and (resultado.estado.name() == 'Apuracao' or resultado.estado.name() == 'Encerrada')}"
+             aria-labelledby="titulo-acoes-admin">
+        <h2 id="titulo-acoes-admin">Ações administrativas</h2>
+        <form th:if="${resultado.estado.name() == 'Apuracao' and resultado.quorumAtingido}"
+              th:action="@{/votacoes/{id}/encerrar(id=${v.id})}" method="post" style="margin-bottom: 1rem;">
+            <button type="submit">Publicar resultado</button>
+        </form>
+        <form th:if="${resultado.estado.name() == 'Encerrada'}"
+              th:action="@{/votacoes/{id}/homologar(id=${v.id})}" method="post" class="formulario">
+            <div class="campo">
+                <label for="motivoResultado">Observação da homologação (opcional)</label>
+                <input id="motivoResultado" type="text" name="motivo" maxlength="500">
+            </div>
+            <button type="submit">Homologar resultado</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

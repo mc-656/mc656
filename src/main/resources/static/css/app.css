@@ -2,9 +2,10 @@
     --fundo: #f5f6f8;
     --superficie: #ffffff;
     --texto: #1f2328;
-    --suave: #59636e;
+    --suave: #4d5762;
     --borda: #d0d7de;
     --primaria: #0b5cad;
+    --foco: #0550ae;
     --erro: #b42318;
     --erro-fundo: #fdecea;
     --sucesso: #1a7f37;
@@ -12,6 +13,44 @@
 }
 
 * { box-sizing: border-box; }
+
+.pular-conteudo {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 1000;
+    padding: 0.75rem 1rem;
+    background: var(--primaria);
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+.pular-conteudo:focus {
+    left: 0.75rem;
+    top: 0.75rem;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid var(--foco);
+    outline-offset: 2px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
 
 body {
     margin: 0;

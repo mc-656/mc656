@@ -107,5 +107,20 @@ class AutorizacaoVotacaoTest {
 
         // Act & Assert
         assertThat(autorizacao.ehAdmin(VOTACAO, sessao)).isTrue();
+        assertThat(autorizacao.ehParticipante(VOTACAO, sessao)).isTrue();
+        assertThat(AutorizacaoVotacao.usuarioIdDe(sessao)).isEqualTo(USUARIO);
+    }
+
+    @Test
+    @DisplayName("ehParticipante aceita ELEITOR mesmo sem papel de admin")
+    void participanteAceitaEleitor() {
+        when(papelVotacaoRepository.existsByIdUsuarioIdAndIdVotacaoIdAndIdPapel(
+                        USUARIO, VOTACAO, PapelUsuario.ADMIN_VOTACAO))
+                .thenReturn(false);
+        when(papelVotacaoRepository.existsByIdUsuarioIdAndIdVotacaoIdAndIdPapel(
+                        USUARIO, VOTACAO, PapelUsuario.ELEITOR))
+                .thenReturn(true);
+
+        assertThat(autorizacao.ehParticipante(VOTACAO, token(USUARIO.toString()))).isTrue();
     }
 }

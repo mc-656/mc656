@@ -23,7 +23,15 @@ public record PerfilCandidatoResponse(
         FonteResponse fonte,
         List<CargoAnteriorResponse> cargosAnteriores,
         List<TemaPropostas> propostasPorTema,
-        List<NoticiaResponse> noticias) {
+        List<NoticiaResponse> noticias,
+        List<AparicaoResponse> agenda) {
+
+    public PerfilCandidatoResponse {
+        cargosAnteriores = cargosAnteriores == null ? List.of() : List.copyOf(cargosAnteriores);
+        propostasPorTema = propostasPorTema == null ? List.of() : List.copyOf(propostasPorTema);
+        noticias = noticias == null ? List.of() : List.copyOf(noticias);
+        agenda = agenda == null ? List.of() : List.copyOf(agenda);
+    }
 
     /**
      * {@code idDidatico} é o identificador do cargo no conteúdo didático (RF-32, ex.: {@code

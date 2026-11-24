@@ -147,8 +147,8 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(
                                                 HttpMethod.GET,
-                                                "/eleicoes-publicas/tipos-voto",
-                                                "/eleicoes-publicas/cargos")
+                                                "/eleicoes-publicas",
+                                                "/eleicoes-publicas/**")
                                         .permitAll()
                                         .requestMatchers(
                                                 "/v3/api-docs/**",

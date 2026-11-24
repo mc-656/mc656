@@ -66,6 +66,23 @@ class GuardaRegrasConfiguradasTest {
     }
 
     @Test
+    @DisplayName("Ignora outros tipos de votação (ex: orçamento participativo)")
+    void ignoraOutrosTipos() {
+        // Arrange
+        Votacao orcamento =
+                new Votacao(
+                        TipoVotacao.ORCAMENTO_PARTICIPATIVO,
+                        Instant.parse("2099-10-01T12:00:00Z"),
+                        Instant.parse("2099-10-02T12:00:00Z"),
+                        "Orçamento",
+                        "Descrição");
+        when(votacaoRepository.findById(VOTACAO)).thenReturn(Optional.of(orcamento));
+
+        // Act + Assert
+        assertThatCode(() -> guarda.validar(VOTACAO)).doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("Votação inexistente gera 404")
     void votacaoInexistente() {
         // Arrange

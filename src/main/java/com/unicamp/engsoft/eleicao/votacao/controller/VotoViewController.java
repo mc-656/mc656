@@ -4,16 +4,25 @@ import com.unicamp.engsoft.eleicao.shared.exception.DomainException;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
 import com.unicamp.engsoft.eleicao.votacao.domain.ComportamentosDeEstado;
 import com.unicamp.engsoft.eleicao.votacao.domain.OperacaoVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
+import com.unicamp.engsoft.eleicao.votacao.dto.AlocacaoPontoRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.ComprovanteResponse;
 import com.unicamp.engsoft.eleicao.votacao.dto.VerificacaoComprovanteResponse;
+import com.unicamp.engsoft.eleicao.votacao.dto.VotoOrcamentoRequest;
 import com.unicamp.engsoft.eleicao.votacao.repository.ParticipacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
+import com.unicamp.engsoft.eleicao.votacao.service.PropostaService;
+import com.unicamp.engsoft.eleicao.votacao.service.RegistroVotoOrcamentoService;
 import com.unicamp.engsoft.eleicao.votacao.service.RegistroVotoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -48,19 +57,25 @@ public class VotoViewController {
 
     private final VotacaoService votacaoService;
     private final CandidatoOuChapaService candidatoService;
+    private final PropostaService propostaService;
     private final RegistroVotoService registroVotoService;
+    private final RegistroVotoOrcamentoService registroVotoOrcamentoService;
     private final ParticipacaoRepository participacaoRepository;
     private final Clock clock;
 
     public VotoViewController(
             VotacaoService votacaoService,
             CandidatoOuChapaService candidatoService,
+            PropostaService propostaService,
             RegistroVotoService registroVotoService,
+            RegistroVotoOrcamentoService registroVotoOrcamentoService,
             ParticipacaoRepository participacaoRepository,
             Clock clock) {
         this.votacaoService = votacaoService;
         this.candidatoService = candidatoService;
+        this.propostaService = propostaService;
         this.registroVotoService = registroVotoService;
+        this.registroVotoOrcamentoService = registroVotoOrcamentoService;
         this.participacaoRepository = participacaoRepository;
         this.clock = clock;
     }
@@ -71,6 +86,7 @@ public class VotoViewController {
     public String votar(
             @PathVariable UUID votacaoId,
             @AuthenticationPrincipal UsuarioAutenticado usuario,
+            Authentication autenticacao,
             Model model) {
         Votacao votacao = votacaoService.buscar(votacaoId);
         boolean jaVotou =
@@ -82,9 +98,15 @@ public class VotoViewController {
         boolean aberta = estadoPermite && agora.isBefore(votacao.getFimEm());
 
         model.addAttribute("votacao", votacao);
-        model.addAttribute("candidatos", candidatoService.listar(votacaoId));
         model.addAttribute("jaVotou", jaVotou);
         model.addAttribute("aberta", aberta);
+        if (votacao.getTipo() == TipoVotacao.ORCAMENTO_PARTICIPATIVO) {
+            model.addAttribute("propostasInfo", propostaService.listar(votacaoId));
+            model.addAttribute(
+                    "saldo", registroVotoOrcamentoService.consultarSaldo(votacaoId, autenticacao));
+        } else {
+            model.addAttribute("candidatos", candidatoService.listar(votacaoId));
+        }
 
         return "votacoes/votar";
     }
@@ -105,14 +127,74 @@ public class VotoViewController {
         try {
             ComprovanteResponse response =
                     registroVotoService.registrar(votacaoId, opcaoId, autenticacao);
-            redirect.addFlashAttribute("comprovante", response.comprovante());
-            redirect.addFlashAttribute("emitidoEm", response.emitidoEm());
-            redirect.addFlashAttribute("sucesso", "Voto registrado com sucesso!");
-            return "redirect:/votacoes/" + votacaoId + "/comprovante";
+            return redirecionarComprovante(votacaoId, response, redirect);
         } catch (DomainException ex) {
             redirect.addFlashAttribute("erro", ex.getMessage());
             return "redirect:/votacoes/" + votacaoId + "/votar";
         }
+    }
+
+    /** Registra distribuição de pontos em Orçamento Participativo (RF-21, RF-22, #129). */
+    @PostMapping("/votacoes/{votacaoId}/votar-orcamento")
+    @PreAuthorize(ELEITOR)
+    public String registrarVotoOrcamento(
+            @PathVariable UUID votacaoId,
+            HttpServletRequest httpRequest,
+            Authentication autenticacao,
+            RedirectAttributes redirect) {
+        String[] propostaIds = httpRequest.getParameterValues("propostaIds");
+        String[] pontos = httpRequest.getParameterValues("pontos");
+        if (propostaIds == null
+                || pontos == null
+                || propostaIds.length == 0
+                || propostaIds.length != pontos.length) {
+            redirect.addFlashAttribute("erro", "Informe a pontuação para as propostas da votação.");
+            return "redirect:/votacoes/" + votacaoId + "/votar";
+        }
+        List<AlocacaoPontoRequest> alocacoes = new ArrayList<>(propostaIds.length);
+        for (int i = 0; i < propostaIds.length; i++) {
+            UUID propostaId;
+            try {
+                propostaId = UUID.fromString(propostaIds[i]);
+            } catch (IllegalArgumentException ex) {
+                redirect.addFlashAttribute("erro", "Identificador de proposta inválido.");
+                return "redirect:/votacoes/" + votacaoId + "/votar";
+            }
+            String bruto = pontos[i];
+            BigDecimal valor;
+            try {
+                valor =
+                        bruto == null || bruto.isBlank()
+                                ? BigDecimal.ZERO
+                                : new BigDecimal(bruto.trim().replace(',', '.'));
+            } catch (NumberFormatException ex) {
+                redirect.addFlashAttribute(
+                        "erro", "Informe valores numéricos válidos para os pontos.");
+                return "redirect:/votacoes/" + votacaoId + "/votar";
+            }
+            if (valor.signum() < 0) {
+                redirect.addFlashAttribute("erro", "A pontuação não pode ser negativa.");
+                return "redirect:/votacoes/" + votacaoId + "/votar";
+            }
+            alocacoes.add(new AlocacaoPontoRequest(propostaId, valor));
+        }
+        try {
+            ComprovanteResponse response =
+                    registroVotoOrcamentoService.registrar(
+                            votacaoId, new VotoOrcamentoRequest(alocacoes), autenticacao);
+            return redirecionarComprovante(votacaoId, response, redirect);
+        } catch (DomainException ex) {
+            redirect.addFlashAttribute("erro", ex.getMessage());
+            return "redirect:/votacoes/" + votacaoId + "/votar";
+        }
+    }
+
+    private static String redirecionarComprovante(
+            UUID votacaoId, ComprovanteResponse response, RedirectAttributes redirect) {
+        redirect.addFlashAttribute("comprovante", response.comprovante());
+        redirect.addFlashAttribute("emitidoEm", response.emitidoEm());
+        redirect.addFlashAttribute("sucesso", "Voto registrado com sucesso!");
+        return "redirect:/votacoes/" + votacaoId + "/comprovante";
     }
 
     /** Exibe o comprovante emitido após o voto. */

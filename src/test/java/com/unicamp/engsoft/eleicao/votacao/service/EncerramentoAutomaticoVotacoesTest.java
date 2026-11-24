@@ -53,6 +53,7 @@ class EncerramentoAutomaticoVotacoesTest extends AbstractIntegrationTest {
     @AfterEach
     void limpa() {
         for (Votacao votacao : criadas) {
+            jdbc.update("delete from apuracoes where votacao_id = ?", votacao.getId());
             jdbc.update("delete from transicoes_votacao where votacao_id = ?", votacao.getId());
             jdbc.update("delete from votacoes where id = ?", votacao.getId());
         }
@@ -76,6 +77,8 @@ class EncerramentoAutomaticoVotacoesTest extends AbstractIntegrationTest {
                         fimEm,
                         "Eleição",
                         "Descrição");
+        votacao.configurarRegras(
+                com.unicamp.engsoft.eleicao.votacao.domain.ModeloVotacao.ELEICAO_CHAPA.regra());
         votacao.alterarEstado(estado);
         Votacao salva = votacaoRepository.saveAndFlush(votacao);
         criadas.add(salva);

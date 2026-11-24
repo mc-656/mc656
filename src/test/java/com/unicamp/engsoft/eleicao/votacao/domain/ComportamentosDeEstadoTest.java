@@ -21,6 +21,7 @@ class ComportamentosDeEstadoTest {
     private static final Set<OperacaoVotacao> CONFIGURACAO =
             EnumSet.of(
                     OperacaoVotacao.CONFIGURAR_REGRAS,
+                    OperacaoVotacao.CONFIGURAR_PERIODO,
                     OperacaoVotacao.GERENCIAR_CANDIDATOS,
                     OperacaoVotacao.GERENCIAR_ELEITORES,
                     OperacaoVotacao.GERENCIAR_PROPOSTAS);

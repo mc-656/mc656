@@ -37,6 +37,14 @@ public class AutorizacaoVotacao {
         return temPapel(votacaoId, autenticacao, PapelUsuario.ELEITOR);
     }
 
+    public boolean ehParticipante(UUID votacaoId, Authentication autenticacao) {
+        return ehAdmin(votacaoId, autenticacao) || ehEleitor(votacaoId, autenticacao);
+    }
+
+    public static UUID usuarioIdDe(Authentication autenticacao) {
+        return usuarioDe(autenticacao);
+    }
+
     /**
      * Na dúvida nega: sem token JWT nem sessão de {@link UsuarioAutenticado}, ou com {@code sub}
      * que não é UUID, não há papel.
