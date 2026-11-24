@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
     <h1>Verificação de Comprovante de Voto</h1>
 
@@ -30,7 +30,7 @@
     </form>
 
     <div th:if="${comprovanteValido == true}" class="alerta sucesso" style="margin-top: 1.5rem;">
-        <h3>Comprovante Válido e Autêntico!</h3>
+        <h2>Comprovante Válido e Autêntico!</h2>
         <p>Autenticidade verificada. A cédula correspondente está registrada no sistema.</p>
         <div th:switch="${verificado.situacaoApuracao.name()}">
             <p th:case="'NAO_CONFIRMADA'">Cédula registrada. A inclusão na apuração ainda não foi confirmada.</p>

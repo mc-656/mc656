@@ -7,9 +7,13 @@
     <title th:text="${dados.eleicao.nome}">Candidatos</title>
 </head>
 <body>
-<main layout:fragment="conteudo" class="pagina">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
     <p><a th:href="@{/eleicoes-publicas}">← Eleições públicas</a></p>
     <h1 th:text="${dados.eleicao.nome}">Eleição</h1>
+    <p>
+        <a th:href="@{/eleicoes-publicas/{id}/comparar(id=${dados.eleicao.id})}">Comparar propostas de candidatos</a> ·
+        <a th:href="@{/eleicoes-publicas/{id}/conteudos(id=${dados.eleicao.id})}">Notícias e resumos de debates</a>
+    </p>
     <p th:replace="~{eleicoes-publicas/fonte :: fonte(${dados.eleicao.fonte})}"></p>
 
     <section th:each="cargo : ${dados.cargos}">

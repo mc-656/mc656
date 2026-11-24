@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.StatusApuracao;
+import com.unicamp.engsoft.eleicao.votacao.domain.StatusPropostaApurada;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import java.time.Instant;
@@ -101,5 +102,19 @@ class RotulosVotacaoTest {
         assertThat(rotulos.statusApuracao(StatusApuracao.QUORUM_NAO_ATINGIDO))
                 .isEqualTo("Quórum não atingido");
         assertThat(rotulos.statusApuracao(StatusApuracao.SEM_VENCEDOR)).isEqualTo("Sem vencedor");
+    }
+
+    @Test
+    @DisplayName("Deve retornar os rótulos dos status de proposta apurada")
+    void deveRetornarRotulosDosStatusDeProposta() {
+        assertThat(rotulos.statusProposta(null)).isEmpty();
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.SELECIONADA))
+                .isEqualTo("Selecionada");
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.NAO_SELECIONADA_ORCAMENTO))
+                .isEqualTo("Fora do orçamento");
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.EMPATADA_SEM_DECISAO))
+                .isEqualTo("Empatada");
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.QUORUM_NAO_ATINGIDO))
+                .isEqualTo("Quórum não atingido");
     }
 }

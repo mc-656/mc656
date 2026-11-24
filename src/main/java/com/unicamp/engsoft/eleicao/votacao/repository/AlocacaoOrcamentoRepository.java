@@ -1,6 +1,7 @@
 package com.unicamp.engsoft.eleicao.votacao.repository;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.AlocacaoOrcamento;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.repository.Repository;
@@ -11,4 +12,6 @@ public interface AlocacaoOrcamentoRepository extends Repository<AlocacaoOrcament
     AlocacaoOrcamento save(AlocacaoOrcamento alocacao);
 
     List<AlocacaoOrcamento> findByCedulaId(UUID cedulaId);
+
+    List<AlocacaoOrcamento> findByCedulaIdIn(Collection<UUID> cedulaIds);
 }

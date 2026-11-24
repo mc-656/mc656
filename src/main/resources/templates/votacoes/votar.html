@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
     <h1 th:text="${votacao.nome}">Votação</h1>
 
@@ -35,18 +35,19 @@
 
     <!-- Bloqueio: eleitor já votou (RF-14) -->
     <div th:if="${jaVotou}" class="alerta">
-        <h3>Voto já registrado</h3>
+        <h2>Voto já registrado</h2>
         <p>Você já registrou seu voto nesta votação. O sistema assegura o princípio do voto único (RF-14) e o sigilo do voto (RNF-02).</p>
     </div>
 
     <!-- Bloqueio: fora da janela de votação -->
     <div th:if="${!jaVotou and !aberta}" class="alerta">
-        <h3>Votação indisponível</h3>
+        <h2>Votação indisponível</h2>
         <p>Esta votação não está aberta para receber votos no momento. Votações só aceitam votos durante o período estabelecido e quando em andamento.</p>
     </div>
 
-    <!-- Cédula de votação (RF-13) -->
-    <form th:if="${!jaVotou and aberta}" th:action="@{/votacoes/{id}/votar(id=${votacao.id})}" method="post" style="margin-top: 1rem;">
+    <!-- Cédula de eleição privada (RF-13) -->
+    <form th:if="${!jaVotou and aberta and votacao.tipo.name() == 'ELEICAO_PRIVADA'}"
+          th:action="@{/votacoes/{id}/votar(id=${votacao.id})}" method="post" style="margin-top: 1rem;">
         <fieldset style="border: 1px solid var(--borda); border-radius: 6px; padding: 1.25rem;">
             <legend style="font-weight: 600; padding: 0 0.5rem;">Candidatos / Chapas</legend>
 
@@ -69,6 +70,63 @@
 
         <button type="submit" th:disabled="${#lists.isEmpty(candidatos)}" style="margin-top: 1.5rem;">Confirmar Voto</button>
         <p class="ajuda" style="margin-top: 0.5rem;">Atenção: uma vez confirmado, o voto é definitivo e não poderá ser alterado nem cancelado (RF-13, RF-14).</p>
+    </form>
+
+    <!-- Cédula de orçamento participativo (RF-21, RF-22, #129) -->
+    <form th:if="${!jaVotou and aberta and votacao.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}"
+          th:action="@{/votacoes/{id}/votar-orcamento(id=${votacao.id})}"
+          method="post" class="formulario" style="margin-top: 1rem;">
+        <div class="alerta" role="status">
+            <strong>Saldo total: <span id="saldoTotal" th:text="${saldo.saldoTotal}">0</span> pontos</strong>
+            · Restante: <output id="saldoRestante" th:text="${saldo.saldoDisponivel}">0</output> pontos
+        </div>
+
+        <fieldset style="border: 1px solid var(--borda); border-radius: 6px; padding: 1.25rem;">
+            <legend style="font-weight: 600; padding: 0 0.5rem;">Distribua pontos entre as propostas</legend>
+
+            <div th:if="${#lists.isEmpty(propostasInfo.propostas)}">
+                <p class="suave">Nenhuma proposta cadastrada nesta votação.</p>
+            </div>
+
+            <div th:unless="${#lists.isEmpty(propostasInfo.propostas)}"
+                 style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div th:each="p : ${propostasInfo.propostas}"
+                     style="padding: 0.75rem; border: 1px solid var(--borda); border-radius: 4px; background: var(--superficie);">
+                    <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <div>
+                            <strong th:text="${p.titulo}">Proposta</strong>
+                            <span class="etiqueta" th:text="|Custo: ${p.custo}|">Custo: 0</span>
+                            <p th:text="${p.descricao}" class="suave" style="margin: 0.25rem 0 0;"></p>
+                        </div>
+                        <div class="campo" style="min-width: 150px; margin: 0;">
+                            <label th:for="|pontos-${p.id}|">Pontos</label>
+                            <input type="hidden" name="propostaIds" th:value="${p.id}">
+                            <input th:id="|pontos-${p.id}|" class="campo-pontos" type="number"
+                                   name="pontos" min="0" th:max="${saldo.saldoTotal}" step="0.01"
+                                   value="0" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <button type="submit" th:disabled="${#lists.isEmpty(propostasInfo.propostas)}" style="margin-top: 1.5rem;">Confirmar Distribuição</button>
+        <p class="ajuda" style="margin-top: 0.5rem;">A soma dos pontos alocados não pode ultrapassar seu saldo disponível (RF-22).</p>
+        <script>
+            (function () {
+                const totalEl = document.getElementById('saldoTotal');
+                const restanteEl = document.getElementById('saldoRestante');
+                const inputs = document.querySelectorAll('.campo-pontos');
+                if (!totalEl || !restanteEl || !inputs.length) return;
+                const total = parseFloat(totalEl.textContent) || 0;
+                const atualizar = () => {
+                    let soma = 0;
+                    inputs.forEach(i => { soma += parseFloat(i.value) || 0; });
+                    restanteEl.textContent = (total - soma).toFixed(2);
+                };
+                inputs.forEach(i => i.addEventListener('input', atualizar));
+            })();
+        </script>
     </form>
 </main>
 </body>

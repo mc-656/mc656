@@ -8,7 +8,7 @@
     <title>Início</title>
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao">
     <h1>Bem-vindo</h1>
     <p>Conectado como <strong sec:authentication="name">usuario@example.com</strong>.</p>
     <p><a th:href="@{/votacoes}">Minhas votações</a> · <a th:href="@{/votacoes/nova}">Criar votação</a> · <a th:href="@{/comprovantes/verificar}">Verificar comprovante</a></p>
