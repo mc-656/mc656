@@ -771,4 +771,40 @@ class VotacaoViewControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("\"totalEleitoresAptos\":1")));
     }
+
+    @Test
+    @DisplayName(
+            "Painel em Publicada permite gerar link de convite e valida e-mails antes do envio")
+    void painelPublicadaGeraConviteEValidaEmails() throws Exception {
+        Votacao votacao = prontaParaPublicar();
+        stateService.transitar(votacao.getId(), EstadoVotacao.Publicada, admin.getId(), null);
+
+        mvc.perform(get("/votacoes/{id}", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Convites (link e e-mail)")))
+                .andExpect(content().string(containsString("Gerar link de convite")));
+
+        mvc.perform(
+                        post("/votacoes/{id}/convite", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("modo", "ABERTO"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId()))
+                .andExpect(flash().attribute("sucesso", "Convite salvo."));
+
+        mvc.perform(get("/votacoes/{id}", votacao.getId()).with(logado(admin)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("/convites/")))
+                .andExpect(content().string(containsString("Enviar convites por e-mail")));
+
+        mvc.perform(
+                        post("/votacoes/{id}/convite/emails", votacao.getId())
+                                .with(logado(admin))
+                                .with(csrf())
+                                .param("emails", "nao-eh-email"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/votacoes/" + votacao.getId()))
+                .andExpect(flash().attributeExists("erro"));
+    }
 }
