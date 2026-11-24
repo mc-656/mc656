@@ -21,7 +21,7 @@ jobs:
             group: ${{ github.workflow }}-${{ github.ref }}
             cancel-in-progress: true
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - uses: actions/setup-java@v6.2.0
               name: Setup Java
@@ -39,7 +39,7 @@ jobs:
             group: ${{ github.workflow }}-lint-${{ github.ref }}
             cancel-in-progress: true
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - uses: actions/setup-java@v6.2.0
               name: Setup Java
@@ -57,7 +57,7 @@ jobs:
             group: ${{ github.workflow }}-spotbugs-${{ github.ref }}
             cancel-in-progress: true
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - uses: actions/setup-java@v6.2.0
               name: Setup Java
@@ -76,7 +76,7 @@ jobs:
             group: ${{ github.workflow }}-test-${{ github.ref }}
             cancel-in-progress: true
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - uses: actions/setup-java@v6.2.0
               name: Setup Java
@@ -155,7 +155,7 @@ jobs:
             group: ${{ github.workflow }}-mutation-${{ github.ref }}
             cancel-in-progress: true
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - uses: actions/setup-java@v6.2.0
               name: Setup Java
