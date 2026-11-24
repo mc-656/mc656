@@ -177,7 +177,11 @@
                 </form>
 
                 <div th:if="${convite != null}" style="margin-top: 1rem;">
-                    <p><strong>Link do convite:</strong> <code th:text="${convite.link}">http://localhost:8080/convites/...</code></p>
+                    <p>
+                        <strong>Link do convite:</strong>
+                        <code th:text="${convite.link}"
+                              style="display: block; word-break: break-all; overflow-wrap: anywhere; margin-top: 0.25rem;">http://localhost:8080/convites/...</code>
+                    </p>
                     <form th:action="@{/votacoes/{id}/convite/emails(id=${v.id})}" method="post" class="formulario">
                         <div class="campo">
                             <label for="emailsConvite">Enviar convite por e-mail</label>
