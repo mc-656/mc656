@@ -148,6 +148,20 @@ Para recomeçar de um banco vazio: `make db-reset`.
 java -jar target/eleicao-0.0.1-SNAPSHOT.jar   # executa o jar gerado
 ```
 
+### Demonstração rápida (dados de exemplo)
+
+Para testar rapidamente todos os fluxos (eleição em andamento com comparecimento, convite por e-mail no Mailpit, eleição apurada pronta para publicação/homologação, verificação de comprovante e orçamento participativo), suba o banco e o Mailpit, inicie a aplicação com o agendador acelerado e execute o script de carga:
+
+```bash
+docker compose up -d postgres mailpit
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--votacao.agendador.intervalo=PT5S"
+
+# Em outro terminal:
+make demo
+```
+
+O script `scripts/demo.sh` cria contas de demonstração, publica votações via API real, aguarda as transições automáticas e imprime no terminal as credenciais, links diretos e comprovantes criptografados prontos para uso.
+
 ## Deploy (Docker e CD)
 
 Requisito RNF-08. Por decisão do time a aplicação roda só local por enquanto
