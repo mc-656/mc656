@@ -14,6 +14,8 @@ import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelUsuario;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.PapelVotacaoId;
+import com.unicamp.engsoft.eleicao.votacao.domain.RegraVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.dto.AdicionarEleitorRequest;
@@ -22,6 +24,7 @@ import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -132,5 +135,41 @@ class EleitorServiceTest {
 
         verify(usuarioRepository, never()).findByEmail(any());
         verify(papelVotacaoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("avisosPesoUnico alerta sobre pesos únicos apenas com voto ponderado ativo")
+    void avisosPesoUnicoDetectaPesosExclusivos() {
+        Votacao ponderada = votacaoEm(EstadoVotacao.RascunhoVotacao);
+        RegraVotacao regraPonderada =
+                new RegraVotacao(TipoMaioria.MAIORIA_SIMPLES, null, false, null, true);
+        when(votacaoRepository.findById(VOTACAO_ID)).thenReturn(Optional.of(ponderada));
+        when(consultaRegraVotacao.regraDe(ponderada)).thenReturn(Optional.of(regraPonderada));
+        when(papelVotacaoRepository.findByIdVotacaoIdAndIdPapel(VOTACAO_ID, PapelUsuario.ELEITOR))
+                .thenReturn(
+                        List.of(
+                                new PapelVotacao(
+                                        UUID.randomUUID(),
+                                        VOTACAO_ID,
+                                        PapelUsuario.ELEITOR,
+                                        new BigDecimal("2.00")),
+                                new PapelVotacao(
+                                        UUID.randomUUID(),
+                                        VOTACAO_ID,
+                                        PapelUsuario.ELEITOR,
+                                        new BigDecimal("2")),
+                                new PapelVotacao(
+                                        UUID.randomUUID(),
+                                        VOTACAO_ID,
+                                        PapelUsuario.ELEITOR,
+                                        new BigDecimal("5"))));
+
+        List<String> avisos = service.avisosPesoUnico(VOTACAO_ID);
+
+        assertThat(avisos).hasSize(1);
+        assertThat(avisos.get(0)).contains("5").doesNotContain("2");
+
+        when(consultaRegraVotacao.regraDe(ponderada)).thenReturn(Optional.empty());
+        assertThat(service.avisosPesoUnico(VOTACAO_ID)).isEmpty();
     }
 }
