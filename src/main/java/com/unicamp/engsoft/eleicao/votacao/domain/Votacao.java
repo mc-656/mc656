@@ -26,10 +26,10 @@ public class Votacao {
     @Column(nullable = false, length = 30)
     private TipoVotacao tipo;
 
-    @Column(name = "inicio_em", nullable = false)
+    @Column(name = "inicio_em")
     private Instant inicioEm;
 
-    @Column(name = "fim_em", nullable = false)
+    @Column(name = "fim_em")
     private Instant fimEm;
 
     @Enumerated(EnumType.STRING)
@@ -55,6 +55,36 @@ public class Votacao {
      */
     @Column(name = "orcamento_total", precision = 15, scale = 2)
     private BigDecimal orcamentoTotal;
+
+    @Column(name = "votacao_origem_id", updatable = false, unique = true)
+    private UUID votacaoOrigemId;
+
+    public UUID getVotacaoOrigemId() {
+        return votacaoOrigemId;
+    }
+
+    /** Segundo turno nasce sem calendário; o administrador define as datas antes de publicar. */
+    public Votacao criarSegundoTurno() {
+        Votacao derivada = new Votacao(tipo, null, null, nome, descricao);
+        derivada.votacaoOrigemId = id;
+        derivada.configurarRegras(
+                new RegraVotacao(
+                        regras.tipoMaioria(),
+                        regras.percentualQualificado(),
+                        false,
+                        regras.quorumMinimoPercentual(),
+                        regras.votoPonderado(),
+                        regras.tipoDesempate()));
+        return derivada;
+    }
+
+    public void definirPeriodo(Instant inicio, Instant fim) {
+        if (inicio == null || fim == null || !fim.isAfter(inicio)) {
+            throw new DadosInvalidosException("O fim deve ser posterior ao início da votação");
+        }
+        this.inicioEm = inicio;
+        this.fimEm = fim;
+    }
 
     protected Votacao() {}
 

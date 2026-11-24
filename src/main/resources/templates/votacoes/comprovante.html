@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
     <h1>Comprovante de Votação</h1>
 
@@ -26,7 +26,7 @@
 
         <p>
             Guarde o código de comprovante criptográfico abaixo. Ele é a sua garantia de que sua cédula foi
-            registrada e poderá ser verificada a qualquer momento na apuração (RNF-01, RNF-02):
+            registrada. Use-o na página de verificação para consultar seu registro sem revelar sua escolha:
         </p>
 
         <div style="margin: 1.25rem 0;">
