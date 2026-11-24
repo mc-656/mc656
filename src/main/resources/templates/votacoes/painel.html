@@ -12,6 +12,54 @@
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'painel')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
+    <div th:each="aviso : ${avisosPesoUnico}" class="alerta" role="status" th:text="${aviso}"></div>
+
+    <section th:if="${comparecimento != null}" aria-labelledby="titulo-comparecimento">
+        <h2 id="titulo-comparecimento">Acompanhamento de comparecimento</h2>
+        <p class="suave">Atualizado automaticamente durante a votação sem expor escolhas ou votos individuais.</p>
+        <dl class="dados" id="painel-comparecimento"
+            th:data-url="@{/votacoes/{id}/comparecimento(id=${v.id})}"
+            aria-live="polite">
+            <dt>Votantes</dt>
+            <dd id="cmp-participacoes" th:text="${comparecimento.totalParticipacoes}">0</dd>
+            <dt>Eleitores aptos</dt>
+            <dd id="cmp-aptos" th:text="${comparecimento.totalEleitoresAptos}">0</dd>
+            <dt>Comparecimento</dt>
+            <dd id="cmp-percentual" th:text="|${comparecimento.percentualComparecimento}%|">0%</dd>
+            <dt>Quórum mínimo</dt>
+            <dd id="cmp-quorum-minimo"
+                th:text="${comparecimento.quorumMinimoPercentual != null ? comparecimento.quorumMinimoPercentual + '%' : 'Não exigido'}">
+                Não exigido
+            </dd>
+            <dt>Status do quórum</dt>
+            <dd id="cmp-quorum-status"
+                th:text="${comparecimento.quorumAtingido ? 'Quórum atingido' : 'Quórum ainda não atingido'}">
+                Quórum atingido
+            </dd>
+        </dl>
+        <script>
+            (function () {
+                var painel = document.getElementById('painel-comparecimento');
+                if (!painel) { return; }
+                var url = painel.getAttribute('data-url');
+                function atualizar() {
+                    fetch(url, { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.ok ? r.json() : null; })
+                        .then(function (d) {
+                            if (!d) { return; }
+                            document.getElementById('cmp-participacoes').textContent = String(d.totalParticipacoes);
+                            document.getElementById('cmp-aptos').textContent = String(d.totalEleitoresAptos);
+                            document.getElementById('cmp-percentual').textContent = d.percentualComparecimento + '%';
+                            document.getElementById('cmp-quorum-status').textContent =
+                                d.quorumAtingido ? 'Quórum atingido' : 'Quórum ainda não atingido';
+                        })
+                        .catch(function () {});
+                }
+                setInterval(atualizar, 15000);
+            })();
+        </script>
+    </section>
+
     <section aria-labelledby="titulo-dados">
         <h2 id="titulo-dados">Dados</h2>
         <dl class="dados">

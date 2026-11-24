@@ -30,6 +30,11 @@
                th:classappend="${#fields.hasErrors('email')} ? 'invalido'">
         <p th:if="${#fields.hasErrors('email')}" th:errors="*{email}" class="erro-campo"></p>
 
+        <label for="dataNascimento">Data de nascimento</label>
+        <input type="date" id="dataNascimento" name="dataNascimento" th:value="*{dataNascimento}"
+               th:classappend="${#fields.hasErrors('dataNascimento')} ? 'invalido'">
+        <p th:if="${#fields.hasErrors('dataNascimento')}" th:errors="*{dataNascimento}" class="erro-campo"></p>
+
         <!-- A senha nunca volta preenchida quando o formulário é reexibido com erro. -->
         <label for="senha">Senha</label>
         <input type="password" id="senha" name="senha" autocomplete="new-password"

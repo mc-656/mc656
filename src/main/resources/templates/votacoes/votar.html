@@ -22,6 +22,11 @@
         <time th:datetime="${votacao.inicioEm}" th:text="${@rotulosVotacao.dataHora(votacao.inicioEm)}">01/01/2027 10:00</time>
         a
         <time th:datetime="${votacao.fimEm}" th:text="${@rotulosVotacao.dataHora(votacao.fimEm)}">02/01/2027 10:00</time>
+        <span th:if="${votacao.regras != null and votacao.regras.quorumMinimoPercentual != null}"
+              th:text="|· Quórum mínimo: ${votacao.regras.quorumMinimoPercentual}%|"></span>
+        <span th:if="${votacao.regras == null or votacao.regras.quorumMinimoPercentual == null}">
+            · Quórum mínimo: não exigido
+        </span>
     </p>
 
     <p th:if="${votacao.descricao}" th:text="${votacao.descricao}">Descrição da votação.</p>

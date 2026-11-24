@@ -12,6 +12,7 @@ import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.dto.AdicionarEleitorRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CadastrarCandidatoRequest;
+import com.unicamp.engsoft.eleicao.votacao.dto.ComparecimentoResponse;
 import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoForm;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoRequest;
@@ -21,6 +22,7 @@ import com.unicamp.engsoft.eleicao.votacao.repository.ApuracaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.service.AnulacaoVotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.AutorizacaoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.service.CandidatoOuChapaService;
+import com.unicamp.engsoft.eleicao.votacao.service.ComparecimentoService;
 import com.unicamp.engsoft.eleicao.votacao.service.EleitorService;
 import com.unicamp.engsoft.eleicao.votacao.service.ResultadoVotacaoService;
 import com.unicamp.engsoft.eleicao.votacao.service.VotacaoService;
@@ -31,6 +33,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -44,6 +47,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
@@ -83,6 +87,7 @@ public class VotacaoViewController {
     private final AnulacaoVotacaoService anulacaoService;
     private final ApuracaoRepository apuracaoRepository;
     private final AutorizacaoVotacao autorizacaoVotacao;
+    private final ComparecimentoService comparecimentoService;
     private final Validator validator;
 
     public VotacaoViewController(
@@ -94,6 +99,7 @@ public class VotacaoViewController {
             AnulacaoVotacaoService anulacaoService,
             ApuracaoRepository apuracaoRepository,
             AutorizacaoVotacao autorizacaoVotacao,
+            ComparecimentoService comparecimentoService,
             Validator validator) {
         this.votacaoService = votacaoService;
         this.candidatoService = candidatoService;
@@ -103,6 +109,7 @@ public class VotacaoViewController {
         this.anulacaoService = anulacaoService;
         this.apuracaoRepository = apuracaoRepository;
         this.autorizacaoVotacao = autorizacaoVotacao;
+        this.comparecimentoService = comparecimentoService;
         this.validator = validator;
     }
 
@@ -182,6 +189,13 @@ public class VotacaoViewController {
             }
         }
         return prepararPainel(carregar(votacaoId, model), model);
+    }
+
+    @GetMapping(value = "/{votacaoId}/comparecimento", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("@autorizacaoVotacao.ehParticipante(#votacaoId, authentication)")
+    public ComparecimentoResponse comparecimentoJson(@PathVariable UUID votacaoId) {
+        return comparecimentoService.consultar(votacaoId);
     }
 
     /**
@@ -433,6 +447,7 @@ public class VotacaoViewController {
 
     private String prepararEleitores(Votacao votacao, Model model) {
         model.addAttribute("eleitores", eleitorService.listar(votacao.getId()));
+        model.addAttribute("avisosPesoUnico", eleitorService.avisosPesoUnico(votacao.getId()));
         model.addAttribute(
                 "votoPonderado",
                 votacao.getRegras() != null && votacao.getRegras().votoPonderado());
@@ -447,6 +462,10 @@ public class VotacaoViewController {
         model.addAttribute("totalCandidatos", candidatoService.contar(votacaoId));
         model.addAttribute("totalEleitores", eleitorService.contar(votacaoId));
         model.addAttribute("podePublicar", estado == EstadoVotacao.RascunhoVotacao);
+        model.addAttribute("avisosPesoUnico", eleitorService.avisosPesoUnico(votacaoId));
+        if (estado == EstadoVotacao.EmVotacao || estado == EstadoVotacao.Suspensa) {
+            model.addAttribute("comparecimento", comparecimentoService.consultar(votacaoId));
+        }
         model.addAttribute(
                 "editavelPeriodo",
                 ComportamentosDeEstado.de(estado).permite(OperacaoVotacao.CONFIGURAR_PERIODO));
