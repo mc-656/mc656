@@ -211,34 +211,65 @@ docker compose --profile app up -d --build   # API em :${APP_PORT:-8080}
 Stack em `deploy/`: Postgres 17, a API (imagem do GHCR) e o Caddy, único
 serviço exposto (portas 80/443), que obtém o certificado TLS sozinho. Sem
 domínio próprio, o [nip.io](https://nip.io) resolve
-`eleicao.<ip>.nip.io` para `<ip>`. O deploy roda `deploy/deploy.sh`, que
-grava a tag no `.env`, sobe com `docker compose up --wait` (espera o
-`HEALTHCHECK`) e, se a versão nova não ficar saudável, volta para a anterior.
+`eleicao.<ip>.nip.io` para `<ip>`. O `deploy.sh` grava a tag no `.env`, sobe
+com `docker compose up --wait` (espera o `HEALTHCHECK`) e, se a versão nova
+não ficar saudável, volta para a anterior.
+
+**Modelo de segurança.** Quem pode mexer no repositório (e, portanto, nos
+workflows e nos secrets do environment) não deve ganhar acesso à VPS. Por isso:
+
+- a chave de deploy tem **comando forçado** no `authorized_keys`: com ela só
+  se executa o `deploy.sh`, que aceita apenas `ghcr.io/mc-656/mc656:sha-<hex>`.
+  Sem shell, sem port forwarding, sem copiar arquivos;
+- a stack (`compose.yaml`, `Caddyfile`, `deploy.sh`) é instalada e atualizada
+  **pelo dono da VPS**, revisando o diff; o CD não copia nada para lá;
+- a API roda confinada (`cap_drop: ALL`, `no-new-privileges`, sem volume do
+  host, teto de memória/CPU/processos). Uma imagem maliciosa ainda controla a
+  própria aplicação e o banco dela e tem acesso à rede, então não deixe
+  serviços sem autenticação escutando em `0.0.0.0` na mesma VPS.
 
 **Requisitos da VPS:** Linux com Docker e o plugin Compose, ~1 GB de RAM
 livre (JVM + Postgres), portas 80 e 443 abertas para a internet (o Let's
-Encrypt valida pela 80) e 22 para o GitHub Actions.
+Encrypt valida pela 80) e a porta do SSH para o GitHub Actions.
 
-**Preparação (uma vez, na VPS):**
+**Preparação (uma vez, como root/sudo na VPS):**
 
 ```bash
-# usuário dedicado ao deploy, com acesso ao Docker
+# usuário dedicado, sem senha; o grupo docker é necessário para o compose
 sudo adduser --disabled-password --gecos "" deploy
 sudo usermod -aG docker deploy
-sudo -iu deploy
-mkdir -p ~/eleicao && cd ~/eleicao
-# copiar deploy/.env.example do repositório para ~/eleicao/.env e preencher
-# (DOMINIO=eleicao.<ip>.nip.io, APP_URL_BASE=https://eleicao.<ip>.nip.io, segredos)
-chmod 600 .env
+
+# stack: arquivos do dono da VPS, só leitura para o deploy (exceto o .env)
+sudo install -d -o root -g deploy -m 750 /home/deploy/eleicao
+cd /home/deploy/eleicao
+sudo curl -fsSLO https://raw.githubusercontent.com/mc-656/mc656/main/deploy/compose.yaml
+sudo curl -fsSLO https://raw.githubusercontent.com/mc-656/mc656/main/deploy/Caddyfile
+sudo curl -fsSLO https://raw.githubusercontent.com/mc-656/mc656/main/deploy/deploy.sh
+sudo curl -fsSL  https://raw.githubusercontent.com/mc-656/mc656/main/deploy/.env.example -o .env
+sudo chown root:deploy compose.yaml Caddyfile deploy.sh .env
+sudo chmod 644 compose.yaml Caddyfile && sudo chmod 755 deploy.sh && sudo chmod 660 .env
+sudoedit .env   # DOMINIO=eleicao.<ip>.nip.io, APP_URL_BASE=https://eleicao.<ip>.nip.io, segredos
 ```
+
+Leia os arquivos baixados antes de usar. Para atualizar a stack depois, repita
+o `curl` do arquivo alterado, revisando o diff do PR que o mudou.
 
 **Chave de deploy (na sua máquina):**
 
 ```bash
 ssh-keygen -t ed25519 -N "" -C "deploy-eleicao" -f deploy_eleicao
-ssh-copy-id -i deploy_eleicao.pub deploy@<ip>   # ou colar o .pub em ~deploy/.ssh/authorized_keys
-ssh-keyscan -p 22 <ip>                          # saída vai para DEPLOY_SSH_KNOWN_HOSTS
+ssh-keyscan -p 22 <ip>   # saída vai para DEPLOY_SSH_KNOWN_HOSTS
 ```
+
+Na VPS, em `/home/deploy/.ssh/authorized_keys` (dono `deploy`, modo 600),
+uma linha só, com o conteúdo de `deploy_eleicao.pub` no fim:
+
+```text
+command="/home/deploy/eleicao/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... deploy-eleicao
+```
+
+Teste: `ssh -i deploy_eleicao deploy@<ip> ls` deve responder
+`Imagem recusada: 'ls'`, o que mostra que a chave não abre shell.
 
 **No GitHub** (*Settings → Environments → `producao`*):
 
@@ -250,20 +281,21 @@ ssh-keyscan -p 22 <ip>                          # saída vai para DEPLOY_SSH_KNO
 | `DEPLOY_SSH_KNOWN_HOSTS` | secret | saída do `ssh-keyscan` |
 | `DEPLOY_HEALTH_URL` | variable | `https://eleicao.<ip>.nip.io/actuator/health` |
 | `DEPLOY_SSH_PORT` | variable (opcional) | porta do SSH, padrão `22` |
-| `DEPLOY_SSH_DIR` | variable (opcional) | pasta na home, padrão `eleicao` |
 
-O próximo push em `main` implanta. O job copia `compose.yaml`, `Caddyfile` e
-`deploy.sh` do commit para a VPS (o `.env` nunca é tocado) e faz login no GHCR
-com o `GITHUB_TOKEN` do próprio job, então o pacote pode continuar privado.
-Para `homologacao` na mesma VPS seria preciso outra porta/domínio no Caddy;
-por ora, configure só `producao`.
+Recomendado no environment: *Deployment branches* só `main` e *Required
+reviewers* com o dono da VPS. Isso evita deploys de branches arbitrárias, mas
+admins do repositório podem desfazer; a garantia de verdade é o comando forçado.
 
-**Operação na VPS** (em `~/eleicao`): `docker compose ps`,
-`docker compose logs -f app`; backup do banco:
+O próximo push em `main` implanta. O job faz login no GHCR com o
+`GITHUB_TOKEN` do próprio job (enviado pelo stdin do SSH e descartado no fim),
+então o pacote pode continuar privado. Para `homologacao` na mesma VPS seria
+preciso outra porta/domínio no Caddy; por ora, configure só `producao`.
+
+**Operação na VPS** (em `/home/deploy/eleicao`, como `deploy` ou root):
+`docker compose ps`, `docker compose logs -f app`; backup do banco:
 `docker compose exec -T postgres pg_dump -U eleicao eleicao | gzip > backup-$(date +%F).sql.gz`.
-Para subir à mão sem o CD (pacote privado exige antes
-`docker login ghcr.io` com um token `read:packages`):
-`./deploy.sh ghcr.io/mc-656/mc656:sha-<commit>`.
+Deploy à mão (pacote privado exige antes `docker login ghcr.io` com um token
+`read:packages`): `./deploy.sh ghcr.io/mc-656/mc656:sha-<commit>`.
 
 ### Alvo genérico (webhook)
 

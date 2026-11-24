@@ -35,6 +35,16 @@ services:
       DB_PORT: 5432
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
     # Sem healthcheck aqui: vale o HEALTHCHECK do Dockerfile, que o `up --wait` do deploy espera.
+    # A imagem vem de qualquer push no repositório, então roda confinada: sem capabilities,
+    # sem escalar privilégio, sem volume do host e com teto de recursos, para que uma imagem
+    # ruim não derrube nem tome conta do resto da VPS.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${APP_MEMORIA:-1g}
+    cpus: ${APP_CPUS:-1.0}
+    pids_limit: 512
 
   caddy:
     image: caddy:2-alpine
