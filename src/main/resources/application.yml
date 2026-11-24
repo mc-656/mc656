@@ -15,6 +15,13 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: true
 
+# Atrás do proxy reverso do deploy (Caddy, deploy/compose.yaml) o TLS termina no proxy: sem
+# honrar X-Forwarded-*, redirecionamentos (ex.: para o login) e o Swagger sairiam em http://.
+# O Tomcat só confia nesses headers vindos de IPs de rede privada, então quem acessa direto não
+# consegue forjá-los.
+server:
+  forward-headers-strategy: native
+
 jwt:
   secret: ${HMAC}
   emitter: eleicao-api

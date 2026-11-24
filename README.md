@@ -150,9 +150,10 @@ java -jar target/eleicao-0.0.1-SNAPSHOT.jar   # executa o jar gerado
 
 ## Deploy (Docker e CD)
 
-Requisito RNF-08. Por decisão do time a aplicação roda só local por enquanto
-(sem hospedagem paga); o pipeline publica a imagem e deixa o passo de deploy
-pronto para um alvo genérico.
+Requisito RNF-08. O pipeline publica a imagem e implanta numa VPS própria
+(stack em `deploy/`: Compose + Caddy com HTTPS, domínio gratuito via
+[nip.io](https://nip.io)), sem custo de hospedagem; um alvo genérico por
+webhook também é suportado.
 
 ### Rodando a imagem localmente
 
@@ -198,16 +199,76 @@ docker compose --profile app up -d --build   # API em :${APP_PORT:-8080}
 - **CD** (`cd.yml`, push em `main` = produção, `develop` = homologação):
   1. build e push da imagem no GHCR (`ghcr.io/<owner>/<repo>`, gratuito, via
      `GITHUB_TOKEN`), com tags `sha-<commit>`, `<branch>` e `latest` (só `main`);
-  2. job `deploy` no GitHub Environment `producao` ou `homologacao`. Se o
-     environment não tiver o secret `DEPLOY_WEBHOOK_URL`, o job só registra a
-     imagem e termina com sucesso. Se tiver, envia um `POST` ao webhook e faz
-     health check em `DEPLOY_HEALTH_URL`; se não ficar `UP` em ~5 min o job
-     falha e a versão não é considerada promovida.
+  2. job `deploy` no GitHub Environment `producao` ou `homologacao`. Com o
+     secret `DEPLOY_SSH_HOST`, implanta na VPS (abaixo); com
+     `DEPLOY_WEBHOOK_URL`, envia um `POST` ao webhook. Sem nenhum dos dois, só
+     registra a imagem e termina com sucesso. Com `DEPLOY_HEALTH_URL`, faz
+     health check na URL pública; se não ficar `UP` em ~5 min o job falha e a
+     versão não é considerada promovida.
 
-### Configurando um alvo real (futuro)
+### Deploy em VPS
 
-Qualquer host que aceite um webhook de deploy serve (Render, Railway, Fly.io,
-Coolify, um VPS com um receptor de webhook etc.). O mantenedor precisa:
+Stack em `deploy/`: Postgres 17, a API (imagem do GHCR) e o Caddy, único
+serviço exposto (portas 80/443), que obtém o certificado TLS sozinho. Sem
+domínio próprio, o [nip.io](https://nip.io) resolve
+`eleicao.<ip>.nip.io` para `<ip>`. O deploy roda `deploy/deploy.sh`, que
+grava a tag no `.env`, sobe com `docker compose up --wait` (espera o
+`HEALTHCHECK`) e, se a versão nova não ficar saudável, volta para a anterior.
+
+**Requisitos da VPS:** Linux com Docker e o plugin Compose, ~1 GB de RAM
+livre (JVM + Postgres), portas 80 e 443 abertas para a internet (o Let's
+Encrypt valida pela 80) e 22 para o GitHub Actions.
+
+**Preparação (uma vez, na VPS):**
+
+```bash
+# usuário dedicado ao deploy, com acesso ao Docker
+sudo adduser --disabled-password --gecos "" deploy
+sudo usermod -aG docker deploy
+sudo -iu deploy
+mkdir -p ~/eleicao && cd ~/eleicao
+# copiar deploy/.env.example do repositório para ~/eleicao/.env e preencher
+# (DOMINIO=eleicao.<ip>.nip.io, APP_URL_BASE=https://eleicao.<ip>.nip.io, segredos)
+chmod 600 .env
+```
+
+**Chave de deploy (na sua máquina):**
+
+```bash
+ssh-keygen -t ed25519 -N "" -C "deploy-eleicao" -f deploy_eleicao
+ssh-copy-id -i deploy_eleicao.pub deploy@<ip>   # ou colar o .pub em ~deploy/.ssh/authorized_keys
+ssh-keyscan -p 22 <ip>                          # saída vai para DEPLOY_SSH_KNOWN_HOSTS
+```
+
+**No GitHub** (*Settings → Environments → `producao`*):
+
+| Nome | Tipo | Valor |
+|---|---|---|
+| `DEPLOY_SSH_HOST` | secret | IP da VPS |
+| `DEPLOY_SSH_USER` | secret | `deploy` |
+| `DEPLOY_SSH_KEY` | secret | conteúdo de `deploy_eleicao` (chave privada) |
+| `DEPLOY_SSH_KNOWN_HOSTS` | secret | saída do `ssh-keyscan` |
+| `DEPLOY_HEALTH_URL` | variable | `https://eleicao.<ip>.nip.io/actuator/health` |
+| `DEPLOY_SSH_PORT` | variable (opcional) | porta do SSH, padrão `22` |
+| `DEPLOY_SSH_DIR` | variable (opcional) | pasta na home, padrão `eleicao` |
+
+O próximo push em `main` implanta. O job copia `compose.yaml`, `Caddyfile` e
+`deploy.sh` do commit para a VPS (o `.env` nunca é tocado) e faz login no GHCR
+com o `GITHUB_TOKEN` do próprio job, então o pacote pode continuar privado.
+Para `homologacao` na mesma VPS seria preciso outra porta/domínio no Caddy;
+por ora, configure só `producao`.
+
+**Operação na VPS** (em `~/eleicao`): `docker compose ps`,
+`docker compose logs -f app`; backup do banco:
+`docker compose exec -T postgres pg_dump -U eleicao eleicao | gzip > backup-$(date +%F).sql.gz`.
+Para subir à mão sem o CD (pacote privado exige antes
+`docker login ghcr.io` com um token `read:packages`):
+`./deploy.sh ghcr.io/mc-656/mc656:sha-<commit>`.
+
+### Alvo genérico (webhook)
+
+Qualquer host que aceite um webhook de deploy serve (Render, Railway, Coolify
+etc.). O mantenedor precisa:
 
 1. Em *Settings → Environments*, criar `producao` e `homologacao` (o GitHub
    também cria ao primeiro uso; em `producao` vale exigir revisores).
@@ -237,9 +298,10 @@ O webhook recebe:
 ### Rollback
 
 - **Aplicação:** re-implantar uma tag anterior da imagem (`sha-<commit>` de uma
-  versão boa, listada em *Packages* do repositório). Com webhook configurado,
-  basta reexecutar o workflow `CD` daquele commit (*Actions → CD → Re-run*) ou
-  chamar o webhook com a tag antiga; localmente,
+  versão boa, listada em *Packages* do repositório). Com SSH ou webhook
+  configurado, basta reexecutar o workflow `CD` daquele commit (*Actions → CD →
+  Re-run*); na VPS, `./deploy.sh <imagem-antiga>`; com webhook, chamá-lo com a
+  tag antiga; localmente,
   `docker run ... ghcr.io/<owner>/<repo>:sha-<commit>`.
 - **Banco:** migrações são *forward-only*. O Flyway não desfaz versões e uma
   migração aplicada nunca é editada; se a versão nova trouxe uma migração

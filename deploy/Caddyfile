@@ -1,0 +1,6 @@
+# HTTPS automático para o domínio do .env. Sem domínio próprio, use <ip-da-vps>.nip.io.
+# O Caddy envia X-Forwarded-Proto/For; a API confia neles (server.forward-headers-strategy).
+{$DOMINIO} {
+	encode zstd gzip
+	reverse_proxy app:8080
+}

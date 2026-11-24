@@ -1,0 +1,58 @@
+# Stack de produção para uma VPS (RNF-08): Postgres + API (imagem do GHCR) + Caddy.
+# O Caddy termina o TLS (certificado Let's Encrypt automático para ${DOMINIO}) e é o
+# único serviço exposto; Postgres e API ficam só na rede interna do compose.
+# Uso e configuração: README, seção "Deploy em VPS".
+name: eleicao
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?defina DB_USERNAME no .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+      POSTGRES_DB: ${DB_NAME:-eleicao}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # Tag imutável sha-<commit>, gravada no .env pelo deploy.sh: um `docker compose up`
+    # manual (ou um reboot) sobe a mesma versão que o último deploy deixou no ar.
+    image: ${IMAGEM:-ghcr.io/mc-656/mc656:latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # Sobrepõem o .env: o banco é sempre o serviço interno, na porta padrão.
+      DB_HOST: postgres
+      DB_PORT: 5432
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+    # Sem healthcheck aqui: vale o HEALTHCHECK do Dockerfile, que o `up --wait` do deploy espera.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMINIO: ${DOMINIO:?defina DOMINIO no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
