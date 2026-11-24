@@ -14,24 +14,27 @@
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
+<a class="pular-conteudo" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
 <header class="cabecalho">
     <a th:href="@{/}" class="marca">Decisão Coletiva</a>
 
     <!-- Logout é POST com token CSRF (injetado pelo th:action): via GET, qualquer site deslogaria o usuário. -->
-    <nav sec:authorize="isAuthenticated()">
+    <nav sec:authorize="isAuthenticated()" aria-label="Menu do usuário">
+        <a th:href="@{/eleicoes-publicas}">Eleições públicas</a>
         <span sec:authentication="name">usuario@example.com</span>
         <form th:action="@{/logout}" method="post" class="inline">
             <button type="submit" class="link">Sair</button>
         </form>
     </nav>
-    <nav sec:authorize="isAnonymous()">
+    <nav sec:authorize="isAnonymous()" aria-label="Menu principal">
+        <a th:href="@{/eleicoes-publicas}">Eleições públicas</a>
         <a th:href="@{/login}">Entrar</a>
         <a th:href="@{/cadastro}">Cadastrar</a>
     </nav>
 </header>
 
-<main layout:fragment="conteudo"></main>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1"></main>
 
 <footer class="rodape">MC656 · Unicamp</footer>
 
