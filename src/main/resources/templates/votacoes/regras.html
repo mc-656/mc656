@@ -12,7 +12,8 @@
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'regras')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
-    <h2>Regras de apuração</h2>
+    <section aria-labelledby="titulo-regras">
+    <h2 id="titulo-regras">Regras de apuração</h2>
     <th:block th:unless="${editavel}"><p th:replace="~{votacoes/fragmentos :: bloqueada}"></p></th:block>
 
     <form th:if="${editavel}" th:action="@{/votacoes/{id}/regras(id=${v.id})}"
@@ -62,6 +63,7 @@
 
         <button type="submit">Salvar regras</button>
     </form>
+    </section>
 </main>
 </body>
 </html>

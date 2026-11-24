@@ -9,27 +9,28 @@
 </head>
 <body>
 <main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
-    <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
-    <h1 th:text="${votacao.nome}">Votação</h1>
-
-    <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;">
-        <span class="etiqueta" th:text="${@rotulosVotacao.tipo(votacao.tipo)}">Eleição privada</span>
-        <span class="etiqueta" th:text="${@rotulosVotacao.estado(votacao.estado)}">Em votação</span>
-    </div>
-
-    <p class="suave">
-        Período:
-        <time th:datetime="${votacao.inicioEm}" th:text="${@rotulosVotacao.dataHora(votacao.inicioEm)}">01/01/2027 10:00</time>
-        a
-        <time th:datetime="${votacao.fimEm}" th:text="${@rotulosVotacao.dataHora(votacao.fimEm)}">02/01/2027 10:00</time>
-        <span th:if="${votacao.regras != null and votacao.regras.quorumMinimoPercentual != null}"
-              th:text="|· Quórum mínimo: ${votacao.regras.quorumMinimoPercentual}%|"></span>
-        <span th:if="${votacao.regras == null or votacao.regras.quorumMinimoPercentual == null}">
-            · Quórum mínimo: não exigido
-        </span>
-    </p>
-
-    <p th:if="${votacao.descricao}" th:text="${votacao.descricao}">Descrição da votação.</p>
+    <header class="cabecalho-votacao">
+        <div>
+            <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
+            <h1 th:text="${votacao.nome}">Votação</h1>
+            <p class="meta">
+                <span th:replace="~{votacoes/fragmentos :: estado(${votacao.estado})}"></span>
+                <span class="etiqueta" th:text="${@rotulosVotacao.tipo(votacao.tipo)}">Eleição privada</span>
+            </p>
+        </div>
+        <p class="suave">
+            Período:
+            <time th:datetime="${votacao.inicioEm}" th:text="${@rotulosVotacao.dataHora(votacao.inicioEm)}">01/01/2027 10:00</time>
+            a
+            <time th:datetime="${votacao.fimEm}" th:text="${@rotulosVotacao.dataHora(votacao.fimEm)}">02/01/2027 10:00</time>
+            <span th:if="${votacao.regras != null and votacao.regras.quorumMinimoPercentual != null}"
+                  th:text="|· Quórum mínimo: ${votacao.regras.quorumMinimoPercentual}%|"></span>
+            <span th:if="${votacao.regras == null or votacao.regras.quorumMinimoPercentual == null}">
+                · Quórum mínimo: não exigido
+            </span>
+        </p>
+        <p th:if="${votacao.descricao}" th:text="${votacao.descricao}">Descrição da votação.</p>
+    </header>
 
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
@@ -45,86 +46,87 @@
         <p>Esta votação não está aberta para receber votos no momento. Votações só aceitam votos durante o período estabelecido e quando em andamento.</p>
     </div>
 
-    <!-- Cédula de eleição privada (RF-13) -->
+    <!-- Cédula de eleição privada (RF-13): a opção inteira é o alvo do clique e muda ao ser escolhida. -->
     <form th:if="${!jaVotou and aberta and votacao.tipo.name() == 'ELEICAO_PRIVADA'}"
-          th:action="@{/votacoes/{id}/votar(id=${votacao.id})}" method="post" style="margin-top: 1rem;">
-        <fieldset style="border: 1px solid var(--borda); border-radius: 6px; padding: 1.25rem;">
-            <legend style="font-weight: 600; padding: 0 0.5rem;">Candidatos / Chapas</legend>
+          th:action="@{/votacoes/{id}/votar(id=${votacao.id})}" method="post" class="bloco-largo">
+        <fieldset class="cedula">
+            <legend>Candidatos / Chapas</legend>
 
-            <div th:if="${#lists.isEmpty(candidatos)}">
-                <p class="suave">Nenhum candidato ou chapa cadastrado nesta votação.</p>
-            </div>
+            <p th:if="${#lists.isEmpty(candidatos)}" class="suave">Nenhum candidato ou chapa cadastrado nesta votação.</p>
 
-            <div th:unless="${#lists.isEmpty(candidatos)}" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <div th:each="candidato : ${candidatos}" style="padding: 0.5rem; border: 1px solid var(--borda); border-radius: 4px; background: var(--superficie);">
-                    <label class="opcao" style="cursor: pointer;">
-                        <input type="radio" name="opcaoId" th:value="${candidato.id}" required>
-                        <div>
-                            <strong th:text="${candidato.nome}">Nome do Candidato</strong>
-                            <p th:if="${candidato.descricao}" th:text="${candidato.descricao}" class="suave" style="margin: 0.25rem 0 0;"></p>
-                        </div>
-                    </label>
-                </div>
-            </div>
+            <label th:each="candidato : ${candidatos}" class="opcao-cedula">
+                <input type="radio" name="opcaoId" th:value="${candidato.id}" required>
+                <span>
+                    <strong th:text="${candidato.nome}">Nome do Candidato</strong>
+                    <span th:if="${candidato.descricao}" th:text="${candidato.descricao}" class="suave"></span>
+                </span>
+            </label>
         </fieldset>
 
-        <button type="submit" th:disabled="${#lists.isEmpty(candidatos)}" style="margin-top: 1.5rem;">Confirmar Voto</button>
-        <p class="ajuda" style="margin-top: 0.5rem;">Atenção: uma vez confirmado, o voto é definitivo e não poderá ser alterado nem cancelado (RF-13, RF-14).</p>
+        <div class="confirmar">
+            <p class="ajuda">Atenção: uma vez confirmado, o voto é definitivo e não poderá ser alterado nem cancelado (RF-13, RF-14).</p>
+            <button type="submit" th:disabled="${#lists.isEmpty(candidatos)}">Confirmar Voto</button>
+        </div>
     </form>
 
     <!-- Cédula de orçamento participativo (RF-21, RF-22, #129) -->
     <form th:if="${!jaVotou and aberta and votacao.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}"
           th:action="@{/votacoes/{id}/votar-orcamento(id=${votacao.id})}"
-          method="post" class="formulario" style="margin-top: 1rem;">
-        <div class="alerta" role="status">
-            <strong>Saldo total: <span id="saldoTotal" th:text="${saldo.saldoTotal}">0</span> pontos</strong>
-            · Restante: <output id="saldoRestante" th:text="${saldo.saldoDisponivel}">0</output> pontos
+          method="post" class="formulario">
+        <!-- Barra de saldo fixa: esvazia conforme os pontos são distribuídos e fica vermelha se passar do saldo. -->
+        <div class="saldo" id="saldo" role="status">
+            <div class="topo">
+                <span class="rotulo">Pontos restantes</span>
+                <output id="saldoRestante" th:text="${saldo.saldoDisponivel}">0</output>
+            </div>
+            <div class="barra" aria-hidden="true"><span id="barraSaldo"></span></div>
+            <span class="suave">Saldo total: <span id="saldoTotal" th:text="${saldo.saldoTotal}">0</span> pontos</span>
         </div>
 
-        <fieldset style="border: 1px solid var(--borda); border-radius: 6px; padding: 1.25rem;">
-            <legend style="font-weight: 600; padding: 0 0.5rem;">Distribua pontos entre as propostas</legend>
+        <fieldset class="cedula">
+            <legend>Distribua pontos entre as propostas</legend>
 
-            <div th:if="${#lists.isEmpty(propostasInfo.propostas)}">
-                <p class="suave">Nenhuma proposta cadastrada nesta votação.</p>
-            </div>
+            <p th:if="${#lists.isEmpty(propostasInfo.propostas)}" class="suave">Nenhuma proposta cadastrada nesta votação.</p>
 
-            <div th:unless="${#lists.isEmpty(propostasInfo.propostas)}"
-                 style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <div th:each="p : ${propostasInfo.propostas}"
-                     style="padding: 0.75rem; border: 1px solid var(--borda); border-radius: 4px; background: var(--superficie);">
-                    <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center;">
-                        <div>
-                            <strong th:text="${p.titulo}">Proposta</strong>
-                            <span class="etiqueta" th:text="|Custo: ${p.custo}|">Custo: 0</span>
-                            <p th:text="${p.descricao}" class="suave" style="margin: 0.25rem 0 0;"></p>
-                        </div>
-                        <div class="campo" style="min-width: 150px; margin: 0;">
-                            <label th:for="|pontos-${p.id}|">Pontos</label>
-                            <input type="hidden" name="propostaIds" th:value="${p.id}">
-                            <input th:id="|pontos-${p.id}|" class="campo-pontos" type="number"
-                                   name="pontos" min="0" th:max="${saldo.saldoTotal}" step="0.01"
-                                   value="0" required>
-                        </div>
-                    </div>
+            <div th:each="p : ${propostasInfo.propostas}" class="proposta-cedula">
+                <div>
+                    <strong th:text="${p.titulo}">Proposta</strong>
+                    <span class="etiqueta" th:text="|Custo: ${p.custo}|">Custo: 0</span>
+                    <p th:text="${p.descricao}" class="suave"></p>
+                </div>
+                <div class="campo">
+                    <label th:for="|pontos-${p.id}|">Pontos</label>
+                    <input type="hidden" name="propostaIds" th:value="${p.id}">
+                    <input th:id="|pontos-${p.id}|" class="campo-pontos" type="number"
+                           name="pontos" min="0" th:max="${saldo.saldoTotal}" step="0.01"
+                           value="0" required>
                 </div>
             </div>
         </fieldset>
 
-        <button type="submit" th:disabled="${#lists.isEmpty(propostasInfo.propostas)}" style="margin-top: 1.5rem;">Confirmar Distribuição</button>
-        <p class="ajuda" style="margin-top: 0.5rem;">A soma dos pontos alocados não pode ultrapassar seu saldo disponível (RF-22).</p>
+        <div class="confirmar">
+            <p class="ajuda" id="avisoSaldo">A soma dos pontos alocados não pode ultrapassar seu saldo disponível (RF-22).</p>
+            <button type="submit" th:disabled="${#lists.isEmpty(propostasInfo.propostas)}">Confirmar Distribuição</button>
+        </div>
         <script>
             (function () {
                 const totalEl = document.getElementById('saldoTotal');
                 const restanteEl = document.getElementById('saldoRestante');
+                const barra = document.getElementById('barraSaldo');
+                const caixa = document.getElementById('saldo');
                 const inputs = document.querySelectorAll('.campo-pontos');
                 if (!totalEl || !restanteEl || !inputs.length) return;
                 const total = parseFloat(totalEl.textContent) || 0;
                 const atualizar = () => {
                     let soma = 0;
                     inputs.forEach(i => { soma += parseFloat(i.value) || 0; });
-                    restanteEl.textContent = (total - soma).toFixed(2);
+                    const restante = total - soma;
+                    restanteEl.textContent = restante.toFixed(2);
+                    barra.style.width = (total > 0 ? Math.min(100, Math.max(0, restante / total * 100)) : 0) + '%';
+                    caixa.classList.toggle('estourou', restante < 0);
                 };
                 inputs.forEach(i => i.addEventListener('input', atualizar));
+                atualizar();
             })();
         </script>
     </form>
