@@ -17,7 +17,7 @@
     <!-- Esquerda: o que a votação é. Direita: o que fazer agora, com a ação destrutiva isolada. -->
     <!-- Sem nenhuma ação disponível (ex.: durante a votação), a coluna da direita não existe e os dados ocupam tudo. -->
     <div class="grade-painel"
-         th:with="temAcoes=${editavelPeriodo or podePublicar or temResultadoOuAnulacao or podeEncerrar or podeHomologar or podeAnular}"
+         th:with="temAcoes=${editavelPeriodo or podePublicar or podeConvidar or temResultadoOuAnulacao or podeEncerrar or podeHomologar or podeAnular}"
          th:classappend="${temAcoes} ? '' : 'sem-acoes'">
         <div class="coluna">
             <section th:if="${comparecimento != null}" aria-labelledby="titulo-comparecimento">
@@ -154,6 +154,42 @@
                 <form th:action="@{/votacoes/{id}/publicar(id=${v.id})}" method="post">
                     <button type="submit">Publicar votação</button>
                 </form>
+            </section>
+
+            <section th:if="${podeConvidar}" aria-labelledby="titulo-convites">
+                <h2 id="titulo-convites">Convites (link e e-mail)</h2>
+                <form th:action="@{/votacoes/{id}/convite(id=${v.id})}" method="post" class="formulario">
+                    <div class="campo">
+                        <label for="modoConvite">Modo de acesso pelo link</label>
+                        <select id="modoConvite" name="modo">
+                            <option th:each="m : ${modosConvite}"
+                                    th:value="${m.name()}"
+                                    th:selected="${convite != null and convite.modo == m}"
+                                    th:text="${m.name() == 'ABERTO' ? 'Aberto (qualquer usuário com o link)' : 'Restrito (apenas e-mails convidados)'}">
+                                Aberto
+                            </option>
+                        </select>
+                    </div>
+                    <button type="submit" class="secundario"
+                            th:text="${convite != null ? 'Atualizar modo do convite' : 'Gerar link de convite'}">
+                        Gerar link de convite
+                    </button>
+                </form>
+
+                <div th:if="${convite != null}" style="margin-top: 1rem;">
+                    <p><strong>Link do convite:</strong> <code th:text="${convite.link}">http://localhost:8080/convites/...</code></p>
+                    <form th:action="@{/votacoes/{id}/convite/emails(id=${v.id})}" method="post" class="formulario">
+                        <div class="campo">
+                            <label for="emailsConvite">Enviar convite por e-mail</label>
+                            <textarea id="emailsConvite" name="emails" rows="3"
+                                      placeholder="um@exemplo.com, outro@exemplo.com" required></textarea>
+                        </div>
+                        <button type="submit">Enviar convites por e-mail</button>
+                    </form>
+                    <p th:if="${!#lists.isEmpty(convite.emails)}" class="suave">
+                        Convidados: <span th:text="${#strings.listJoin(convite.emails, ', ')}"></span>
+                    </p>
+                </div>
             </section>
 
             <section th:if="${temResultadoOuAnulacao or podeEncerrar or podeHomologar}"

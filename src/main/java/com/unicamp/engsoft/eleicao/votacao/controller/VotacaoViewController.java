@@ -1,7 +1,11 @@
 package com.unicamp.engsoft.eleicao.votacao.controller;
 
 import com.unicamp.engsoft.eleicao.shared.exception.DomainException;
+import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
 import com.unicamp.engsoft.eleicao.shared.security.UsuarioAutenticado;
+import com.unicamp.engsoft.eleicao.votacao.convite.domain.ModoConvite;
+import com.unicamp.engsoft.eleicao.votacao.convite.dto.EnviarConvitesRequest;
+import com.unicamp.engsoft.eleicao.votacao.convite.service.ConviteService;
 import com.unicamp.engsoft.eleicao.votacao.domain.Apuracao;
 import com.unicamp.engsoft.eleicao.votacao.domain.ComportamentosDeEstado;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
@@ -36,6 +40,9 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -94,6 +101,7 @@ public class VotacaoViewController {
     private final ApuracaoRepository apuracaoRepository;
     private final AutorizacaoVotacao autorizacaoVotacao;
     private final ComparecimentoService comparecimentoService;
+    private final ConviteService conviteService;
     private final Validator validator;
 
     public VotacaoViewController(
@@ -107,6 +115,7 @@ public class VotacaoViewController {
             ApuracaoRepository apuracaoRepository,
             AutorizacaoVotacao autorizacaoVotacao,
             ComparecimentoService comparecimentoService,
+            ConviteService conviteService,
             Validator validator) {
         this.votacaoService = votacaoService;
         this.candidatoService = candidatoService;
@@ -118,6 +127,7 @@ public class VotacaoViewController {
         this.apuracaoRepository = apuracaoRepository;
         this.autorizacaoVotacao = autorizacaoVotacao;
         this.comparecimentoService = comparecimentoService;
+        this.conviteService = conviteService;
         this.validator = validator;
     }
 
@@ -591,7 +601,55 @@ public class VotacaoViewController {
                         || estado == EstadoVotacao.Homologada
                         || estado == EstadoVotacao.Anulada
                         || (estado == EstadoVotacao.Apuracao && apuracao != null));
+        boolean podeConvidar =
+                ComportamentosDeEstado.de(estado).permite(OperacaoVotacao.CONVIDAR_ELEITORES);
+        model.addAttribute("podeConvidar", podeConvidar);
+        if (podeConvidar) {
+            try {
+                model.addAttribute("convite", conviteService.consultar(votacaoId));
+            } catch (RecursoNaoEncontradoException ignored) {
+                // Convite ainda não foi gerado; a tela exibe apenas o formulário de criação.
+            }
+            model.addAttribute("modosConvite", ModoConvite.values());
+        }
         return PAINEL;
+    }
+
+    @PostMapping("/{votacaoId}/convite")
+    @PreAuthorize(ADMIN)
+    public String gerarConvite(
+            @PathVariable UUID votacaoId,
+            @RequestParam(defaultValue = "ABERTO") ModoConvite modo,
+            RedirectAttributes redirect) {
+        return executarERedirecionar(
+                () -> conviteService.gerar(votacaoId, modo),
+                "Convite salvo.",
+                "/votacoes/" + votacaoId,
+                redirect);
+    }
+
+    @PostMapping("/{votacaoId}/convite/emails")
+    @PreAuthorize(ADMIN)
+    public String enviarConvitesPorEmail(
+            @PathVariable UUID votacaoId,
+            @RequestParam(defaultValue = "") String emails,
+            RedirectAttributes redirect) {
+        List<String> lista =
+                Arrays.stream(emails.split("[,;\\r\\n]+"))
+                        .map(String::strip)
+                        .filter(s -> !s.isEmpty())
+                        .toList();
+        Set<ConstraintViolation<EnviarConvitesRequest>> violacoes =
+                validator.validate(new EnviarConvitesRequest(lista));
+        if (!violacoes.isEmpty()) {
+            redirect.addFlashAttribute("erro", violacoes.iterator().next().getMessage());
+            return "redirect:/votacoes/" + votacaoId;
+        }
+        return executarERedirecionar(
+                () -> conviteService.enviarPorEmail(votacaoId, lista),
+                "Convites enviados por e-mail.",
+                "/votacoes/" + votacaoId,
+                redirect);
     }
 
     private static DefinirPeriodoForm periodoInicial(Votacao votacao) {
