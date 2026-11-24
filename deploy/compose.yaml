@@ -1,0 +1,66 @@
+# Stack de produção para uma VPS (RNF-08): Postgres + API (imagem do GHCR).
+# O TLS e as portas 80/443 ficam com o Caddy que já atende os outros domínios da VPS: a API
+# entra numa rede exclusiva com ele (${PROXY_REDE}) e não publica porta nenhuma. Rede própria,
+# e não a rede compartilhada do Caddy, para a API não alcançar os backends dos outros sites.
+# O Postgres fica só na rede interna da stack. Uso: README, seção "Deploy em VPS".
+name: eleicao
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?defina DB_USERNAME no .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+      POSTGRES_DB: ${DB_NAME:-eleicao}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - interna
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # Tag imutável sha-<commit>, gravada no .env pelo deploy.sh: um `docker compose up`
+    # manual (ou um reboot) sobe a mesma versão que o último deploy deixou no ar.
+    image: ${IMAGEM:-ghcr.io/mc-656/mc656:latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # Sobrepõem o .env: o banco é sempre o serviço interno, na porta padrão.
+      DB_HOST: postgres
+      DB_PORT: 5432
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+    networks:
+      interna:
+      proxy:
+        # Nome estável que o Caddy usa no reverse_proxy (deploy/Caddyfile.site).
+        aliases:
+          - eleicao-app
+    # Sem healthcheck aqui: vale o HEALTHCHECK do Dockerfile, que o `up --wait` do deploy espera.
+    # A imagem vem de qualquer push no repositório, então roda confinada: sem capabilities,
+    # sem escalar privilégio, sem volume do host e com teto de recursos, para que uma imagem
+    # ruim não derrube nem tome conta do resto da VPS.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${APP_MEMORIA:-1g}
+    cpus: ${APP_CPUS:-1.0}
+    pids_limit: 512
+
+networks:
+  interna:
+  # Criada uma vez à mão (docker network create eleicao-proxy) e ligada ao Caddy central.
+  proxy:
+    external: true
+    name: ${PROXY_REDE:-eleicao-proxy}
+
+volumes:
+  pgdata:
