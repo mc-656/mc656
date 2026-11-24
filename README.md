@@ -171,6 +171,20 @@ Contas criadas pelo script (senha padrão `Senha123!`, alterável via `DEMO_SENH
 | Eleitora apta para votar ao vivo | Carla Eleitora | `eleitor2@demo.unicamp.br` |
 | Convidado por e-mail no Mailpit (RF-17) | Diego Convidado | `eleitor3@demo.unicamp.br` |
 
+#### O que fazer em cada cenário
+
+1. **Eleições Públicas (sem login):** acesse `http://localhost:8080/eleicoes-publicas`, filtre eleições por situação ou cargo, abra o perfil de um candidato (histórico, propostas, agenda e fontes), use o comparador lado a lado (`/comparar`) e consulte notícias, debates e conteúdos didáticos.
+2. **Cenário A — *Eleição do Centro Acadêmico 2026* (`EmVotacao`):**
+   - Entre como `admin@demo.unicamp.br` e abra o painel da votação para acompanhar o **comparecimento em tempo real** e o status do quórum (1/2 votantes = 50%).
+   - Entre como `eleitor2@demo.unicamp.br` (em aba anônima ou após sair), acesse a cédula de votação, registre o voto em uma chapa e guarde o **comprovante anônimo criptografado** gerado.
+   - Abra `http://localhost:8025` (Mailpit) para ver o e-mail de convite enviado para `eleitor3@demo.unicamp.br`; abra o link `/convites/{token}` logado como `eleitor3@demo.unicamp.br` para ingressar automaticamente como eleitor e votar.
+3. **Cenário B — *Consulta do Conselho do Instituto 2026* (`Apuracao`):**
+   - Entre como `admin@demo.unicamp.br`, abra `/votacoes/{id}/resultado` para conferir o resultado prévio calculado pelo motor de apuração, clique em **Publicar resultado** (`Encerrada` — liberando a consulta aos eleitores) e, em seguida, informe uma observação e clique em **Homologar resultado** (`Homologada`).
+4. **Verificação de comprovante (`/comprovantes/verificar`):**
+   - Cole os comprovantes impressos no terminal pelo `make demo`: o do **Cenário A** indica voto registrado aguardando apuração, enquanto o do **Cenário B** confirma que a cédula foi **incluída na apuração oficial**.
+5. **Cenário C — *Orçamento Participativo do Campus 2026* (`EmVotacao`):**
+   - Entre como `eleitor2@demo.unicamp.br`, abra a votação e distribua até **100 pontos** entre os 4 projetos cadastrados (orçamento total de R$ 500.000,00).
+
 ## Deploy (Docker e CD)
 
 Requisito RNF-08. Por decisão do time a aplicação roda só local por enquanto
