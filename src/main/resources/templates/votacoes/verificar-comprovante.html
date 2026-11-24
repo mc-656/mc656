@@ -9,27 +9,30 @@
 </head>
 <body>
 <main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
-    <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
-    <h1>Verificação de Comprovante de Voto</h1>
-
-    <p class="suave">
-        Qualquer eleitor pode verificar a autenticidade do seu comprovante criptográfico e certificar-se
-        de que a sua cédula foi registrada, sem revelar sua escolha.
-    </p>
+    <header>
+        <p class="migalha"><a th:href="@{/votacoes}">Minhas votações</a></p>
+        <h1>Verificação de Comprovante de Voto</h1>
+        <p class="suave">
+            Qualquer eleitor pode verificar a autenticidade do seu comprovante criptográfico e certificar-se
+            de que a sua cédula foi registrada, sem revelar sua escolha.
+        </p>
+    </header>
 
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
-    <form th:action="@{/comprovantes/verificar}" method="post" style="margin-top: 1rem;">
-        <label for="comprovante">Código do Comprovante:</label>
-        <textarea id="comprovante" name="comprovante" rows="4" required
-                  placeholder="Cole o código do comprovante aqui..."
-                  style="width: 100%; font-family: monospace; font-size: 0.875rem; word-break: break-all; margin-top: 0.25rem;"
-                  th:text="${comprovanteInformado}"></textarea>
-
-        <button type="submit" style="margin-top: 1rem;">Verificar Autenticidade</button>
+    <form th:action="@{/comprovantes/verificar}" method="post" class="bloco-largo formulario">
+        <div class="campo">
+            <label for="comprovante">Código do Comprovante:</label>
+            <textarea id="comprovante" name="comprovante" rows="3" required class="mono"
+                      aria-describedby="ajuda-comprovante"
+                      placeholder="Cole o código do comprovante aqui..."
+                      th:text="${comprovanteInformado}"></textarea>
+            <p id="ajuda-comprovante" class="ajuda">Espaços e quebras de linha são ignorados.</p>
+        </div>
+        <button type="submit">Verificar Autenticidade</button>
     </form>
 
-    <div th:if="${comprovanteValido == true}" class="alerta sucesso" style="margin-top: 1.5rem;">
+    <div th:if="${comprovanteValido == true}" class="alerta sucesso">
         <h2>Comprovante Válido e Autêntico!</h2>
         <p>Autenticidade verificada. A cédula correspondente está registrada no sistema.</p>
         <div th:switch="${verificado.situacaoApuracao.name()}">
@@ -38,7 +41,7 @@
             <p th:case="'VOTACAO_ANULADA'">Cédula registrada, mas a votação foi anulada. O comprovante continua autêntico e não atesta um resultado válido.</p>
             <p th:case="'VOTACAO_CANCELADA'">Cédula registrada, mas a votação foi cancelada. O comprovante continua autêntico e não atesta um resultado válido.</p>
         </div>
-        <dl class="dados" style="margin-top: 0.75rem;">
+        <dl class="dados">
             <dt>Votação:</dt>
             <dd>
                 <strong th:text="${votacao.nome}">Votação</strong>
@@ -54,9 +57,7 @@
         </dl>
     </div>
 
-    <div style="margin-top: 2rem;">
-        <a th:href="@{/votacoes}">Voltar para Minhas votações</a>
-    </div>
+    <p><a th:href="@{/votacoes}">Voltar para Minhas votações</a></p>
 </main>
 </body>
 </html>

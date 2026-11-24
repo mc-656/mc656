@@ -36,7 +36,7 @@
                         <form class="inline"
                               th:action="@{/votacoes/{id}/eleitores/{u}/remover(id=${v.id},u=${e.usuarioId})}"
                               method="post">
-                            <button type="submit" class="link" th:aria-label="|Remover ${e.nome}|">Remover</button>
+                            <button type="submit" class="link perigo" th:aria-label="|Remover ${e.nome}|">Remover</button>
                         </form>
                     </td>
                 </tr>

@@ -8,23 +8,23 @@
 </head>
 <body>
 <main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
-    <p><a th:href="@{/eleicoes-publicas}">← Eleições públicas</a></p>
+    <p class="voltar"><a th:href="@{/eleicoes-publicas}">← Eleições públicas</a></p>
     <h1 th:text="${dados.eleicao.nome}">Eleição</h1>
-    <p>
-        <a th:href="@{/eleicoes-publicas/{id}/comparar(id=${dados.eleicao.id})}">Comparar propostas de candidatos</a> ·
-        <a th:href="@{/eleicoes-publicas/{id}/conteudos(id=${dados.eleicao.id})}">Notícias e resumos de debates</a>
+    <p class="atalhos">
+        <a th:href="@{/eleicoes-publicas/{id}/comparar(id=${dados.eleicao.id})}" class="botao secundario pequeno">Comparar propostas de candidatos</a>
+        <a th:href="@{/eleicoes-publicas/{id}/conteudos(id=${dados.eleicao.id})}" class="botao secundario pequeno">Notícias e resumos de debates</a>
     </p>
     <p th:replace="~{eleicoes-publicas/fonte :: fonte(${dados.eleicao.fonte})}"></p>
 
     <section th:each="cargo : ${dados.cargos}">
         <h2 th:text="${cargo.nome}">Cargo</h2>
         <p th:if="${#lists.isEmpty(cargo.candidatos)}">Nenhum candidato registrado para este cargo.</p>
-        <ul class="lista-blocos">
-            <li th:each="c : ${cargo.candidatos}" class="bloco">
+        <ul class="cartoes">
+            <li th:each="c : ${cargo.candidatos}" class="cartao-eleicao">
                 <a th:href="@{/eleicoes-publicas/candidatos/{id}(id=${c.id})}">
                     <strong th:text="${c.nomeUrna}">Nome de urna</strong>
                 </a>
-                <span th:text="|${c.numero} · ${c.partidoSigla}|">91 · PEX</span>
+                <span class="numero-urna"><b th:text="${c.numero}">91</b> <span th:text="${c.partidoSigla}">PEX</span></span>
                 <p th:replace="~{eleicoes-publicas/fonte :: fonte(${c.fonte})}"></p>
             </li>
         </ul>

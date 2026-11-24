@@ -8,13 +8,26 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
-    <p class="migalha">
-        <a th:href="${ehAdmin} ? @{/votacoes/{id}(id=${v.id})} : @{/votacoes}">
-            <span th:text="${ehAdmin} ? 'Voltar ao painel' : 'Minhas votações'">Voltar</span>
-        </a>
-    </p>
-    <h1 th:text="|Resultado: ${v.nome}|">Resultado da votação</h1>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
+    <header class="cabecalho-votacao">
+        <div>
+            <p class="migalha">
+                <a th:href="${ehAdmin} ? @{/votacoes/{id}(id=${v.id})} : @{/votacoes}">
+                    <span th:text="${ehAdmin} ? 'Voltar ao painel' : 'Minhas votações'">Voltar</span>
+                </a>
+            </p>
+            <h1 th:text="|Resultado: ${v.nome}|">Resultado da votação</h1>
+            <p class="meta">
+                <span th:replace="~{votacoes/fragmentos :: estado(${resultado.estado})}"></span>
+                <span th:if="${resultado.apuradaEm != null}">
+                    apurada em
+                    <time th:datetime="${resultado.apuradaEm}"
+                          th:text="${@rotulosVotacao.dataHora(resultado.apuradaEm)}"></time>
+                </span>
+            </p>
+        </div>
+    </header>
+
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
     <div th:if="${resultado.anulacao != null}" class="alerta erro" role="alert">
@@ -25,6 +38,26 @@
                   th:text="${@rotulosVotacao.dataHora(resultado.anulacao.anuladaEm)}"></time>.
         </p>
     </div>
+
+    <!-- O desfecho vem antes da tabela: é a resposta que a pessoa veio buscar. -->
+    <div th:if="${resultado.anulacao == null and resultado.vencedorNome != null}" class="vencedor">
+        <span class="selo-vencedor" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 20 20"><path fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" d="M5 10.5l3.2 3L15 6.5"/></svg>
+        </span>
+        <div>
+            <span class="suave">Vencedor</span>
+            <strong th:text="${resultado.vencedorNome}">Candidato</strong>
+        </div>
+    </div>
+    <p th:if="${resultado.anulacao == null and resultado.statusApuracao != null and resultado.statusApuracao.name() == 'SEGUNDO_TURNO'}" class="alerta">
+        Segundo turno convocado entre os finalistas.
+        <a th:if="${ehAdmin and resultado.segundoTurnoId != null}"
+           th:href="@{/votacoes/{id}(id=${resultado.segundoTurnoId})}">Definir período do 2º turno</a>
+    </p>
+    <p th:if="${resultado.anulacao == null and resultado.statusApuracao != null and resultado.statusApuracao.name() == 'EMPATE'}" class="alerta">
+        A apuração terminou empatada segundo os critérios configurados.
+    </p>
 
     <section aria-labelledby="titulo-resumo-resultado">
         <h2 id="titulo-resumo-resultado">Resumo</h2>
@@ -51,7 +84,7 @@
 
     <section th:if="${resultado.anulacao == null}" aria-labelledby="titulo-desfecho">
         <h2 id="titulo-desfecho">Totalização</h2>
-        <dl th:if="${resultado.orcamento != null}" class="dados" style="margin-bottom: 1rem;">
+        <dl th:if="${resultado.orcamento != null}" class="dados">
             <dt>Orçamento total</dt>
             <dd th:text="${resultado.orcamento.orcamentoTotal}">0</dd>
             <dt>Orçamento utilizado</dt>
@@ -59,44 +92,40 @@
             <dt>Saldo restante</dt>
             <dd th:text="${resultado.orcamento.saldoRestante}">0</dd>
         </dl>
-        <p th:if="${resultado.vencedorNome != null}" class="alerta sucesso">
-            Vencedor: <strong th:text="${resultado.vencedorNome}">Candidato</strong>
-        </p>
-        <p th:if="${resultado.statusApuracao != null and resultado.statusApuracao.name() == 'SEGUNDO_TURNO'}" class="alerta">
-            Segundo turno convocado entre os finalistas.
-            <a th:if="${ehAdmin and resultado.segundoTurnoId != null}"
-               th:href="@{/votacoes/{id}(id=${resultado.segundoTurnoId})}">Definir período do 2º turno</a>
-        </p>
-        <p th:if="${resultado.statusApuracao != null and resultado.statusApuracao.name() == 'EMPATE'}" class="alerta">
-            A apuração terminou empatada segundo os critérios configurados.
-        </p>
-
-        <table th:unless="${#lists.isEmpty(resultado.opcoes)}">
-            <thead>
-            <tr>
-                <th scope="col" th:text="${resultado.orcamento != null} ? 'Proposta' : 'Opção'">Opção</th>
-                <th scope="col" th:text="${resultado.orcamento != null} ? 'Pontos' : 'Votos'">Votos</th>
-                <th scope="col">Percentual</th>
-                <th scope="col" th:if="${resultado.orcamento != null}">Custo</th>
-                <th scope="col">Situação</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="op : ${resultado.opcoes}">
-                <td th:text="${op.nome}">Opção</td>
-                <td th:text="${op.totalVotos}">0</td>
-                <td th:text="|${op.percentualVotosValidos}%|">0%</td>
-                <td th:if="${resultado.orcamento != null}" th:text="${op.custo}">0</td>
-                <td>
-                    <span th:if="${op.statusOrcamento != null}"
-                          class="etiqueta"
-                          th:text="${@rotulosVotacao.statusProposta(op.statusOrcamento)}">Selecionada</span>
-                    <span th:if="${op.statusOrcamento == null and op.vencedora}" class="etiqueta">Vencedora</span>
-                    <span th:if="${op.finalistaSegundoTurno}" class="etiqueta">2º turno</span>
-                </td>
-            </tr>
-            </tbody>
-        </table>
+        <div th:unless="${#lists.isEmpty(resultado.opcoes)}" class="tabela-rolavel">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col" th:text="${resultado.orcamento != null} ? 'Proposta' : 'Opção'">Opção</th>
+                    <th scope="col" th:text="${resultado.orcamento != null} ? 'Pontos' : 'Votos'">Votos</th>
+                    <th scope="col">Percentual</th>
+                    <th scope="col" th:if="${resultado.orcamento != null}">Custo</th>
+                    <th scope="col">Situação</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="op : ${resultado.opcoes}" th:classappend="${op.vencedora} ? 'vencedora'">
+                    <td th:text="${op.nome}">Opção</td>
+                    <td th:text="${op.totalVotos}">0</td>
+                    <td>
+                        <div class="percentual">
+                            <span th:text="|${op.percentualVotosValidos}%|">0%</span>
+                            <span class="trilho" aria-hidden="true"><span
+                                    th:style="|width: ${op.percentualVotosValidos}%|"></span></span>
+                        </div>
+                    </td>
+                    <td th:if="${resultado.orcamento != null}" th:text="${op.custo}">0</td>
+                    <td>
+                        <span th:if="${op.statusOrcamento != null}"
+                              class="etiqueta"
+                              th:text="${@rotulosVotacao.statusProposta(op.statusOrcamento)}">Selecionada</span>
+                        <span th:if="${op.statusOrcamento == null and op.vencedora}" class="etiqueta">Vencedora</span>
+                        <span th:if="${op.finalistaSegundoTurno}" class="etiqueta">2º turno</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <section th:if="${resultado.homologacao != null}" aria-labelledby="titulo-homologacao">
@@ -117,7 +146,7 @@
              aria-labelledby="titulo-acoes-admin">
         <h2 id="titulo-acoes-admin">Ações administrativas</h2>
         <form th:if="${resultado.estado.name() == 'Apuracao' and resultado.quorumAtingido}"
-              th:action="@{/votacoes/{id}/encerrar(id=${v.id})}" method="post" style="margin-bottom: 1rem;">
+              th:action="@{/votacoes/{id}/encerrar(id=${v.id})}" method="post">
             <button type="submit">Publicar resultado</button>
         </form>
         <form th:if="${resultado.estado.name() == 'Encerrada'}"

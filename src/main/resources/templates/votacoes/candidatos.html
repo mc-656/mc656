@@ -24,7 +24,7 @@
                 <form th:if="${editavel}" class="inline"
                       th:action="@{/votacoes/{id}/candidatos/{c}/remover(id=${v.id},c=${c.id})}"
                       method="post">
-                    <button type="submit" class="link" th:aria-label="|Remover ${c.nome}|">Remover</button>
+                    <button type="submit" class="link perigo" th:aria-label="|Remover ${c.nome}|">Remover</button>
                 </form>
             </li>
         </ul>

@@ -8,7 +8,7 @@
 </head>
 <body>
 <main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
-    <p>
+    <p class="voltar">
         <a th:href="@{/eleicoes-publicas/{id}(id=${perfil.cargoDisputado.eleicaoId})}"
            th:text="|← ${perfil.cargoDisputado.eleicaoNome}|">← Eleição</a>
     </p>

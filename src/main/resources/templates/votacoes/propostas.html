@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'propostas')}"></header>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
     <p th:unless="${editavel}" th:replace="~{votacoes/fragmentos :: bloqueada}"></p>
@@ -69,18 +69,18 @@
         <h2 id="titulo-lista-propostas">Propostas cadastradas</h2>
         <p th:if="${#lists.isEmpty(propostas)}">Nenhuma proposta cadastrada até o momento.</p>
 
-        <ul th:unless="${#lists.isEmpty(propostas)}" class="lista-votacoes">
+        <ul th:unless="${#lists.isEmpty(propostas)}" class="lista-itens">
             <li th:each="p : ${propostas}">
                 <div>
                     <strong th:text="${p.titulo}">Título</strong>
-                    <span class="etiqueta" th:text="|Custo: ${p.custo}|">Custo: 0</span>
-                    <p th:text="${p.descricao}" class="suave" style="margin: 0.25rem 0;"></p>
+                    <span><span class="etiqueta" th:text="|Custo: ${p.custo}|">Custo: 0</span></span>
+                    <p th:text="${p.descricao}" class="suave"></p>
                 </div>
-                <div th:if="${editavel}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <div th:if="${editavel}" class="acoes">
                     <details>
-                        <summary style="cursor: pointer;">Editar</summary>
+                        <summary>Editar</summary>
                         <form th:action="@{/votacoes/{id}/propostas/{pid}/editar(id=${v.id}, pid=${p.id})}"
-                              method="post" class="formulario" style="margin-top: 0.5rem;">
+                              method="post" class="formulario">
                             <div class="campo">
                                 <label th:for="|titulo-${p.id}|">Título</label>
                                 <input th:id="|titulo-${p.id}|" type="text" name="titulo"
@@ -101,7 +101,7 @@
                     </details>
                     <form th:action="@{/votacoes/{id}/propostas/{pid}/remover(id=${v.id}, pid=${p.id})}"
                           method="post">
-                        <button type="submit" class="secundario">Remover</button>
+                        <button type="submit" class="link perigo" th:aria-label="|Remover ${p.titulo}|">Remover</button>
                     </form>
                 </div>
             </li>
