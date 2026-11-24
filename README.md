@@ -183,7 +183,7 @@ Contas criadas pelo script (senha padrão `Senha123!`, alterável via `DEMO_SENH
 4. **Verificação de comprovante (`/comprovantes/verificar`):**
    - Cole os comprovantes impressos no terminal pelo `make demo`: o do **Cenário A** indica voto registrado aguardando apuração, enquanto o do **Cenário B** confirma que a cédula foi **incluída na apuração oficial**.
 5. **Cenário C — *Orçamento Participativo do Campus 2026* (`EmVotacao`):**
-   - Entre como `eleitor2@demo.unicamp.br`, abra a votação e distribua até **100 pontos** entre os 4 projetos cadastrados (orçamento total de R$ 500.000,00).
+   - Entre como `eleitor2@demo.unicamp.br`, abra a votação e distribua seu saldo de pontos (até `500.000` pontos, equivalente ao orçamento total de R$ 500.000,00) entre os 4 projetos cadastrados.
 
 ## Deploy (Docker e CD)
 

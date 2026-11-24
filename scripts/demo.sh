@@ -54,18 +54,46 @@ iso_offset() {
   python3 -c "from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc) + timedelta(seconds=$1)).strftime('%Y-%m-%dT%H:%M:%SZ'))"
 }
 
-cadastrar_e_logar() {
-  local nome="$1" cpf="$2" email="$3"
-  curl -s -o /dev/null -X POST "$BASE_URL/api/usuarios" \
-    -H "Content-Type: application/json" \
-    -d "{\"nome\":\"$nome\",\"cpf\":\"$cpf\",\"email\":\"$email\",\"senha\":\"$SENHA_PADRAO\",\"dataNascimento\":\"1995-05-15\"}" || true
+cpf_deterministico() {
+  python3 - "$1" <<'PY'
+import hashlib, sys
+h = hashlib.sha256(sys.argv[1].encode()).hexdigest()
+n = [int(h[i], 16) % 10 for i in range(9)]
+if len(set(n)) == 1:
+    n[0] = (n[0] + 1) % 10
+d1 = sum(v * (10 - i) for i, v in enumerate(n)) % 11
+n.append(0 if d1 < 2 else 11 - d1)
+d2 = sum(v * (11 - i) for i, v in enumerate(n)) % 11
+n.append(0 if d2 < 2 else 11 - d2)
+print("".join(map(str, n)))
+PY
+}
 
-  local login_res token
+cadastrar_e_logar() {
+  local nome="$1" email="$2"
+  local cpf login_res cad_res token
+  cpf=$(cpf_deterministico "$email")
+
+  # Se a conta já existir com a senha padrão, reaproveita direto
+  if login_res=$(curl -sf -X POST "$BASE_URL/api/auth/login" \
+      -H "Content-Type: application/json" \
+      -d "{\"email\":\"$email\",\"senha\":\"$SENHA_PADRAO\"}" 2>/dev/null); then
+    token=$(echo "$login_res" | jq -r '.token')
+    if [[ -n "$token" && "$token" != "null" ]]; then
+      echo "$token"
+      return 0
+    fi
+  fi
+
+  cad_res=$(curl -s -X POST "$BASE_URL/api/usuarios" \
+    -H "Content-Type: application/json" \
+    -d "{\"nome\":\"$nome\",\"cpf\":\"$cpf\",\"email\":\"$email\",\"senha\":\"$SENHA_PADRAO\",\"dataNascimento\":\"1995-05-15\"}")
+
   login_res=$(curl -sf -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$email\",\"senha\":\"$SENHA_PADRAO\"}")
-  token=$(echo "$login_res" | jq -r '.token')
-  [[ -n "$token" && "$token" != "null" ]] || erro "Falha ao autenticar $email"
+    -d "{\"email\":\"$email\",\"senha\":\"$SENHA_PADRAO\"}" || true)
+  token=$(echo "$login_res" | jq -r '.token // empty')
+  [[ -n "$token" ]] || erro "Falha ao cadastrar/autenticar $email (resposta cadastro: $cad_res)"
   echo "$token"
 }
 
@@ -74,7 +102,7 @@ aguardar_estado() {
   for ((i=1; i<=max_tentativas; i++)); do
     local ultimo
     ultimo=$(curl -sf "$BASE_URL/api/votacoes/$votacao_id/transicoes" \
-      -H "Authorization: Bearer $token" | jq -r '.[-1].estadoDestino // empty')
+      -H "Authorization: Bearer $token" | jq -r '.[-1].estadoNovo // empty')
     if [[ "$ultimo" == "$estado_alvo" ]]; then
       return 0
     fi
@@ -88,10 +116,10 @@ aguardar_estado() {
 # 1. Criar contas de demonstração
 # ------------------------------------------------------------------------------
 info "Criando/autenticando contas de demonstração..."
-ADMIN_TOKEN=$(cadastrar_e_logar "Ana Organizadora" "52998224725" "admin@demo.unicamp.br")
-ELEITOR1_TOKEN=$(cadastrar_e_logar "Bruno Eleitor" "11144477735" "eleitor1@demo.unicamp.br")
-ELEITOR2_TOKEN=$(cadastrar_e_logar "Carla Eleitora" "12345678909" "eleitor2@demo.unicamp.br")
-ELEITOR3_TOKEN=$(cadastrar_e_logar "Diego Convidado" "98765432100" "eleitor3@demo.unicamp.br")
+ADMIN_TOKEN=$(cadastrar_e_logar "Ana Organizadora" "admin@demo.unicamp.br")
+ELEITOR1_TOKEN=$(cadastrar_e_logar "Bruno Eleitor" "eleitor1@demo.unicamp.br")
+ELEITOR2_TOKEN=$(cadastrar_e_logar "Carla Eleitora" "eleitor2@demo.unicamp.br")
+ELEITOR3_TOKEN=$(cadastrar_e_logar "Diego Convidado" "eleitor3@demo.unicamp.br")
 ok "4 contas prontas (senha padrão: $SENHA_PADRAO)"
 
 # ------------------------------------------------------------------------------
@@ -201,7 +229,7 @@ FIM_C=$(iso_offset 86400)
 VOTACAO_C=$(curl -sf -X POST "$BASE_URL/api/votacoes" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"tipo\":\"ORCAMENTO_PARTICIPATIVO\",\"nome\":\"Orçamento Participativo do Campus 2026\",\"descricao\":\"Distribua 100 pontos entre os projetos prioritários para o campus.\",\"inicioEm\":\"$INICIO_C\",\"fimEm\":\"$FIM_C\"}" \
+  -d "{\"tipo\":\"ORCAMENTO_PARTICIPATIVO\",\"nome\":\"Orçamento Participativo do Campus 2026\",\"descricao\":\"Distribua seus pontos entre os projetos prioritários para o campus.\",\"inicioEm\":\"$INICIO_C\",\"fimEm\":\"$FIM_C\"}" \
   | jq -r '.id')
 
 curl -sf -X PUT "$BASE_URL/api/votacoes/$VOTACAO_C/regras" \
@@ -217,12 +245,12 @@ curl -sf -X PUT "$BASE_URL/api/votacoes/$VOTACAO_C/orcamento" \
 PROP_C1=$(curl -sf -X POST "$BASE_URL/api/votacoes/$VOTACAO_C/propostas" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"titulo":"Iluminação LED nas trilhas","descricao":"Instalação de postes LED solares nos caminhos entre institutos.","custo":200000.00}' | jq -r '.id')
+  -d '{"titulo":"Iluminação LED nas trilhas","descricao":"Instalação de postes LED solares nos caminhos entre institutos.","custo":200000.00}' | jq -r '.proposta.id')
 
 PROP_C2=$(curl -sf -X POST "$BASE_URL/api/votacoes/$VOTACAO_C/propostas" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"titulo":"Reforma das salas de estudo","descricao":"Climatização, tomadas e mobiliário ergonômico na biblioteca.","custo":250000.00}' | jq -r '.id')
+  -d '{"titulo":"Reforma das salas de estudo","descricao":"Climatização, tomadas e mobiliário ergonômico na biblioteca.","custo":250000.00}' | jq -r '.proposta.id')
 
 curl -sf -X POST "$BASE_URL/api/votacoes/$VOTACAO_C/propostas" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -232,7 +260,7 @@ curl -sf -X POST "$BASE_URL/api/votacoes/$VOTACAO_C/propostas" \
 PROP_C4=$(curl -sf -X POST "$BASE_URL/api/votacoes/$VOTACAO_C/propostas" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"titulo":"Bebedouros com água gelada","descricao":"Substituição e instalação de 15 bebedouros acessíveis.","custo":100000.00}' | jq -r '.id')
+  -d '{"titulo":"Bebedouros com água gelada","descricao":"Substituição e instalação de 15 bebedouros acessíveis.","custo":100000.00}' | jq -r '.proposta.id')
 
 for email in "eleitor1@demo.unicamp.br" "eleitor2@demo.unicamp.br"; do
   curl -sf -X POST "$BASE_URL/api/votacoes/$VOTACAO_C/eleitores" \
@@ -275,7 +303,7 @@ info "Registrando voto inicial no Orçamento Participativo C..."
 curl -sf -X POST "$BASE_URL/api/votacoes/$VOTACAO_C/votos-orcamento" \
   -H "Authorization: Bearer $ELEITOR1_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"alocacoes\":[{\"propostaId\":\"$PROP_C1\",\"pontos\":40},{\"propostaId\":\"$PROP_C2\",\"pontos\":35},{\"propostaId\":\"$PROP_C4\",\"pontos\":25}]}" >/dev/null
+  -d "{\"alocacoes\":[{\"propostaId\":\"$PROP_C1\",\"pontos\":200000},{\"propostaId\":\"$PROP_C2\",\"pontos\":200000},{\"propostaId\":\"$PROP_C4\",\"pontos\":100000}]}" >/dev/null
 
 info "Aguardando encerramento e apuração automática do Cenário B..."
 aguardar_estado "$VOTACAO_B" "Apuracao" "$ADMIN_TOKEN" 25
