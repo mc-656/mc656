@@ -55,4 +55,8 @@ public class Apuracao {
         this.totalCedulas = totalCedulas;
         this.segundoTurnoId = segundoTurnoId;
     }
+
+    public boolean quorumAtingido() {
+        return resultado != null && resultado.quorumAtingido();
+    }
 }

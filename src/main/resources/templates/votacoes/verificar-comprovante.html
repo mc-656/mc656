@@ -34,6 +34,7 @@
         <p>Autenticidade verificada. A cédula correspondente está registrada no sistema.</p>
         <div th:switch="${verificado.situacaoApuracao.name()}">
             <p th:case="'NAO_CONFIRMADA'">Cédula registrada. A inclusão na apuração ainda não foi confirmada.</p>
+            <p th:case="'INCLUIDA_NA_APURACAO'">Cédula registrada e incluída na apuração oficial da votação.</p>
             <p th:case="'VOTACAO_ANULADA'">Cédula registrada, mas a votação foi anulada. O comprovante continua autêntico e não atesta um resultado válido.</p>
             <p th:case="'VOTACAO_CANCELADA'">Cédula registrada, mas a votação foi cancelada. O comprovante continua autêntico e não atesta um resultado válido.</p>
         </div>

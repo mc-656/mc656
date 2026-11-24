@@ -161,6 +161,7 @@ class VotoViewControllerTest extends AbstractIntegrationTest {
                 .andExpect(content().string(containsString("Chapa Tradição")))
                 .andExpect(content().string(containsString("name=\"opcaoId\"")))
                 .andExpect(content().string(containsString("name=\"_csrf\"")))
+                .andExpect(content().string(containsString("Quórum mínimo")))
                 .andExpect(content().string(containsString("Confirmar Voto")));
     }
 
