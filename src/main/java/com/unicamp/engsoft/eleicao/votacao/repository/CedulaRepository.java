@@ -1,6 +1,7 @@
 package com.unicamp.engsoft.eleicao.votacao.repository;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.Cedula;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.repository.Repository;
 
@@ -14,6 +15,8 @@ import org.springframework.data.repository.Repository;
 public interface CedulaRepository extends Repository<Cedula, UUID> {
 
     Cedula save(Cedula cedula);
+
+    List<Cedula> findByVotacaoId(UUID votacaoId);
 
     /** Usada na verificação do comprovante: confirma que a cédula atestada foi de fato gravada. */
     boolean existsByIdAndVotacaoId(UUID id, UUID votacaoId);
