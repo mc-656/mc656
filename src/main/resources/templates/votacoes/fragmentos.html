@@ -15,8 +15,12 @@
            th:attr="aria-current=${atual == 'painel'} ? 'page' : null">Resumo</a>
         <a th:href="@{/votacoes/{id}/regras(id=${v.id})}"
            th:attr="aria-current=${atual == 'regras'} ? 'page' : null">Regras</a>
-        <a th:href="@{/votacoes/{id}/candidatos(id=${v.id})}"
+        <a th:if="${v.tipo.name() == 'ELEICAO_PRIVADA'}"
+           th:href="@{/votacoes/{id}/candidatos(id=${v.id})}"
            th:attr="aria-current=${atual == 'candidatos'} ? 'page' : null">Candidatos</a>
+        <a th:if="${v.tipo.name() == 'ORCAMENTO_PARTICIPATIVO'}"
+           th:href="@{/votacoes/{id}/propostas(id=${v.id})}"
+           th:attr="aria-current=${atual == 'propostas'} ? 'page' : null">Propostas</a>
         <a th:href="@{/votacoes/{id}/eleitores(id=${v.id})}"
            th:attr="aria-current=${atual == 'eleitores'} ? 'page' : null">Eleitores</a>
     </nav>

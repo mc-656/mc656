@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -39,6 +40,15 @@ public class CandidatoOuChapa {
 
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
+
+    @Column(name = "data_nascimento")
+    private LocalDate dataNascimento;
+
+    public CandidatoOuChapa(
+            UUID votacaoId, String nome, String descricao, LocalDate dataNascimento) {
+        this(votacaoId, nome, descricao);
+        this.dataNascimento = dataNascimento;
+    }
 
     public CandidatoOuChapa(UUID votacaoId, String nome, String descricao) {
         this.votacaoId = votacaoId;

@@ -7,15 +7,48 @@
     <title>Eleições públicas</title>
 </head>
 <body>
-<main layout:fragment="conteudo" class="pagina">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
     <h1>Eleições públicas</h1>
-    <p th:if="${#lists.isEmpty(eleicoes)}">Nenhuma eleição pública cadastrada.</p>
+
+    <form th:action="@{/eleicoes-publicas}" method="get" class="bloco"
+          style="display: grid; gap: 0.75rem; margin-bottom: 1.25rem;">
+        <div>
+            <label for="situacao">Situação</label>
+            <select id="situacao" name="situacao"
+                    style="width: 100%; padding: 0.5rem; font: inherit; border: 1px solid var(--borda); border-radius: 4px; background: var(--superficie);">
+                <option value="" th:selected="${situacaoSelecionada == null}">Ativas e futuras (padrão)</option>
+                <option th:each="s : ${situacoes}" th:value="${s}" th:selected="${s == situacaoSelecionada}"
+                        th:text="${s.name() == 'ATIVA' ? 'Em andamento (Ativa)' : (s.name() == 'FUTURA' ? 'Futura' : 'Encerrada')}">
+                    Ativa
+                </option>
+            </select>
+        </div>
+        <div>
+            <label for="cargo">Cargo em disputa</label>
+            <input id="cargo" type="text" name="cargo" th:value="${cargoFiltro}"
+                   placeholder="Ex.: Prefeito, Governador, Senador"
+                   style="width: 100%;">
+        </div>
+        <div>
+            <button type="submit" style="margin-top: 0;">Filtrar eleições</button>
+        </div>
+    </form>
+
+    <p th:if="${#lists.isEmpty(eleicoes)}">Nenhuma eleição pública encontrada para os filtros selecionados.</p>
     <ul class="lista-blocos">
         <li th:each="e : ${eleicoes}" class="bloco">
             <h2><a th:href="@{/eleicoes-publicas/{id}(id=${e.id})}" th:text="${e.nome}">Eleição</a></h2>
             <p>
+                <strong th:text="${e.situacao.name() == 'ATIVA' ? 'Ativa' : (e.situacao.name() == 'FUTURA' ? 'Futura' : 'Encerrada')}">Futura</strong> ·
                 <span th:text="${e.abrangencia}">Abrangência</span> ·
                 1º turno em <span th:text="${#temporals.format(e.dataPrimeiroTurno, 'dd/MM/yyyy')}">01/10/2028</span>
+                <span th:if="${e.dataFim != null}"
+                      th:text="| (até ${#temporals.format(e.dataFim, 'dd/MM/yyyy')})|"></span>
+            </p>
+            <p>
+                <a th:href="@{/eleicoes-publicas/{id}(id=${e.id})}">Candidatos</a> ·
+                <a th:href="@{/eleicoes-publicas/{id}/comparar(id=${e.id})}">Comparar propostas</a> ·
+                <a th:href="@{/eleicoes-publicas/{id}/conteudos(id=${e.id})}">Notícias e debates</a>
             </p>
             <p th:replace="~{eleicoes-publicas/fonte :: fonte(${e.fonte})}"></p>
         </li>

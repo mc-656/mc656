@@ -35,6 +35,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.dao.DataAccessException;
@@ -182,7 +184,9 @@ class VotoControllerTest extends AbstractIntegrationTest {
                         .andExpect(jsonPath("$.votacaoId").value(votacao.getId().toString()))
                         .andExpect(jsonPath("$.comprovante").isNotEmpty())
                         .andExpect(jsonPath("$.emitidoEm").isNotEmpty())
-                        .andExpect(jsonPath("$.opcaoId").doesNotExist());
+                        .andExpect(jsonPath("$.opcaoId").doesNotExist())
+                        .andExpect(jsonPath("$.usuarioId").doesNotExist())
+                        .andExpect(jsonPath("$.cedulaId").doesNotExist());
         String comprovante = comprovanteDe(voto);
 
         // Assert: comprovante verificável por quem votou
@@ -190,7 +194,10 @@ class VotoControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.emitidoEm").isNotEmpty())
                 .andExpect(jsonPath("$.votacaoId").value(votacao.getId().toString()))
-                .andExpect(jsonPath("$.opcaoId").doesNotExist());
+                .andExpect(jsonPath("$.opcaoId").doesNotExist())
+                .andExpect(jsonPath("$.usuarioId").doesNotExist())
+                .andExpect(jsonPath("$.cedulaId").doesNotExist())
+                .andExpect(jsonPath("$.situacaoApuracao").value("NAO_CONFIRMADA"));
 
         // Assert: segundo voto rejeitado sem alterar o primeiro
         vota(bia, votacao.getId(), opcaoB.getId())
@@ -389,7 +396,9 @@ class VotoControllerTest extends AbstractIntegrationTest {
         String adulterado = (primeiro == 'A' ? 'B' : 'A') + comprovante.substring(1);
 
         // Act + Assert
-        verifica(bia, adulterado).andExpect(status().isBadRequest());
+        verifica(bia, adulterado)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Comprovante não encontrado."));
     }
 
     @Test
@@ -400,7 +409,47 @@ class VotoControllerTest extends AbstractIntegrationTest {
                 comprovanteService.gerar(votacao.getId(), UUID.randomUUID(), Instant.now());
 
         // Act + Assert
-        verifica(bia, forjado).andExpect(status().isBadRequest());
+        verifica(bia, forjado)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Comprovante não encontrado."));
+    }
+
+    @ParameterizedTest
+    @EnumSource(EstadoVotacao.class)
+    @DisplayName("Estado da votação não substitui evidência de inclusão na apuração")
+    void verificaSituacaoSemInventarInclusao(EstadoVotacao estado) throws Exception {
+        abreVotacao();
+        String comprovante = comprovanteDe(vota(bia, votacao.getId(), opcaoA.getId()));
+        forcaEstado(estado);
+        String esperado =
+                switch (estado) {
+                    case Anulada -> "VOTACAO_ANULADA";
+                    case Cancelada -> "VOTACAO_CANCELADA";
+                    default -> "NAO_CONFIRMADA";
+                };
+        verifica(bia, comprovante)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situacaoApuracao").value(esperado))
+                .andExpect(jsonPath("$.opcaoId").doesNotExist())
+                .andExpect(jsonPath("$.usuarioId").doesNotExist())
+                .andExpect(jsonPath("$.cedulaId").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Comprovante válido de cédula de orçamento participativo é aceito")
+    void comprovanteDeCedulaOrcamento() throws Exception {
+        UUID cedulaOrcamentoId = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO cedulas_orcamento (id, votacao_id) VALUES (?, ?)",
+                cedulaOrcamentoId,
+                votacao.getId());
+        Instant emitidoEm = Instant.now();
+        String comprovante =
+                comprovanteService.gerar(votacao.getId(), cedulaOrcamentoId, emitidoEm);
+
+        verifica(bia, comprovante)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votacaoId").value(votacao.getId().toString()));
     }
 
     // ---------- Sigilo (RNF-02) e append-only ----------

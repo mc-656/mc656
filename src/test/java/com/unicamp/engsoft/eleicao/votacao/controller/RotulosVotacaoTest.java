@@ -3,6 +3,8 @@ package com.unicamp.engsoft.eleicao.votacao.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.StatusApuracao;
+import com.unicamp.engsoft.eleicao.votacao.domain.StatusPropostaApurada;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoMaioria;
 import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import java.time.Instant;
@@ -88,5 +90,31 @@ class RotulosVotacaoTest {
         assertThat(rotulos.estado(EstadoVotacao.Anulada)).isEqualTo("Anulada");
 
         assertThat(rotulos.estado(EstadoVotacao.Cancelada)).isEqualTo("Cancelada");
+    }
+
+    @Test
+    @DisplayName("Deve retornar os rótulos de todos os status de apuração")
+    void deveRetornarRotulosDosStatusDeApuracao() {
+        assertThat(rotulos.statusApuracao(null)).isEmpty();
+        assertThat(rotulos.statusApuracao(StatusApuracao.DEFINIDO)).isEqualTo("Vencedor definido");
+        assertThat(rotulos.statusApuracao(StatusApuracao.SEGUNDO_TURNO)).isEqualTo("Segundo turno");
+        assertThat(rotulos.statusApuracao(StatusApuracao.EMPATE)).isEqualTo("Empate");
+        assertThat(rotulos.statusApuracao(StatusApuracao.QUORUM_NAO_ATINGIDO))
+                .isEqualTo("Quórum não atingido");
+        assertThat(rotulos.statusApuracao(StatusApuracao.SEM_VENCEDOR)).isEqualTo("Sem vencedor");
+    }
+
+    @Test
+    @DisplayName("Deve retornar os rótulos dos status de proposta apurada")
+    void deveRetornarRotulosDosStatusDeProposta() {
+        assertThat(rotulos.statusProposta(null)).isEmpty();
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.SELECIONADA))
+                .isEqualTo("Selecionada");
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.NAO_SELECIONADA_ORCAMENTO))
+                .isEqualTo("Fora do orçamento");
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.EMPATADA_SEM_DECISAO))
+                .isEqualTo("Empatada");
+        assertThat(rotulos.statusProposta(StatusPropostaApurada.QUORUM_NAO_ATINGIDO))
+                .isEqualTo("Quórum não atingido");
     }
 }
