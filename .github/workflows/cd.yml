@@ -28,7 +28,7 @@ jobs:
             imagem: ${{ steps.nome.outputs.imagem }}
             tag-sha: ${{ steps.nome.outputs.tag_sha }}
         steps:
-            - uses: actions/checkout@v7
+            - uses: actions/checkout@v7.0.1
               name: Checkout
             - name: Nome da imagem
               id: nome
