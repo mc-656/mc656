@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="|Comparar propostas · ${dados.eleicao.nome}|">Comparar propostas</title>
+</head>
+<body>
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="pagina">
+    <p><a th:href="@{/eleicoes-publicas/{id}(id=${dados.eleicao.id})}"
+          th:text="|← ${dados.eleicao.nome}|">← Candidatos</a></p>
+    <h1 th:text="|Comparar propostas: ${dados.eleicao.nome}|">Comparar propostas</h1>
+    <p th:replace="~{eleicoes-publicas/fonte :: fonte(${dados.eleicao.fonte})}"></p>
+
+    <p th:if="${erro}" th:text="${erro}" class="alerta erro" role="alert"></p>
+
+    <form th:action="@{/eleicoes-publicas/{id}/comparar(id=${dados.eleicao.id})}"
+          method="get" class="bloco" style="display: grid; gap: 1rem; margin-bottom: 1.5rem;">
+        <p style="margin: 0;">Selecione de 2 a 4 candidatos ao mesmo cargo para comparar as propostas por tema:</p>
+        <fieldset th:each="cargo : ${dados.cargos}" th:unless="${#lists.isEmpty(cargo.candidatos)}"
+                  style="border: 1px solid var(--borda); border-radius: 6px; padding: 0.75rem 1rem;">
+            <legend th:text="${cargo.nome}" style="font-weight: 600; padding: 0 0.5rem;">Cargo</legend>
+            <div style="display: grid; gap: 0.5rem;">
+                <label th:each="c : ${cargo.candidatos}" style="display: flex; gap: 0.5rem; align-items: center; margin: 0; font-weight: 400;">
+                    <input type="checkbox" name="candidatos" th:value="${c.id}"
+                           th:checked="${candidatosSelecionados.contains(c.id)}">
+                    <span th:text="|${c.nomeUrna} (${c.numero} · ${c.partidoSigla})|">Candidato</span>
+                </label>
+            </div>
+        </fieldset>
+        <div>
+            <button type="submit" style="margin-top: 0;">Comparar selecionados</button>
+        </div>
+    </form>
+
+    <section th:if="${comparacao != null}" aria-labelledby="titulo-comparacao">
+        <h2 id="titulo-comparacao" th:text="|Comparação para ${comparacao.cargoNome}|">Comparação</h2>
+        <p th:if="${#lists.isEmpty(comparacao.temas)}">Nenhum dos candidatos selecionados possui propostas registradas.</p>
+
+        <div th:unless="${#lists.isEmpty(comparacao.temas)}" style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; background: var(--superficie);">
+                <caption class="sr-only">Comparação lado a lado de propostas por tema</caption>
+                <thead>
+                <tr>
+                    <th scope="col" style="padding: 0.5rem; text-align: left; border-bottom: 2px solid var(--borda);">Tema</th>
+                    <th th:each="cand : ${comparacao.candidatos}" scope="col"
+                        style="padding: 0.5rem; text-align: left; border-bottom: 2px solid var(--borda);">
+                        <a th:href="@{/eleicoes-publicas/candidatos/{id}(id=${cand.id})}"
+                           th:text="${cand.nomeUrna}">Candidato</a>
+                        <div class="fonte" th:text="|${cand.numero} · ${cand.partidoSigla}|">13 · PT</div>
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="linha : ${comparacao.temas}">
+                    <th scope="row" th:text="${linha.tema}"
+                        style="padding: 0.5rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--borda);">Tema</th>
+                    <td th:each="col : ${linha.porCandidato}"
+                        style="padding: 0.5rem; vertical-align: top; border-bottom: 1px solid var(--borda);">
+                        <p th:if="${#lists.isEmpty(col.propostas)}" class="fonte" style="margin: 0;">Sem proposta registrada.</p>
+                        <ul th:unless="${#lists.isEmpty(col.propostas)}" style="margin: 0; padding-left: 1rem;">
+                            <li th:each="p : ${col.propostas}" style="margin-bottom: 0.5rem;">
+                                <strong th:text="${p.titulo}">Título</strong>
+                                <p th:text="${p.descricao}" style="margin: 0.25rem 0;"></p>
+                                <p th:replace="~{eleicoes-publicas/fonte :: fonte(${p.fonte})}"></p>
+                            </li>
+                        </ul>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+</body>
+</html>

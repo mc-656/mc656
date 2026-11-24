@@ -2,6 +2,7 @@ package com.unicamp.engsoft.eleicao.votacao.service;
 
 import com.unicamp.engsoft.eleicao.shared.exception.RecursoNaoEncontradoException;
 import com.unicamp.engsoft.eleicao.votacao.domain.EstadoVotacao;
+import com.unicamp.engsoft.eleicao.votacao.domain.TipoVotacao;
 import com.unicamp.engsoft.eleicao.votacao.domain.TransicaoInvalidaException;
 import com.unicamp.engsoft.eleicao.votacao.domain.Votacao;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
@@ -27,6 +28,9 @@ public class GuardaRegrasConfiguradas implements GuardaPublicacao {
                 votacaoRepository
                         .findById(votacaoId)
                         .orElseThrow(() -> new RecursoNaoEncontradoException("Votação", votacaoId));
+        if (votacao.getTipo() != TipoVotacao.ELEICAO_PRIVADA) {
+            return;
+        }
         if (votacao.getRegras() == null) {
             throw new TransicaoInvalidaException(
                     votacaoId,
