@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title th:text="|Propostas · ${v.nome}|">Propostas</title>
+    <link rel="stylesheet" th:href="@{/css/votacoes.css}">
+</head>
+<body>
+<main layout:fragment="conteudo" class="cartao largo">
+    <header th:replace="~{votacoes/fragmentos :: cabecalho(${v}, 'propostas')}"></header>
+    <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
+    <p th:unless="${editavel}" th:replace="~{votacoes/fragmentos :: bloqueada}"></p>
+
+    <div th:each="aviso : ${avisos}" class="alerta" role="status">
+        <p th:text="${aviso}"></p>
+    </div>
+
+    <section aria-labelledby="titulo-orcamento">
+        <h2 id="titulo-orcamento">Orçamento total</h2>
+        <p>Orçamento atual:
+            <strong th:text="${orcamentoTotal != null ? orcamentoTotal : 'Não definido'}">0</strong>
+        </p>
+
+        <form th:if="${editavel}" th:action="@{/votacoes/{id}/orcamento(id=${v.id})}"
+              th:object="${orcamentoForm}" method="post" class="formulario">
+            <div th:if="${#fields.hasGlobalErrors()}" class="alerta erro" role="alert">
+                <p th:each="e : ${#fields.globalErrors()}" th:text="${e}"></p>
+            </div>
+            <div class="campo">
+                <label for="orcamentoTotal">Definir orçamento total (pontos)</label>
+                <input id="orcamentoTotal" type="number" step="0.01" min="0.01"
+                       th:field="*{orcamentoTotal}" required>
+                <p th:if="${#fields.hasErrors('orcamentoTotal')}"
+                   th:errors="*{orcamentoTotal}" class="erro-campo"></p>
+            </div>
+            <button type="submit">Salvar orçamento</button>
+        </form>
+    </section>
+
+    <section th:if="${editavel}" aria-labelledby="titulo-nova-proposta">
+        <h2 id="titulo-nova-proposta">Cadastrar proposta</h2>
+        <form th:action="@{/votacoes/{id}/propostas(id=${v.id})}"
+              th:object="${propostaForm}" method="post" class="formulario">
+            <div th:if="${#fields.hasGlobalErrors()}" class="alerta erro" role="alert">
+                <p th:each="e : ${#fields.globalErrors()}" th:text="${e}"></p>
+            </div>
+            <div class="campo">
+                <label for="tituloProposta">Título</label>
+                <input id="tituloProposta" type="text" th:field="*{titulo}" maxlength="100" required>
+                <p th:if="${#fields.hasErrors('titulo')}" th:errors="*{titulo}" class="erro-campo"></p>
+            </div>
+            <div class="campo">
+                <label for="descricaoProposta">Descrição</label>
+                <textarea id="descricaoProposta" th:field="*{descricao}" maxlength="500" rows="3" required></textarea>
+                <p th:if="${#fields.hasErrors('descricao')}" th:errors="*{descricao}" class="erro-campo"></p>
+            </div>
+            <div class="campo">
+                <label for="custoProposta">Custo (pontos)</label>
+                <input id="custoProposta" type="number" step="0.01" min="0.01" th:field="*{custo}" required>
+                <p th:if="${#fields.hasErrors('custo')}" th:errors="*{custo}" class="erro-campo"></p>
+            </div>
+            <button type="submit">Adicionar proposta</button>
+        </form>
+    </section>
+
+    <section aria-labelledby="titulo-lista-propostas">
+        <h2 id="titulo-lista-propostas">Propostas cadastradas</h2>
+        <p th:if="${#lists.isEmpty(propostas)}">Nenhuma proposta cadastrada até o momento.</p>
+
+        <ul th:unless="${#lists.isEmpty(propostas)}" class="lista-votacoes">
+            <li th:each="p : ${propostas}">
+                <div>
+                    <strong th:text="${p.titulo}">Título</strong>
+                    <span class="etiqueta" th:text="|Custo: ${p.custo}|">Custo: 0</span>
+                    <p th:text="${p.descricao}" class="suave" style="margin: 0.25rem 0;"></p>
+                </div>
+                <div th:if="${editavel}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <details>
+                        <summary style="cursor: pointer;">Editar</summary>
+                        <form th:action="@{/votacoes/{id}/propostas/{pid}/editar(id=${v.id}, pid=${p.id})}"
+                              method="post" class="formulario" style="margin-top: 0.5rem;">
+                            <div class="campo">
+                                <label th:for="|titulo-${p.id}|">Título</label>
+                                <input th:id="|titulo-${p.id}|" type="text" name="titulo"
+                                       th:value="${p.titulo}" maxlength="100" required>
+                            </div>
+                            <div class="campo">
+                                <label th:for="|descricao-${p.id}|">Descrição</label>
+                                <textarea th:id="|descricao-${p.id}|" name="descricao"
+                                          maxlength="500" rows="2" required th:text="${p.descricao}"></textarea>
+                            </div>
+                            <div class="campo">
+                                <label th:for="|custo-${p.id}|">Custo</label>
+                                <input th:id="|custo-${p.id}|" type="number" step="0.01" min="0.01"
+                                       name="custo" th:value="${p.custo}" required>
+                            </div>
+                            <button type="submit">Salvar alterações</button>
+                        </form>
+                    </details>
+                    <form th:action="@{/votacoes/{id}/propostas/{pid}/remover(id=${v.id}, pid=${p.id})}"
+                          method="post">
+                        <button type="submit" class="secundario">Remover</button>
+                    </form>
+                </div>
+            </li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

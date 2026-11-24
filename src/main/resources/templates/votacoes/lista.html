@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/votacoes.css}">
 </head>
 <body>
-<main layout:fragment="conteudo" class="cartao largo">
+<main layout:fragment="conteudo" id="conteudo-principal" tabindex="-1" class="cartao largo">
     <h1>Minhas votações</h1>
     <div th:replace="~{votacoes/fragmentos :: mensagens}"></div>
 
@@ -29,15 +29,22 @@
             <span class="etiqueta" th:text="${@rotulosVotacao.estado(item.estado)}">Em votação</span>
             <span class="suave">
                 <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
-                <time th:datetime="${item.inicioEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
-                a
-                <time th:datetime="${item.fimEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+                <th:block th:if="${item.inicioEm != null and item.fimEm != null}">
+                    <time th:datetime="${item.inicioEm}"
+                          th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
+                    a
+                    <time th:datetime="${item.fimEm}"
+                          th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+                </th:block>
+                <span th:if="${item.inicioEm == null or item.fimEm == null}">Período a definir</span>
             </span>
             <span th:if="${item.estado.name() == 'EmVotacao'}">
                 <a th:href="@{/votacoes/{id}/votar(id=${item.id})}" class="botao"
                    style="padding: 0.25rem 0.6rem; font-size: 0.875rem;">Votar</a>
+            </span>
+            <span th:if="${item.estado.name() == 'Encerrada' or item.estado.name() == 'Homologada' or item.estado.name() == 'Anulada'}">
+                <a th:href="@{/votacoes/{id}/resultado(id=${item.id})}" class="botao"
+                   style="padding: 0.25rem 0.6rem; font-size: 0.875rem;">Resultado</a>
             </span>
         </li>
     </ul>
@@ -51,11 +58,14 @@
             <span class="etiqueta" th:text="${@rotulosVotacao.estado(item.estado)}">Rascunho</span>
             <span class="suave">
                 <span th:text="${@rotulosVotacao.tipo(item.tipo)}">Eleição privada</span> ·
-                <time th:datetime="${item.inicioEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
-                a
-                <time th:datetime="${item.fimEm}"
-                      th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+                <th:block th:if="${item.inicioEm != null and item.fimEm != null}">
+                    <time th:datetime="${item.inicioEm}"
+                          th:text="${@rotulosVotacao.dataHora(item.inicioEm)}">01/01/2027 10:00</time>
+                    a
+                    <time th:datetime="${item.fimEm}"
+                          th:text="${@rotulosVotacao.dataHora(item.fimEm)}">02/01/2027 10:00</time>
+                </th:block>
+                <span th:if="${item.inicioEm == null or item.fimEm == null}">Período a definir</span>
             </span>
         </li>
     </ul>

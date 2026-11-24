@@ -11,6 +11,7 @@ import com.unicamp.engsoft.eleicao.votacao.dto.ConfigurarRegrasRequest;
 import com.unicamp.engsoft.eleicao.votacao.dto.CriarVotacaoRequest;
 import com.unicamp.engsoft.eleicao.votacao.repository.PapelVotacaoRepository;
 import com.unicamp.engsoft.eleicao.votacao.repository.VotacaoRepository;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -76,6 +77,13 @@ public class VotacaoService {
         return regra;
     }
 
+    @Transactional
+    public Votacao definirPeriodo(UUID votacaoId, Instant inicio, Instant fim) {
+        Votacao votacao = exigenciaDeEstado.exigir(votacaoId, OperacaoVotacao.CONFIGURAR_PERIODO);
+        votacao.definirPeriodo(inicio, fim);
+        return votacao;
+    }
+
     /** Votação pelo id, para exibição (views do M1, #67). */
     @Transactional(readOnly = true)
     public Votacao buscar(UUID votacaoId) {
@@ -98,7 +106,10 @@ public class VotacaoService {
                         .map(p -> p.getId().getVotacaoId())
                         .toList();
         return votacaoRepository.findAllById(ids).stream()
-                .sorted(Comparator.comparing(Votacao::getInicioEm).reversed())
+                .sorted(
+                        Comparator.comparing(
+                                Votacao::getInicioEm,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
     }
 
@@ -112,7 +123,10 @@ public class VotacaoService {
                         .map(p -> p.getId().getVotacaoId())
                         .toList();
         return votacaoRepository.findAllById(ids).stream()
-                .sorted(Comparator.comparing(Votacao::getInicioEm).reversed())
+                .sorted(
+                        Comparator.comparing(
+                                Votacao::getInicioEm,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
     }
 }
